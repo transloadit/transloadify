@@ -106,9 +106,9 @@ export GOPATH=~/go
 ```bash
 mkdir -p $GOPATH/src/github.com/transloadit && \
  cd $_ && \
- git clone https://github.com/transloadit/go-sdk.git && \
- cd go-sdk && \
- go get github.com/transloadit/go-sdk/transloadify
+ git clone https://github.com/transloadit/go-sdk && \
+ git clone https://github.com/transloadit/transloadify && \
+ cd transloadify
 ```
 
 ### Run transloadify in debug mode

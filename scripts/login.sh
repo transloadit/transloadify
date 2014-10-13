@@ -42,7 +42,7 @@ echo ""
 export PATH=$PATH:/usr/local/go/bin
 export GOPATH=~/go
 
-cd /usr/src/go-sdk/
+cd /usr/src/transloadify/
 
 # Install this on login
 if ! cat ~/.bashrc |grep "${__file}" > /dev/null 2>&1; then

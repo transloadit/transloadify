@@ -57,7 +57,7 @@ for arch in $(echo ${archs}); do
         --location \
         --retry-delay 60 \
         --output "./${basename}.zip" \
-      "http://gobuild.io/github.com/transloadit/go-sdk/transloadify/${version}/${os}/${arch}"
+      "http://gobuild.io/github.com/transloadit/transloadify/${version}/${os}/${arch}"
 
       unzip -o *.zip || (head -n2 *.zip; false) # <-- we probably downloaded an error message
       rm *.zip

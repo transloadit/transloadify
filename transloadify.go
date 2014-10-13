@@ -153,7 +153,7 @@ end script`
 	cmd := os.Args[0]
 
 	if strings.HasPrefix(cmd, "/tmp/go-build") {
-		cmd = "go run /usr/src/go-sdk/transloadify/transloadify.go"
+		cmd = "go run /usr/src/transloadify/transloadify.go"
 	}
 
 	if Input != "" {

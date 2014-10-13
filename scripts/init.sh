@@ -3,7 +3,7 @@
 #
 # This file:
 #
-#  - Installs Ubuntu dependencies of Transloadit's go-sdk
+#  - Installs Ubuntu dependencies of Transloadify
 #
 # Run as:
 #
@@ -45,6 +45,6 @@ if ! dpkg -S git-core >/dev/null 2>&1; then
 fi
 
 export GOPATH=~/go
-go get github.com/transloadit/go-sdk/transloadify
+go get github.com/transloadit/transloadify
 
 echo "Init done."
