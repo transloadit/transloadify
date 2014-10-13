@@ -10,7 +10,7 @@ build:
 
 release:
 	$(MAKE) build
-	$(MAKE) test
+	# $(MAKE) test
 	git status && echo "--> Please first commit your work" && false
 	./scripts/bump.sh ./VERSION $(bump)
 	git commit ./VERSION -m "Release $$(cat VERSION)"
