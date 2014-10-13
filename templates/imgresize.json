@@ -1,0 +1,15 @@
+{
+	"optimize": {
+		"robot"   : "/image/optimize",
+		"use"     : ":original",
+		"png_tool": "pngquant"
+	},
+	"resize": {
+		"robot"          : "/image/resize",
+		"use"            : "optimize",
+		"background"     : "#ff0000",
+		"height"         : 175,
+		"resize_strategy": "pad",
+		"width"          : 175
+	}
+}

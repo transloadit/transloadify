@@ -1,0 +1,295 @@
+{
+  "original_video": {
+    "use"             : ":original",
+    "robot"           : "/file/filter",
+    "error_on_decline": false,
+    "result"          : true,
+    "accepts": [
+      [ "${file.mime}", "regex", "video" ]
+    ]
+  },
+  "mp4": {
+    "use"            : "original_video",
+    "robot"          : "/video/encode",
+    "resize_strategy": "fit",
+    "ffmpeg_stack"   : "v2.2.3",
+    "ffmpeg"         : {
+      "codec:a"  : "libfdk_aac",
+      "b:a"      : 128000,
+      "r:a"      : 44100,
+      "vcodec"   : "libx264",
+      "b:v"      : 400000,
+      "pix_fmt"  : "yuv420p",
+      "profile:v": "main",
+      "level"    : "3.1",
+      "r:v"      : 29.97,
+      "f"        : "mp4",
+      "crf"      : 24
+    }
+  },
+  "gt_360": {
+    "use"    : "mp4",
+    "robot"  : "/file/filter",
+    "accepts": [
+      [ "${file.meta.width}", ">=", "480" ],
+      [ "${file.meta.height}", ">=", "360" ]
+    ]
+  },
+  "gt_540": {
+    "use"     : "mp4",
+    "robot"   : "/file/filter",
+    "declines": [
+      [ "${file.meta.width}", "<", "720" ],
+      [ "${file.meta.height}", "<", "540" ]
+    ]
+  },
+  "gt_720": {
+    "use"     : "mp4",
+    "robot"   : "/file/filter",
+    "declines": [
+      [ "${file.meta.width}", "<", "960" ],
+      [ "${file.meta.height}", "<", "720" ]
+    ]
+  },
+  "segmented/234p": {
+    "use"           : "mp4",
+    "result"        : true,
+    "robot"         : "/video/encode",
+    "width"         : 416,
+    "height"        : 234,
+    "segment"       : true,
+    "segment_prefix": "",
+    "ffmpeg_stack"  : "v2.2.3",
+    "ffmpeg"        : {
+      "vcodec"            : "libx264",
+      "pix_fmt"           : "yuv420p",
+      "s"                 : "416x234",
+      "crf"               : 44,
+      "g"                 : 120,
+      "vf"                : "fps=fps=12",
+      "b:v"               : 100000,
+      "maxrate"           : 150000,
+      "bufsize"           : 150000,
+      "codec:a"           : "libmp3lame",
+      "b:a"               : 32000,
+      "r:a"               : 44100,
+      "map"               : 0,
+      "profile:v"         : "baseline",
+      "level"             : "3.0",
+      "preset"            : "slow",
+      "threads"           : 3,
+      "sc_threshold"      : 0,
+      "segment_time"      : 10,
+      "segment_time_delta": 0
+    }
+  },
+  "playlist/234p.m3u8": {
+    "robot"          : "/media/playlist",
+    "result"         : true,
+    "round_durations": true,
+    "relative_to"    : "/234p/",
+    "resolution"     : "416x234",
+    "codecs"         : "avc1.42001e,mp4a.40.34",
+    "use"            : {
+      "steps"       : "segmented/234p",
+      "bundle_steps": true
+    }
+  },
+  "segmented/270p": {
+    "use"           : "mp4",
+    "result"        : true,
+    "robot"         : "/video/encode",
+    "width"         : 480,
+    "height"        : 270,
+    "segment"       : true,
+    "segment_prefix": "",
+    "ffmpeg_stack"  : "v2.2.3",
+    "ffmpeg"        : {
+      "vcodec"            : "libx264",
+      "pix_fmt"           : "yuv420p",
+      "s"                 : "480x270",
+      "crf"               : 28,
+      "vf"                : "fps=fps=12",
+      "g"                 : 30,
+      "b:v"               : 200000,
+      "maxrate"           : 275000,
+      "bufsize"           : 275000,
+      "codec:a"           : "libmp3lame",
+      "b:a"               : 32000,
+      "r:a"               : 44100,
+      "ac"                : 2,
+      "map"               : 0,
+      "profile:v"         : "baseline",
+      "level"             : "3.0",
+      "preset"            : "slow",
+      "threads"           : 3,
+      "sc_threshold"      : 0,
+      "segment_time"      : 10,
+      "segment_time_delta": 0
+    }
+  },
+  "playlist/270p.m3u8": {
+    "robot"          : "/media/playlist",
+    "result"         : true,
+    "round_durations": true,
+    "relative_to"    : "/270p/",
+    "resolution"     : "480x270",
+    "codecs"         : "avc1.42001e,mp4a.40.34",
+    "use"            : {
+      "bundle_steps": true,
+      "steps"       : "segmented/270p"
+    }
+  },
+  "segmented/360p": {
+    "use"           : "gt_360",
+    "result"        : true,
+    "robot"         : "/video/encode",
+    "width"         : 640,
+    "height"        : 360,
+    "segment"       : true,
+    "segment_prefix": "",
+    "ffmpeg_stack"  : "v2.2.3",
+    "ffmpeg"        : {
+      "vcodec"            : "libx264",
+      "pix_fmt"           : "yuv420p",
+      "s"                 : "640x360",
+      "crf"               : 28,
+      "r:v"               : 29.97,
+      "g"                 : 30,
+      "b:v"               : 400000,
+      "maxrate"           : 600000,
+      "bufsize"           : 600000,
+      "codec:a"           : "libmp3lame",
+      "b:a"               : 64000,
+      "r:a"               : 44100,
+      "ac"                : 2,
+      "map"               : 0,
+      "profile:v"         : "baseline",
+      "level"             : "3.0",
+      "preset"            : "slow",
+      "threads"           : 3,
+      "sc_threshold"      : 0,
+      "segment_time"      : 10,
+      "segment_time_delta": 0
+    }
+  },
+  "playlist/360p.m3u8": {
+    "robot"          : "/media/playlist",
+    "result"         : true,
+    "round_durations": true,
+    "relative_to"    : "/360p/",
+    "resolution"     : "640x360",
+    "codecs"         : "avc1.42001e,mp4a.40.34",
+    "use"            : {
+      "bundle_steps": true,
+      "steps"       : "segmented/360p"
+    }
+  },
+  "segmented/540p": {
+    "result"        : true,
+    "use"           : "gt_540",
+    "robot"         : "/video/encode",
+    "width"         : 960,
+    "height"        : 540,
+    "segment"       : true,
+    "segment_prefix": "",
+    "ffmpeg_stack"  : "v2.2.3",
+    "ffmpeg"        : {
+      "vcodec"            : "libx264",
+      "pix_fmt"           : "yuv420p",
+      "s"                 : "960x540",
+      "crf"               : 28,
+      "r:v"               : 29.97,
+      "g"                 : 30,
+      "b:v"               : 800000,
+      "maxrate"           : 1400000,
+      "bufsize"           : 1400000,
+      "codec:a"           : "libmp3lame",
+      "b:a"               : 64000,
+      "r:a"               : 44100,
+      "ac"                : 2,
+      "map"               : 0,
+      "profile:v"         : "main",
+      "level"             : "3.1",
+      "preset"            : "slow",
+      "threads"           : 3,
+      "sc_threshold"      : 0,
+      "segment_time"      : 10,
+      "segment_time_delta": 0
+    }
+  },
+  "playlist/540p.m3u8": {
+    "result"         : true,
+    "robot"          : "/media/playlist",
+    "round_durations": true,
+    "relative_to"    : "/540p/",
+    "resolution"     : "960x540",
+    "codecs"         : "avc1.4d001f,mp4a.40.34",
+    "use"            : {
+      "bundle_steps": true,
+      "steps"       : "segmented/540p"
+    }
+  },
+  "segmented/720p": {
+    "result"        : true,
+    "use"           : "gt_720",
+    "robot"         : "/video/encode",
+    "width"         : 1280,
+    "height"        : 720,
+    "segment"       : true,
+    "segment_prefix": "",
+    "ffmpeg_stack"  : "v2.2.3",
+    "ffmpeg"        : {
+      "vcodec"            : "libx264",
+      "pix_fmt"           : "yuv420p",
+      "s"                 : "1280x720",
+      "crf"               : 28,
+      "r:v"               : 29.97,
+      "g"                 : 30,
+      "b:v"               : 1600000,
+      "maxrate"           : 2400000,
+      "bufsize"           : 2400000,
+      "codec:a"           : "libmp3lame",
+      "b:a"               : 64000,
+      "r:a"               : 44100,
+      "ac"                : 2,
+      "map"               : 0,
+      "profile:v"         : "main",
+      "level"             : "3.1",
+      "preset"            : "slow",
+      "threads"           : 3,
+      "sc_threshold"      : 0,
+      "segment_time"      : 10,
+      "segment_time_delta": 0
+    }
+  },
+  "playlist/720p.m3u8": {
+    "result"         : true,
+    "robot"          : "/media/playlist",
+    "round_durations": true,
+    "relative_to"    : "/720p/",
+    "codecs"         : "avc1.4d001f,mp4a.40.34",
+    "resolution"     : "1280x720",
+    "use"            : {
+      "bundle_steps": true,
+      "steps"       : "segmented/720p"
+    }
+  },
+  "playlist": {
+    "robot"          : "/media/playlist",
+    "result"         : true,
+    "bandwidth"      : "auto",
+    "round_durations": true,
+    "relative_to"    : "${fields.path}/",
+    "use"            : {
+      "bundle_steps": true,
+      "steps"       : [
+        "playlist/234p.m3u8",
+        "playlist/270p.m3u8",
+        "playlist/360p.m3u8",
+        "playlist/540p.m3u8",
+        "playlist/720p.m3u8"
+      ]
+    }
+  }
+}
