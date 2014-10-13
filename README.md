@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/transloadit/transloadify.svg)](https://travis-ci.org/transloadit/transloadify)
+
 # transloadify
 
 `transloadify` is a commandline utility to convert local media using [Transloadit](https://transloadit.com), without writing a single line of code.
