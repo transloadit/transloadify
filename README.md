@@ -1,8 +1,10 @@
 # transloadify
 
-[Transloadit](https://transloadit.com) utility - convert your local media without writing a single line of code
+`transloadify` is a commandline utility to convert local media using [Transloadit](https://transloadit.com), without writing a single line of code.
 
-`transloadify` provides the functionality of our Go SDK's [`Client.Watch`](http://godoc.org/github.com/transloadit/go-sdk#Client.Watch) for simple watching and automated uploading and processing of files. This way you don't have to write a single line of code to get an existing folder converted, even when new files get added to it
+`transloadify` comes as binaries for all platforms and can monitor directories for incoming media files.
+
+`transloadify` if built on top of the [Transloadit Go SDK](https://github.com/transloadit/go-sdk)
 
 ```bash
 # Use -h for more help
