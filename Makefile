@@ -11,7 +11,7 @@ build:
 release:
 	$(MAKE) build
 	# $(MAKE) test
-	@git status && (echo "--> Please first commit your work" && false)
+	git status || (echo "--> Please first commit your work" && false)
 	./scripts/bump.sh ./VERSION $(bump)
 	git commit ./VERSION -m "Release $$(cat VERSION)"
 	git tag $$(cat VERSION)
