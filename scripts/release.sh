@@ -14,6 +14,12 @@
 #
 #  - Kevin van Zonneveld <kevin@transloadit.com>
 
+# At one point, do windows compiling locally: http://stackoverflow.com/questions/12168873/cross-compile-go-on-osx
+# GOOS=${os} CGO_ENABLED=0 GOARCH=${arch} go build -o bin/transloadify transloadify.go
+# ARCHIVE=transloadify-${os}-${arch}.tar.gz
+# tar czf ${ARCHIVE} transloadify
+# echo ${ARCHIVE}
+
 set -o pipefail
 set -o errexit
 set -o nounset
@@ -43,28 +49,23 @@ for arch in $(echo ${archs}); do
     rm -rf "${tmpdir}"
     mkdir -p "${tmpdir}"
     pushd "${tmpdir}"
-      GOOS=${os} CGO_ENABLED=0 GOARCH=${arch} go build -o bin/transloadify transloadify/transloadify.go
-      ARCHIVE=transloadify-${os}-${arch}.tar.gz
-      tar czf ${ARCHIVE} transloadify
-      echo ${ARCHIVE}
+      # I think gobuild has a rate-limiter, hence the retry delay
+      curl \
+        --retry 3 \
+        --progress-bar \
+        --location \
+        --retry-delay 60 \
+        --output "./${basename}.zip" \
+      "http://gobuild.io/github.com/transloadit/go-sdk/transloadify/${version}/${os}/${arch}"
 
-      # # I think gobuild has a rate-limiter, hence the retry delay
-      # curl \
-      #   --retry 3 \
-      #   --progress-bar \
-      #   --location \
-      #   --retry-delay 60 \
-      #   --output "./${basename}.zip" \
-      # "http://gobuild.io/github.com/transloadit/go-sdk/transloadify/${version}/${os}/${arch}"
+      unzip -o *.zip || (head -n2 *.zip; false) # <-- we probably downloaded an error message
+      rm *.zip
 
-      # unzip -o *.zip || (head -n2 *.zip; false) # <-- we probably downloaded an error message
-      # rm *.zip
+      aws s3 cp --acl public-read "transloadify${extension}" "s3://releases.transloadit.com/transloadify/${basename}${extension}"
+      echo "--> Saved as http://releases.transloadit.com/transloadify/${basename}${extension}"
 
-      # aws s3 cp --acl public-read "transloadify${extension}" "s3://releases.transloadit.com/transloadify/${basename}${extension}"
-      # echo "--> Saved as http://releases.transloadit.com/transloadify/${basename}${extension}"
-
-      # aws s3 cp --acl public-read "s3://releases.transloadit.com/transloadify/${basename}${extension}" "s3://releases.transloadit.com/transloadify/${latest}${extension}"
-      # echo "--> Saved as http://releases.transloadit.com/transloadify/${latest}${extension}"
+      aws s3 cp --acl public-read "s3://releases.transloadit.com/transloadify/${basename}${extension}" "s3://releases.transloadit.com/transloadify/${latest}${extension}"
+      echo "--> Saved as http://releases.transloadit.com/transloadify/${latest}${extension}"
     popd
   done
 done
