@@ -52,6 +52,7 @@ for arch in $(echo ${archs}); do
       # I think gobuild has a rate-limiter, hence the retry delay
       curl \
         --retry 3 \
+        --verbose \
         --progress-bar \
         --location \
         --retry-delay 60 \
