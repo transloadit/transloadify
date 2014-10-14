@@ -10,8 +10,8 @@ build:
 
 release:
 	$(MAKE) build
-	# $(MAKE) test
-	git status || (echo "--> Please first commit your work" && false)
+	$(MAKE) test
+	git diff --quiet HEAD || (echo "--> Please first commit your work" && false)
 	./scripts/bump.sh ./VERSION $(bump)
 	git commit ./VERSION -m "Release $$(cat VERSION)"
 	git tag $$(cat VERSION)
