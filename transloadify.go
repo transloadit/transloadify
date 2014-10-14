@@ -67,7 +67,7 @@ func main() {
 	config.AuthKey = AuthKey
 	config.AuthSecret = AuthSecret
 
-	client, err := transloadit.NewClient(&config)
+	client, err := transloadit.NewClient(config)
 	if err != nil {
 		log.Fatal(err)
 	}
