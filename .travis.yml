@@ -13,8 +13,8 @@ env: "PATH=/home/travis/gopath/bin:$PATH"
 script:
 - make build
 - echo $TRAVIS_GO_VERSION
-- if [[ $TRAVIS_GO_VERSION == 1.3* ]]; then go get github.com/laher/goxc; fi
-- if [[ $TRAVIS_GO_VERSION == 1.3* ]]; then goxc -d . -bc="darwin,windows,linux"; fi
+- if [[ $TRAVIS_GO_VERSION == go1.3* ]]; then go get github.com/laher/goxc; fi
+- if [[ $TRAVIS_GO_VERSION == go1.3* ]]; then goxc -d . -bc="darwin,windows,linux"; fi
 # travis encrypt [subdomain]:[api token]@[room id]
 notifications:
   email: false
@@ -39,4 +39,4 @@ deploy:
   on:
     tags: true
     all_branches: true
-    go: 1.3
+    condition: "$TRAVIS_GO_VERSION == go1.3*"
