@@ -9,8 +9,12 @@ matrix:
   - go: tip
 before_install:
 - go get .
+- go get github.com/laher/goxc
+env: "PATH=/home/travis/gopath/bin:$PATH"
 script:
 - make build
+- goxc -d . -bc="darwin,windows,linux"
+# travis encrypt [subdomain]:[api token]@[room id]
 notifications:
   email: false
   campfire:
@@ -18,15 +22,20 @@ notifications:
       secure: LuXd8n73TVzFDwkzSpl08mnAGSShbeel3es63++2yxQxzX2QuXC7+abts9TqtXiC8pK50V6bXpU8+e1tBq7m5J727mS7vuu6pt6nf82QaXtqhAd+Egt8NR8Sbpb4guLQFHrdjn4jssyqAnG8fEfjK2Piyx8ugCvtfSkftUiMY8U=
     on_failure: always
     on_success: always
-env:
-  global:
-  - secure: wGKrsYBSuI4NhxcveqjQGCuY1Jcrh6iF59FEZS8ipWVSIqp2sMQU3K7LqgeUVnyCqXT0LsuLFMPhKDHc8My+aFno85jrmkJo7+gvBnCQC/f5/7Ee3r4LdEgmv4dIRrsItYir/ez/KIQ2BtynWEdLk8/afgNCOF9IjvtX6XneDYg=
-  - secure: chRxpyqy+3MH98lIo+StQAsSHtAirQfD5yguOmmUet2gXeQmW1r4/Bfyvd3VN15DVGMgWlB6I5oKEwVNJp28DWrlBhXM+U80fQGiUwVVuvXUnnDFJGbp7WJSYJs5XX4vHtWN148kv6lQSOHBVRE0HBn9vTmOIYYJqcUNOfZNlJQ=
-  - secure: GfSX6bizEA+D8S6kEDbm5uZNvDQc1KEEvqZ5E0a8erNUWwswf7vTzLHIq6qcY80i+FlmBIEZ5rEQxaWi73bSyjb4oPnaOKkyzMPqTVNxScwBLDOXUeSHzROVYCBjIfZw43gr4fzcezPtzy5wgFtcqEClImO1pLN5mUGcSTsyQzI=
 deploy:
   provider: releases
   api_key:
     secure: HqzAaZsAVDwpdeCOWzsYmteDG+IaGspBCiXQ7S5awK4srYM0s6j2kSBSBQQsX4oyEGibJ8b4jBO9/cX74kfg+ImrjWH+Cmvj0lj8LAVG/8UnVwO+VIPeaORL3kuUZMECJbWHhTl55TlQ3OpdpWnlkUGkPUABCDAjem/a2Drub84=
-  file: foobar
+  file:
+  - snapshot/transloadify_windows_386.zip
+  - snapshot/transloadify_windows_amd64.zip
+  - snapshot/transloadify_darwin_386.zip
+  - snapshot/transloadify_darwin_amd64.zip
+  - snapshot/transloadify_linux_386.tar.gz
+  - snapshot/transloadify_linux_arm.tar.gz
+  - snapshot/transloadify_linux_amd64.tar.gz
+  skip_cleanup: true
   on:
-    repo: transloadit/transloadify
+    tags: true
+    all_branches: true
+    go: 1.3
