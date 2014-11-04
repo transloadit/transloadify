@@ -12,9 +12,9 @@ release:
 	$(MAKE) build
 	$(MAKE) test
 	git diff --quiet HEAD || (echo "--> Please first commit your work" && false)
-	./scripts/bump.sh ./VERSION $(bump)
-	git commit ./VERSION -m "Release $$(./scripts/bump.sh ./VERSION)"
-	git tag $$(./scripts/bump.sh ./VERSION)
+	./node_modules/src/bump.sh ./VERSION $(bump)
+	git commit ./VERSION -m "Release $$(./node_modules/src/bump.sh ./VERSION)"
+	git tag $$(./node_modules/src/bump.sh ./VERSION)
 	git push --tags || true
 
 install:
