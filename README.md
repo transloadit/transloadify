@@ -75,7 +75,7 @@ sudo stop transloadify
 sudo status transloadify
 ```
 
-Logs will be written to syslog under the `transloadify` tag so you can redirect them using e.g. rsyslog, but by default they're accessible in the mail `syslog`
+Logs will be written to syslog under the `transloadify` tag so you can redirect them using e.g. rsyslog, but by default they're accessible in the main `syslog`
 
 ```bash
 sudo tail -f /var/log/syslog
