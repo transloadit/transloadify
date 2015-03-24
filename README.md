@@ -4,7 +4,9 @@
 
 `transloadify` is a commandline utility to convert local media using [Transloadit](https://transloadit.com), without writing a single line of code.
 
-`transloadify` comes as binaries for all platforms and can monitor directories for incoming media files.
+![transloadify](https://cloud.githubusercontent.com/assets/26752/6804908/9230d0b4-d240-11e4-9adb-01ecf0036196.gif)
+
+`transloadify` comes as binaries for all (main) platforms and can monitor directories for incoming media files.
 
 `transloadify` if built on top of the [Transloadit Go SDK](https://github.com/transloadit/go-sdk)
 
