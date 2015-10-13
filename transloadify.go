@@ -104,7 +104,10 @@ func main() {
 		select {
 		case err := <-watcher.Error:
 			log.Printf("error: %s", err)
-		case file := <-watcher.Change:
+		case file, more := <-watcher.Change:
+			if !more {
+				return
+			}
 			log.Printf("Detected change for '%s'. Starting conversion...", file)
 		case info := <-watcher.Done:
 			log.Printf("Successfully converted '%s'.", info.Uploads[0].Name)
