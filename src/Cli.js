@@ -43,14 +43,10 @@ export default function cli(...args) {
     return modeDispatch(options, targets);
 }
 
-const modes = [ "register", "process", "list", "info", "cancel", "replay",
-                "create-template", "template-info", "edit-template",
-                "delete-template", "list-templates", "bill", "help", "version" ];
-
 function generalValidation(options) {
     let modesSpecified = [];
     for (let option of options) {
-       if (modes.includes(option.name)) {
+       if (option.name in subcommands) {
            modesSpecified.push(option.name);
            if (modesSpecified.length > 1) {
                return {
@@ -98,3 +94,151 @@ function generalValidation(options) {
        }
     }
 }
+
+function modeDispatch(opts, tgts) {
+    let mode;
+    for (option of options) {
+        if (option.name in subcommands) {
+            mode = option;
+            break;
+        }
+    }
+
+    if (!mode) mode = opts.length === 0 ? "register" : "process";
+
+    return subcommands[mode](opts, tgts);
+}
+
+function allowOptions(optClassFn, msgfn) {
+    return (opts, tgts) => {
+        let invalid = opts.filter(optClassFn);
+        if (invalid.length > 0) {
+            return {
+                error: "INVALID_OPTION",
+                message: msgfn(invalid[0])
+            };
+        }
+    };
+}
+
+function nOfOptionPresent(optClassFn, low, high, msgfn) {
+    return (opts, tgts) => {
+        let relevantOpts = opts.filter(optClassFn);
+        if (!(low <= relevantOpts.length && relevantOpts.length <= high)) {
+            return {
+                error: "INVALID_OPTION",
+                message: msgfn(relevantOpts[0])
+            };
+        }
+    };
+}
+
+function validate(opts, tgts, ...constraints) {
+    for (let constraint of constraints) {
+        let err = constraint(opts, tgts);
+        if (err) return err;
+    }
+}
+
+const subcommands = {
+    register(opts, tgts) {
+        let err = validate(opts, tgts,
+            relevantOpts = opt
+        // if (opts.filter(opt => opt.name !== "register").length !== 0) {
+        //     return {
+        //         error: "INVALID_OPTION",
+        //         message: "--register doesn't accept any options"
+        //     };
+        // }
+        //
+        // if (tgts.length > 0) {
+        //     return {
+        //         error: "INVALID_TARGET",
+        //         message: "too many arguments passed to --register"
+        //     };
+        // }
+    },
+    
+    process(opts, tgts) {
+        let instructions = opts.filter(opt => ["steps", "template"].includes(opt.name));
+        if (instructions.length > 1) {
+            return {
+                error: "INVALID_OPTION",
+                option: instructions[1].name,
+                message: "--process accepts only one of --steps and --template"
+            };
+        }
+        if (instructions.length === 0) {
+            return {
+                error: "REQUIRED_OPTION",
+                option: "process",
+                message: "--process requires one of --steps or --template"
+            };
+        }
+
+        instructions = instructions[0];
+
+        if (opts.filter(opt => opt.name === "output").length > 1) {
+            return {
+                error: "INVALID_OPTION",
+                option: "output",
+                message: "--process accepts at most one --output"
+            };
+        }
+    },
+
+    list(opts, tgts) {
+        for (let flag of ["before", "after", "fields"]) {
+            if (opts.filter(opt => opt.name === flag).length > 1) {
+                return {
+                    error: "INVALID_OPTION",
+                    option: flag,
+                    message: `--list accepts at most one --${flag}`
+                };
+            }
+        }
+
+        if (tgts.length > 0) {
+            return {
+                error: "INVALID_TARGET",
+                message: "too many arguments passed to --list"
+            };
+        }
+    },
+
+    info(opts, tgts) {
+        if (opts.filter(opt => opt.name !== "info")) {
+            return {
+                error: "INVALID_OPTION",
+                message: "--info doesn't accept any options"
+            };
+        }
+
+        if (tgts.length === 0) {
+            return {
+                error: "REQUIRED_TARGET",
+                option: "info",
+                message: "no assemblies specified"
+            };
+        }
+    },
+
+    cancel(opts, tgts) {
+        if (opts.filter(opt => opt.name !== "cancel")) {
+            return {
+                error: "INVALID_OPTION",
+                message: "--cancel doesn't accept any options"
+            };
+        }
+
+        if (tgts.length === 0) {
+            return {
+                error: "REQUIRED_TARGET",
+                option: "info",
+                message: "no assemblies specified"
+            };
+        }
+    },
+
+    replay(opts, tgts) {
+        if
