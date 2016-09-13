@@ -6,10 +6,10 @@ Usage:
   transloadify --list [--after DATE] [--before DATE] [--keywords LIST] [--fields LIST]
   transloadify --info ASSEMBLY_IDS...
   transloadify --cancel ASSEMBLY_IDS...
-  transloadify --replay [--reparse-template] [(--fields NAME=VALUE)...] [--steps FILE] ASSEMBLY_IDS...
-  transloadify --create-template NAME [[--steps] FILE]
+  transloadify --replay [--reparse-template] [(--field NAME=VALUE)...] [--steps FILE] ASSEMBLY_IDS...
+  transloadify --create-template NAME [FILE]
   transloadify --template-info (NAME|ID)...
-  transloadify --edit-template (NAME|ID) [[--steps] FILE]
+  transloadify --edit-template (NAME|ID) [FILE]
   transloadify --delete-template (NAME|ID)...
   transloadify --list-templates [--after DATE] [--before DATE] [--sort (id|created|modified)] [--order (asc|desc)] [--fields LIST]
   transloadify --bill [MONTH...]
@@ -39,8 +39,6 @@ Options:
   --sort             Specify field to sort by.
   --order            Specify sort order.
   --bill             Fetch the bill for the current month or specified months.
-  --key -k           Specify API key. Default from environment TRANSLOADIT_KEY.
-  --secret -s        Specify API secret. Default from environment TRANSLOADIT_SECRET.
   --verbosity -v     Specify verbosity threshold (0, 1 or 2). Default 1.
   --verbose          Alias for --verbosity 2
   --quiet -q         Alias for --verbosity 0
