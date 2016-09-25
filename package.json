@@ -2,7 +2,6 @@
   "name": "transloadify",
   "version": "0.1.0",
   "description": "CLI client for transloadit",
-  "main": "index.js",
   "scripts": {
     "test": "npm-run-all build mocha",
     "mocha": "mocha --compilers js:babel-register --reporter spec test/",
@@ -13,6 +12,7 @@
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
   "dependencies": {
+    "node-watch": "0.4.0",
     "transloadit": "1.9.1"
   },
   "devDependencies": {
