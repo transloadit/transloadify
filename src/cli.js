@@ -2,33 +2,36 @@ import fs from "fs";
 import Parser from "./Parser";
 
 const parser = new Parser();
-parser.register("register", null, false);
-parser.register("process", "p", false);
+
+parser.command("mode", "register");
+parser.command("mode", "assemblies", "assembly", "a");
+parser.command("mode", "templates", "template", "t");
+parser.command("mode", "assembly-notifications", "assembly-notification",
+               "notifications", "notification", "n");
+parser.command("mode", "bills", "bill", "b");
+
+parser.command("action", "create", "new", "c");
+parser.command("action", "delete", "cancel", "d");
+parser.command("action", "modify", "edit", "alter", "m");
+parser.command("action", "replay", "r");
+parser.command("action", "list", "l");
+parser.command("action", "get", "info", "view", "display", "g");
+
 parser.register("steps", null, true);
 parser.register("template", "t", true);
 parser.register("field", "f", true);
 parser.register("watch", "w", false);
 parser.register("recursive", "r", false);
+parser.register("input", "i", true);
 parser.register("output", "o", true);
-parser.register("list", "l", false);
 parser.register("after", "a", true);
 parser.register("before", "b", true);
 parser.register("keywords", null, true);
 parser.register("fields", null, true);
-parser.register("info", "i", false);
-parser.register("cancel", null, false);
-parser.register("replay", null, false);
 parser.register("reparse-template", null, false);
-parser.register("create-template", null, false);
-parser.register("template-info", null, false);
-parser.register("edit-template", null, false);
-parser.register("delete-template", null, false);
-parser.register("list-templates", null, false);
 parser.register("sort", null, true);
 parser.register("order", null, true);
 parser.register("bill", null, false);
-parser.register("key", "k", true);
-parser.register("secret", "s", true);
 parser.register("verbosity", "v", true);
 parser.register("verbose", null, false);
 parser.register("quiet", "q", false);
@@ -39,28 +42,17 @@ export default function cli(...args) {
     let result = parser.parse(...args);
     if (result.error != null) return result;
 
-    let { options, targets } = result;
+    let { commands, options, targets } = result;
 
     let err = generalValidation(options);
     if (err != null) return err;
 
-    return modeDispatch(options, targets);
+    return modeDispatch(commands, options, targets);
 }
 
 function generalValidation(options) {
     let modesSpecified = [];
     for (let option of options) {
-       if (option.name in subcommands) {
-           modesSpecified.push(option.name);
-           if (modesSpecified.length > 1) {
-               return {
-                   error: "MULTIPLE_MODES",
-                   option: option.name,
-                   message: `Mutually exclusive options specified: '${modesSpecified[0]}' and '${modesSpecified[1]}'`
-               };
-           }
-       }
-       
        if (option.name === "field" && !option.value.match(/^[^=]+=[\s\S]*$/)) {
            return {
                error: "INVALID_OPTION",
@@ -99,23 +91,41 @@ function generalValidation(options) {
     }
 }
 
-function modeDispatch(opts, tgts) {
-    let mode;
-    for (let option of opts) {
-        if (option.name in subcommands) {
-            mode = option.name;
-            break;
-        }
+function modeDispatch({ mode, action }, opts, tgts) {
+    if (mode == null) {
+        if (action != null) mode = "assemblies";
+        else if (opts.length === 0) mode = "register";
+        else if (opts.filter(opt => opt.name === "help").length !== 0) mode = "help";
+        else if (opts.filter(opt => opt.name === "version").length !== 0) mode = "version";
+        else mode = "assemblies", action = "create";
     }
 
-    if (!mode) mode = opts.length === 0 ? "register" : "process";
-
     let verbosity = getVerbosity(opts);
-    let result = subcommands[mode](opts, tgts);
+
+    let handler = subcommands[mode];
+    if (action != null) {
+        if (!(typeof handler === "object" || action in handler)) {
+            return {
+                error: "INVALID_COMMAND",
+                message: `mode '${mode}' does not support the action '${action}'`
+            };
+        }
+        handler = handler[action];
+    }
+
+    if (typeof handler !== "function") {
+        return {
+            error: "INVALID_COMMAND",
+            message: `mode '${mode}' requires an action (one of ${Object.keys(handler)})`
+        };
+    }
+
+    let result = handler(opts, tgts);
     
     if (!result.error) {
         result.logLevel = verbosity;
         result.mode = mode;
+        result.action = action;
     }
 
     return result;
@@ -247,257 +257,268 @@ const subcommands = {
         let err = validate(opts, tgts,
 
             allowOptions(anyOf("register"),
-                         opt => `--register doesn't accept any options`),
+                         opt => `register doesn't accept any options`),
 
-            noTargets("too many arguments passed to --register"));
+            noTargets("too many arguments passed to register"));
 
         if (err) return err;
 
         return {};
     },
     
-    process(opts, tgts) {
-        let err = validate(opts, tgts,
+    assemblies: {
+        create(opts, tgts) {
+            let err = validate(opts, tgts,
 
-            allowOptions(anyOf("process", "steps", "template", "field", "watch", "recursive", "output"),
-                         opt => `--process doesn't accept the option --${opt.name}`),
+                allowOptions(anyOf("steps", "template", "field", "watch", "recursive", "input", "output"),
+                             opt => `assemblies create doesn't accept the option --${opt.name}`),
 
-            exactlyOneOfOption(anyOf("steps", "template"),
-                               opt => `--process requires exactly one of either --steps and --template`),
+                exactlyOneOfOption(anyOf("steps", "template"),
+                                   opt => `assemblies create requires exactly one of either --steps and --template`),
 
-            atMostOneOfOption(anyOf("output"),
-                              opt => `--process accepts at most one --output`));
+                atMostOneOfOption(anyOf("output"),
+                                  opt => `assemblies create accepts at most one --output`),
+                              
+                noTargets("too many arguments passed to assemblies create"));
 
-        if (err) return err;
+            if (err) return err;
 
-        return {
-            steps: optget(opts, "steps"),
-            template: optget(opts, "template"),
-            fields: getfields(opts),
-            watch: optget(opts, "watch"),
-            recursive: optget(opts, "recursive"),
-            output: optget(opts, "output") || "-",
-            inputs: tgts.length > 0 ? tgts : ["-"]
-        };
-    },
+            let inputs = optgetall(opts, "input");
+            if (inputs.length === 0) inputs = ["-"];
 
-    list(opts, tgts) {
-        let err = validate(opts, tgts,
+            return {
+                steps: optget(opts, "steps"),
+                template: optget(opts, "template"),
+                fields: getfields(opts),
+                watch: optget(opts, "watch"),
+                recursive: optget(opts, "recursive"),
+                output: optget(opts, "output") || "-",
+                inputs
+            };
+        },
 
-            allowOptions(anyOf("list", "before", "after", "keywords", "fields"),
-                         opt => `--list doesn't accept the option --${opt.name}`),
+        list(opts, tgts) {
+            let err = validate(opts, tgts,
 
-            atMostOneOfOption(anyOf("before"),
-                             opt => `--list accepts at most one of --${opt.name}`),
+                allowOptions(anyOf("before", "after", "keywords", "fields"),
+                             opt => `assemblies list doesn't accept the option --${opt.name}`),
 
-            atMostOneOfOption(anyOf("after"),
-                             opt => `--list accepts at most one of --${opt.name}`),
+                atMostOneOfOption(anyOf("before"),
+                                 opt => `assemblies list accepts at most one of --${opt.name}`),
 
-            atMostOneOfOption(anyOf("fields"),
-                             opt => `--list accepts at most one of --${opt.name}`),
+                atMostOneOfOption(anyOf("after"),
+                                 opt => `assemblies list accepts at most one of --${opt.name}`),
 
-            noTargets("too many arguments passed to --list"));
+                atMostOneOfOption(anyOf("fields"),
+                                 opt => `assemblies list accepts at most one of --${opt.name}`),
 
-        if (err) return err;
+                noTargets("too many arguments passed to assemblies list"));
 
-        let keywords = [];
-        for (let arg of optgetall(opts, "keywords")) {
-            for (let kw of arg.split(",")) keywords.push(kw);
-        }
+            if (err) return err;
 
-        let fields = optget(opts, "fields");
-        if (fields) fields = fields.split(",");
-        else fields = [];
-
-        return {
-            before: optget(opts, "before"),
-            after: optget(opts, "after"),
-            fields,
-            keywords
-        };
-    },
-
-    info(opts, tgts) {
-        let err = validate(opts, tgts,
-            
-            allowOptions(anyOf("info"),
-                         opt => `--info doesn't accept the option --${opt.name}`),
-
-            requireTargets("no assemblies specified"));
-
-        if (err) return err;
-
-        return {
-            assemblies: tgts
-        };
-    },
-
-    cancel(opts, tgts) {
-        let err = validate(opts, tgts,
-
-            allowOptions(anyOf("cancel"),
-                         opt => `--cancel doesn't accept the option --${opt.name}`),
-
-            requireTargets("no assemblies specified"));
-
-        if (err) return err;
-
-        return {
-            assemblies: tgts
-        };
-    },
-
-    replay(opts, tgts) {
-        let err = validate(opts, tgts,
-
-            allowOptions(anyOf("replay", "reparse-template", "field", "steps"),
-                         opt => `--replay doesn't accept the option --${opt.name}`),
-
-            atMostOneOfOption(anyOf("steps"),
-                              opt => `too many --steps provided to --replay`),
-
-            requireTargets("no assemblies specified"));
-
-        if (err) return err;
-
-        return {
-            fields: getfields(opts),
-            reparse: optget(opts, "reparse-template"),
-            steps: optget(opts, "steps"),
-            assemblies: tgts
-        };
-    },
-
-    "create-template": function createTemplate(opts, tgts) {
-        let err = validate(opts, tgts,
-
-            allowOptions(anyOf("create-template"),
-                         opt => `--create-template doesn't accept the option --${opt.name}`),
-
-            nTargets(1, 2,
-                     { few: "too few arguments passed to --create-template",
-                       many: "too many arguments passed to --create-template" }));
-
-        if (err) return err;
-
-        return {
-            name: tgts[0],
-            file: tgts.length === 2 ? tgts[1] : "-"
-        };
-    },
-
-    "template-info": function templateInfo(opts, tgts) {
-        let err = validate(opts, tgts,
-
-            allowOptions(anyOf("template-info"),
-                         opt => `--template-info doesn't accept the option --${opt.name}`),
-
-            requireTargets("no template specified"));
-
-        if (err) return err;
-
-        return {
-            templates: tgts
-        };
-    },
-
-    "edit-template": function editTemplate(opts, tgts) {
-        let err = validate(opts, tgts,
-
-            allowOptions(anyOf("edit-template"),
-                         opt => `--edit-template doesn't accept the option --${opt.name}`),
-
-            nTargets(1, 2,
-                     { few: "too few arguments passed to --edit-template",
-                       many: "too many arguments passed to --edit-template" }));
-
-        if (err) return err;
-
-        return {
-            template: tgts[0],
-            file: tgts.length === 2 ? tgts[1] : "-"
-        };
-    },
-
-    "delete-template": function deleteTemplate(opts, tgts) {
-        let err = validate(opts, tgts,
-
-            allowOptions(anyOf("delete-template"),
-                         opt => `--delete-template doesn't accept the option --${opt.name}`),
-
-            requireTargets("no template specified"));
-
-        if (err) return err;
-
-        return {
-            templates: tgts
-        };
-    },
-
-    "list-templates": function listTemplates(opts, tgts) {
-        let err = validate(opts, tgts,
-
-            allowOptions(anyOf("list-templates", "after", "before", "sort", "order", "fields"),
-                         opt => `--list-templates doesn't accept the option --${opt.name}`),
-
-            atMostOneOfOption(anyOf("before"),
-                              opt => `--list-templates accepts at most one of --${opt.name}`),
-
-            atMostOneOfOption(anyOf("after"),
-                              opt => `--list-templates accepts at most one of --${opt.name}`),
-
-            atMostOneOfOption(anyOf("sort"),
-                              opt => `--list-templates accepts at most one of --${opt.name}`),
-
-            atMostOneOfOption(anyOf("order"),
-                              opt => `--list-templates accepts at most one of --${opt.name}`),
-
-            atMostOneOfOption(anyOf("fields"),
-                              opt => `--list-templates accepts at most one of --${opt.name}`),
-
-            noTargets("too many arguments passed to --list-templates"));
-
-        if (err) return err;
-
-        let fields = optget(opts, "fields");
-        if (fields) fields = fields.split(",");
-        else fields = [];
-
-        return {
-            before: optget(opts, "before"),
-            after: optget(opts, "after"),
-            sort: optget(opts, "sort") || "created",
-            order: optget(opts, "order") || "desc",
-            fields
-        };
-    },
-
-    bill(opts, tgts) {
-        let err = validate(opts, tgts,
-
-            allowOptions(anyOf("bill"),
-                         opt => `--bill doesn't accept any options`));
-
-        if (err) return err;
-
-        let months = [];
-        for (let tgt of tgts) {
-            const pat = /^(\d{4})-(\d{1,2})$/;
-            if (!tgt.match(pat)) {
-                return {
-                    error: "INVALID_ARGUMENT",
-                    message: `invalid date format '${tgt}' (YYYY-MM)`
-                };
+            let keywords = [];
+            for (let arg of optgetall(opts, "keywords")) {
+                for (let kw of arg.split(",")) keywords.push(kw);
             }
-            months.push(tgt);
-        }
 
-        if (months.length === 0) {
-            let d = new Date();
-            months.push(`${d.getUTCFullYear()}-${d.getUTCMonth()+1}`);
-        }
+            let fields = optget(opts, "fields");
+            if (fields) fields = fields.split(",");
+            else fields = [];
 
-        return { months };
+            return {
+                before: optget(opts, "before"),
+                after: optget(opts, "after"),
+                fields,
+                keywords
+            };
+        },
+
+        get(opts, tgts) {
+            let err = validate(opts, tgts,
+                
+                allowOptions(anyOf(),
+                             opt => `assemblies get doesn't accept the option --${opt.name}`),
+
+                requireTargets("no assemblies specified"));
+
+            if (err) return err;
+
+            return {
+                assemblies: tgts
+            };
+        },
+
+        delete(opts, tgts) {
+            let err = validate(opts, tgts,
+
+                allowOptions(anyOf(),
+                             opt => `assemblies delete doesn't accept the option --${opt.name}`),
+
+                requireTargets("no assemblies specified"));
+
+            if (err) return err;
+
+            return {
+                assemblies: tgts
+            };
+        },
+
+        replay(opts, tgts) {
+            let err = validate(opts, tgts,
+
+                allowOptions(anyOf("reparse-template", "field", "steps"),
+                             opt => `assemblies replay doesn't accept the option --${opt.name}`),
+
+                atMostOneOfOption(anyOf("steps"),
+                                  opt => `too many --steps provided to assemblies replay`),
+
+                requireTargets("no assemblies specified"));
+
+            if (err) return err;
+
+            return {
+                fields: getfields(opts),
+                reparse: optget(opts, "reparse-template"),
+                steps: optget(opts, "steps"),
+                assemblies: tgts
+            };
+        }
+    },
+
+    templates: {
+        create(opts, tgts) {
+            let err = validate(opts, tgts,
+
+                allowOptions(anyOf(),
+                             opt => `templates create doesn't accept the option --${opt.name}`),
+
+                nTargets(1, 2,
+                         { few: "too few arguments passed to templates create",
+                           many: "too many arguments passed to templates create" }));
+
+            if (err) return err;
+
+            return {
+                name: tgts[0],
+                file: tgts.length === 2 ? tgts[1] : "-"
+            };
+        },
+
+        get(opts, tgts) {
+            let err = validate(opts, tgts,
+
+                allowOptions(anyOf(),
+                             opt => `templates create doesn't accept the option --${opt.name}`),
+
+                requireTargets("no template specified"));
+
+            if (err) return err;
+
+            return {
+                templates: tgts
+            };
+        },
+
+        modify(opts, tgts) {
+            let err = validate(opts, tgts,
+
+                allowOptions(anyOf(),
+                             opt => `templates modify doesn't accept the option --${opt.name}`),
+
+                nTargets(1, 2,
+                         { few: "too few arguments passed to templates modify",
+                           many: "too many arguments passed to templates modify" }));
+
+            if (err) return err;
+
+            return {
+                template: tgts[0],
+                file: tgts.length === 2 ? tgts[1] : "-"
+            };
+        },
+
+        delete(opts, tgts) {
+            let err = validate(opts, tgts,
+
+                allowOptions(anyOf(),
+                             opt => `templates delete doesn't accept the option --${opt.name}`),
+
+                requireTargets("no template specified"));
+
+            if (err) return err;
+
+            return {
+                templates: tgts
+            };
+        },
+
+        list(opts, tgts) {
+            let err = validate(opts, tgts,
+
+                allowOptions(anyOf("after", "before", "sort", "order", "fields"),
+                             opt => `templates list doesn't accept the option --${opt.name}`),
+
+                atMostOneOfOption(anyOf("before"),
+                                  opt => `templates list accepts at most one of --${opt.name}`),
+
+                atMostOneOfOption(anyOf("after"),
+                                  opt => `templates list accepts at most one of --${opt.name}`),
+
+                atMostOneOfOption(anyOf("sort"),
+                                  opt => `templates list accepts at most one of --${opt.name}`),
+
+                atMostOneOfOption(anyOf("order"),
+                                  opt => `templates list accepts at most one of --${opt.name}`),
+
+                atMostOneOfOption(anyOf("fields"),
+                                  opt => `templates list accepts at most one of --${opt.name}`),
+
+                noTargets("too many arguments passed to templates list"));
+
+            if (err) return err;
+
+            let fields = optget(opts, "fields");
+            if (fields) fields = fields.split(",");
+            else fields = [];
+
+            return {
+                before: optget(opts, "before"),
+                after: optget(opts, "after"),
+                sort: optget(opts, "sort") || "created",
+                order: optget(opts, "order") || "desc",
+                fields
+            };
+        }
+    },
+
+    bills: {
+        get(opts, tgts) {
+            let err = validate(opts, tgts,
+
+                allowOptions(anyOf(),
+                             opt => `bills get doesn't accept any options`));
+
+            if (err) return err;
+
+            let months = [];
+            for (let tgt of tgts) {
+                const pat = /^(\d{4})-(\d{1,2})$/;
+                if (!tgt.match(pat)) {
+                    return {
+                        error: "INVALID_ARGUMENT",
+                        message: `invalid date format '${tgt}' (YYYY-MM)`
+                    };
+                }
+                months.push(tgt);
+            }
+
+            if (months.length === 0) {
+                let d = new Date();
+                months.push(`${d.getUTCFullYear()}-${d.getUTCMonth()+1}`);
+            }
+
+            return { months };
+        }
     },
 
     help(opts, tgts) {
