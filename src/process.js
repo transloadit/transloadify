@@ -25,7 +25,25 @@ function myStatSync(stdioStream, path) {
 function dirProvider(output) {
     // FIXME this will place outputs outside the output directory if the inputs
     // are oudside PWD
-    return inpath => fs.createWriteStream(path.join(output, path.relative(process.cwd(), inpath)));
+    return inpath => {
+        let outpath = path.join(output, path.relative(process.cwd(), inpath));
+        let outdir = path.dirname(outpath);
+
+        // TODO can this be moved elsewhere to avoid synchronous IO?
+        ensureDir(outdir);
+        function ensureDir(dir) {
+            try { fs.mkdirSync(dir); }
+            catch (e) {
+                if (e.code === "EEXIST") return;
+                if (e.code !== "ENOENT") throw e;
+
+                ensureDir(path.dirname(dir));
+                fs.mkdirSync(dir);
+            }
+        }
+
+        return fs.createWriteStream(outpath);
+    };
 }
 
 function fileProvider(output) {
@@ -254,12 +272,20 @@ export default function run(client, { steps, template, fields, watch, recursive,
 
             if (superceded) return;
             
-            client.getAssembly(result.assembly_id, (err, result) => {
+            client.getAssembly(result.assembly_id, function callback(err, result) {
                 if (err != null) return console.error(err);
 
                 if (superceded) return;
 
-                http.get(result.assembly_ssl_url, res => {
+                if (result.ok !== "ASSEMBLY_COMPLETED") {
+                    client.getAssembly(result.assembly_id, callback);
+                    return;
+                }
+
+                console.log(result);
+                let resulturl = result.results[Object.keys(result.results)[0]][0].url;
+                
+                http.get(resulturl, res => {
                     if (res.statusCode !== 200) {
                         console.error(new Error(`Server returned http status ${res.statusCode}`));
                         return;

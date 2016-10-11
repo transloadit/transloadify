@@ -89,6 +89,6 @@ export class TransloaditClient {
         process.nextTick(() => cb(null, { assembly_id: assembly }));
     }
     getAssembly(id, cb) {
-        process.nextTick(() => cb(null, { assembly_ssl_url: this.assemblies[id] }));
+        process.nextTick(() => cb(null, { assembly_url: this.assemblies[id] }));
     }
 }
