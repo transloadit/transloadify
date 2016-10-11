@@ -1,8 +1,21 @@
-import TransloaditClient from "transloadify";
-import fs from "fs";
-import watch from "node-watch";
+let fs, watch, http, STDIN, STDOUT;
+if (process.env.NODE_ENV === "test") {
+    const mocks = require("./process-mocks");
+    fs = mocks.fs;
+    watch = mocks.watch;
+    http = mocks.http;
+    STDIN  = mocks.stdio.stdin;
+    STDOUT = mocks.stdio.stdout;
+} else {
+    fs = require("fs");
+    watch = require("node-watch");
+    http = require("http");
+    STDIN = process.stdin;
+    STDOUT = process.stdout;
+}
+
+import path from "path";
 import EventEmitter from "events";
-import http from "http";
 
 function myStatSync(stdioStream, path) {
     if (path === "-") return fs.fstatSync(stdioStream.fd);
@@ -12,11 +25,11 @@ function myStatSync(stdioStream, path) {
 function dirProvider(output) {
     // FIXME this will place outputs outside the output directory if the inputs
     // are oudside PWD
-    return inpath => fs.createWriteStream(path.resolve(output, path.realtive(process.cwd(), inpath)));
+    return inpath => fs.createWriteStream(path.join(output, path.relative(process.cwd(), inpath)));
 }
 
 function fileProvider(output) {
-    return inpath => output === "-" ? process.stdout : fs.createWriteStream(output);
+    return inpath => output === "-" ? STDOUT : fs.createWriteStream(output);
 }
 
 class MyEventEmitter extends EventEmitter {
@@ -40,38 +53,41 @@ class ReaddirJobEmitter extends MyEventEmitter {
     constructor({ dir, streamRegistry, recursive, outstreamProvider }) {
         super();
         
-        let awaitCount = 0;
-        const complete = () => {
-            if (--awaitCount === 0) this.emit("end");
-        };
+        process.nextTick(() => {
+            let awaitCount = 0;
+            const complete = () => {
+                if (--awaitCount === 0) this.emit("end");
+            };
 
-        fs.readdir(dir, (err, files) => {
-            if (err != null) return this.emit("error", err);
+            fs.readdir(dir, (err, files) => {
+                if (err != null) return this.emit("error", err);
 
-            awaitCount += files.length;
+                awaitCount += files.length;
 
-            for (let file of files) {
-                file = path.normalize(path.resolve(path, file));
-                fs.stat(file, (err, stats) => {
-                    if (err != null) return this.emit("error", err);
+                for (let file of files) {
+                    file = path.normalize(path.join(dir, file));
+                    fs.stat(file, (err, stats) => {
+                        if (err != null) return this.emit("error", err);
 
-                    if (stats.isDirectory()) {
-                        if (recursive) {
-                            let subdirEmitter = newReaddirJobEmitter({ file, streamRegistry, recursive, outstreamProvider });
-                            subdirEmitter.on("job", job => this.emit("job", job));
-                            subdirEmitter.on("error", job => this.emit("error", error));
-                            subdirEmitter.on("end", complete);
+                        if (stats.isDirectory()) {
+                            if (recursive) {
+                                let subdirEmitter = new ReaddirJobEmitter(
+                                    { dir: file, streamRegistry, recursive, outstreamProvider });
+                                subdirEmitter.on("job", job => this.emit("job", job));
+                                subdirEmitter.on("error", error => this.emit("error", error));
+                                subdirEmitter.on("end", complete);
+                            } else {
+                                complete();
+                            }
                         } else {
+                            if (streamRegistry[file]) streamRegistry[file].end();
+                            let outstream = streamRegistry[file] = outstreamProvider(file);
+                            this.emit("job", { in: fs.createReadStream(file), out: outstream });
                             complete();
                         }
-                    } else {
-                        if (streamRegistry[file]) streamRegistry[file].end();
-                        let outstream = streamRegistry[file] = outstreamProvider(file);
-                        this.emit("job", { in: fs.createReadStream(file), out: outstream });
-                        complete();
-                    }
-                });
-            }
+                    });
+                }
+            });
         });
     }
 }
@@ -83,8 +99,20 @@ class SingleJobEmitter extends MyEventEmitter {
         file = path.normalize(file);
         if (streamRegistry[file]) streamRegistry[file].end();
         let outstream = streamRegistry[file] = outstreamProvider(file);
-        this.emit("job", { in: fs.createReadStream(file), out: outstream });
-        this.emit("end");
+        let instream = file === "-" ? STDIN : fs.createReadStream(file);
+
+        process.nextTick(() => {
+            this.emit("job", { in: instream, out: outstream });
+            this.emit("end");
+        });
+    }
+}
+
+class NullJobEmitter extends MyEventEmitter {
+    constructor() {
+        super();
+
+        process.nextTick(() => this.emit("end"));
     }
 }
 
@@ -100,7 +128,8 @@ class WatchJobEmitter extends MyEventEmitter {
             file = path.normalize(file);
             if (streamRegistry[file]) streamRegistry[file].end();
             let outstream = streamRegistry[file] = outstreamProvider(file);
-            this.emit("job", { in: fs.createReadStream(file), out: outstream });
+            let instream = file === "-" ? STDIN : fs.createReadStream(file);
+            this.emit("job", { in: instream, out: outstream });
         });
     }
 }
@@ -151,23 +180,32 @@ function makeJobEmitter(inputs, { recursive, outstreamProvider, streamRegistry, 
     let watcherFns = [];
 
     for (let input of inputs) {
-        fs.stat(input, (err, stats) => {
-            if (err != null) return emitter.emit("error", err);
-            
-            if (stats.isDirectory()) {
-                emitterFns.push(
-                    () => new ReaddirJobEmitter({ dir: input, recursive, outstreamProvider, streamRegistry }));
-                watcherFns.push(
-                    () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }));
-            } else {
-                emitterFns.push(
-                    () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }));
-                watcherFns.push(
-                    () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }));
-            }
+        if (input === "-") {
+            emitterFns.push(
+                () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }));
+            watcherFns.push(
+                () => new NullJobEmitter());
 
             startEmitting();
-        });
+        } else {
+            fs.stat(input, (err, stats) => {
+                if (err != null) return emitter.emit("error", err);
+                
+                if (stats.isDirectory()) {
+                    emitterFns.push(
+                        () => new ReaddirJobEmitter({ dir: input, recursive, outstreamProvider, streamRegistry }));
+                    watcherFns.push(
+                        () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }));
+                } else {
+                    emitterFns.push(
+                        () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }));
+                    watcherFns.push(
+                        () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }));
+                }
+
+                startEmitting();
+            });
+        }
     }
 
     function startEmitting() {
@@ -188,16 +226,16 @@ function makeJobEmitter(inputs, { recursive, outstreamProvider, streamRegistry, 
     return emitter;
 }
 
-export default function process(client, { steps, template, fields, watch, recursive, inputs, output }) {
+export default function run(client, { steps, template, fields, watch, recursive, inputs, output }) {
     if (inputs.length === 0) inputs = [ "-" ];
 
     let params = steps ? { steps: require(steps) } : { template_id: template };
     params.fields = fields;
     
-    let outstat = myStatSync(process.stdout, output);
+    let outstat = myStatSync(STDOUT, output);
     if (!outstat.isDirectory()) {
         if (inputs.length > 1) throw new Error();
-        if (myStatSync(process.stdin, inputs[0]).isDirectory()) throw new Error();
+        if (myStatSync(STDIN, inputs[0]).isDirectory()) throw new Error();
     }
 
     let outstreamProvider = outstat.isDirectory() ? dirProvider(output) : fileProvider(output);

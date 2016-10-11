@@ -4,7 +4,7 @@
   "description": "CLI client for transloadit",
   "scripts": {
     "test": "npm-run-all build mocha",
-    "mocha": "mocha --compilers js:babel-register --reporter spec test/",
+    "mocha": "NODE_ENV=test mocha --compilers js:babel-register --reporter spec test/",
     "build": "babel src/ -d lib/",
     "prestart": "npm run build",
     "start": "node bin/transloadify.js"
