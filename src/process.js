@@ -10,8 +10,15 @@ if (process.env.NODE_ENV === "test") {
     fs = require("fs");
     watch = require("node-watch");
     http = require("http");
-    STDIN = process.stdin;
-    STDOUT = process.stdout;
+    // STDIN = process.stdin;
+    // STDOUT = process.stdout;
+    //
+    // FIXME this resolves an issue with process.std{in,out} but breaks windows
+    // compatibility
+    STDIN = fs.createReadStream("/dev/stdin");
+    STDIN.fd = 0; // careful...
+    STDOUT = fs.createWriteStream("/dev/stdout");
+    STDOUT.fd = 1;
 }
 
 import path from "path";
@@ -271,7 +278,7 @@ export default function run(client, { steps, template, fields, watch, recursive,
     let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry });
 
     emitter.on("job", job => {
-        console.log("GOT JOB", job.in.path, job.out.path);
+        console.error("GOT JOB", job.in.path, job.out.path);
         let superceded = false;
         job.out.on("finish", () => superceded = true);
 
@@ -303,7 +310,7 @@ export default function run(client, { steps, template, fields, watch, recursive,
                     if (superceded) return;
 
                     res.pipe(job.out);
-                    res.on("end", () => console.log("COMPLETED", job.in.path, job.out.path));
+                    res.on("end", () => console.error("COMPLETED", job.in.path, job.out.path));
                     job.out.on("finish", () => res.unpipe()); // TODO is this done automatically?
                 }).on("error", console.error);
             });
