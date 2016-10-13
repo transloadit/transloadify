@@ -22,6 +22,20 @@ function myStatSync(stdioStream, path) {
     return fs.statSync(path);
 }
 
+function ensureDir(dir) {
+    try { fs.mkdirSync(dir); }
+    catch (e) {
+        if (e.code === "EEXIST") {
+            if (!fs.statSync(dir).isDirectory()) throw e;
+            return;
+        }
+        if (e.code !== "ENOENT") throw e;
+
+        ensureDir(path.dirname(dir));
+        fs.mkdirSync(dir);
+    }
+}
+
 function dirProvider(output) {
     // FIXME this will place outputs outside the output directory if the inputs
     // are oudside PWD
@@ -31,22 +45,13 @@ function dirProvider(output) {
 
         // TODO can this be moved elsewhere to avoid synchronous IO?
         ensureDir(outdir);
-        function ensureDir(dir) {
-            try { fs.mkdirSync(dir); }
-            catch (e) {
-                if (e.code === "EEXIST") return;
-                if (e.code !== "ENOENT") throw e;
-
-                ensureDir(path.dirname(dir));
-                fs.mkdirSync(dir);
-            }
-        }
 
         return fs.createWriteStream(outpath);
     };
 }
 
 function fileProvider(output) {
+    ensureDir(path.dirname(output));
     return inpath => output === "-" ? STDOUT : fs.createWriteStream(output);
 }
 
@@ -144,10 +149,14 @@ class WatchJobEmitter extends MyEventEmitter {
         watcher.on("end", () => this.emit("end"));
         watcher.on("change", file => {
             file = path.normalize(file);
-            if (streamRegistry[file]) streamRegistry[file].end();
-            let outstream = streamRegistry[file] = outstreamProvider(file);
-            let instream = file === "-" ? STDIN : fs.createReadStream(file);
-            this.emit("job", { in: instream, out: outstream });
+            fs.stat(file, (err, stats) => {
+                if (err) return this.emit("error", err);
+                if (stats.isDirectory()) return;
+                if (streamRegistry[file]) streamRegistry[file].end();
+                let outstream = streamRegistry[file] = outstreamProvider(file);
+                let instream = fs.createReadStream(file);
+                this.emit("job", { in: instream, out: outstream });
+            });
         });
     }
 }
@@ -262,6 +271,7 @@ export default function run(client, { steps, template, fields, watch, recursive,
     let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry });
 
     emitter.on("job", job => {
+        console.log("GOT JOB", job.in.path, job.out.path);
         let superceded = false;
         job.out.on("finish", () => superceded = true);
 
@@ -282,7 +292,6 @@ export default function run(client, { steps, template, fields, watch, recursive,
                     return;
                 }
 
-                console.log(result);
                 let resulturl = result.results[Object.keys(result.results)[0]][0].url;
                 
                 http.get(resulturl, res => {
@@ -294,6 +303,7 @@ export default function run(client, { steps, template, fields, watch, recursive,
                     if (superceded) return;
 
                     res.pipe(job.out);
+                    res.on("end", () => console.log("COMPLETED", job.in.path, job.out.path));
                     job.out.on("finish", () => res.unpipe()); // TODO is this done automatically?
                 }).on("error", console.error);
             });
