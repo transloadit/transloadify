@@ -44,10 +44,12 @@ function ensureDir(dir) {
 }
 
 function dirProvider(output) {
-    // FIXME this will place outputs outside the output directory if the inputs
-    // are oudside PWD
-    return inpath => {
-        let outpath = path.join(output, path.relative(process.cwd(), inpath));
+    return (inpath, indir=process.cwd()) => {
+        let relpath = path.relative(indir, inpath)
+        // if inpath is outside indir, ensure that outpath will still be inside
+        // output
+        relpath = relpath.replace(/^(\.\.\/)+/, "");
+        let outpath = path.join(output, relpath);
         let outdir = path.dirname(outpath);
 
         // TODO can this be moved elsewhere to avoid synchronous IO?
@@ -80,7 +82,7 @@ class MyEventEmitter extends EventEmitter {
 }
 
 class ReaddirJobEmitter extends MyEventEmitter {
-    constructor({ dir, streamRegistry, recursive, outstreamProvider }) {
+    constructor({ dir, streamRegistry, recursive, outstreamProvider, topdir=dir }) {
         super();
         
         process.nextTick(() => {
@@ -102,7 +104,7 @@ class ReaddirJobEmitter extends MyEventEmitter {
                         if (stats.isDirectory()) {
                             if (recursive) {
                                 let subdirEmitter = new ReaddirJobEmitter(
-                                    { dir: file, streamRegistry, recursive, outstreamProvider });
+                                    { dir: file, streamRegistry, recursive, outstreamProvider, topdir });
                                 subdirEmitter.on("job", job => this.emit("job", job));
                                 subdirEmitter.on("error", error => this.emit("error", error));
                                 subdirEmitter.on("end", complete);
@@ -111,7 +113,7 @@ class ReaddirJobEmitter extends MyEventEmitter {
                             }
                         } else {
                             if (streamRegistry[file]) streamRegistry[file].end();
-                            let outstream = streamRegistry[file] = outstreamProvider(file);
+                            let outstream = streamRegistry[file] = outstreamProvider(file, topdir);
                             this.emit("job", { in: fs.createReadStream(file), out: outstream });
                             complete();
                         }
