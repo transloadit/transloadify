@@ -1,24 +1,25 @@
-let fs, watch, http, STDIN, STDOUT;
+let fs, watch, http, _STDIN, STDOUT;
 if (process.env.NODE_ENV === "test") {
     const mocks = require("./process-mocks");
     fs = mocks.fs;
     watch = mocks.watch;
     http = mocks.http;
-    STDIN  = mocks.stdio.stdin;
     STDOUT = mocks.stdio.stdout;
 } else {
     fs = require("fs");
     watch = require("node-watch");
     http = require("http");
-    // STDIN = process.stdin;
-    // STDOUT = process.stdout;
-    //
-    // FIXME this resolves an issue with process.std{in,out} but breaks windows
-    // compatibility
-    STDIN = fs.createReadStream("/dev/stdin");
-    STDIN.fd = 0; // careful...
-    STDOUT = fs.createWriteStream("/dev/stdout");
-    STDOUT.fd = 1;
+    STDOUT = process.stdout;
+}
+
+function STDIN() {
+    if (_STDIN) return _STDIN;
+    if (process.env.NODE_ENV === "test") _STDIN = mocks.stdio.stdin;
+    else {
+        _STDIN = fs.createReadStream("/dev/stdin");
+        _STDIN.fd = 0; // careful...
+    }
+    return _STDIN;
 }
 
 import path from "path";
@@ -131,7 +132,7 @@ class SingleJobEmitter extends MyEventEmitter {
         file = path.normalize(file);
         if (streamRegistry[file]) streamRegistry[file].end();
         let outstream = streamRegistry[file] = outstreamProvider(file);
-        let instream = file === "-" ? STDIN : fs.createReadStream(file);
+        let instream = file === "-" ? STDIN() : fs.createReadStream(file);
 
         process.nextTick(() => {
             this.emit("job", { in: instream, out: outstream });
@@ -271,7 +272,7 @@ export default function run(client, { steps, template, fields, watch, recursive,
     let outstat = myStatSync(STDOUT, output);
     if (!outstat.isDirectory()) {
         if (inputs.length > 1) throw new Error();
-        if (myStatSync(STDIN, inputs[0]).isDirectory()) throw new Error();
+        if (myStatSync(STDIN(), inputs[0]).isDirectory()) throw new Error();
     }
 
     let outstreamProvider = outstat.isDirectory() ? dirProvider(output) : fileProvider(output);
