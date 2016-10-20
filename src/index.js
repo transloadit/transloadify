@@ -1,15 +1,12 @@
 if (process.env.NODE_ENV !== "production") require('source-map-support').install();
 
 import cli from "./cli";
-import assembliesCreate from "./process";
 import TransloaditClient from "transloadit";
 
 let invocation = cli();
 
 const commands = {
-    assemblies: {
-        create: assembliesCreate
-    },
+    assemblies: require("./assemblies"),
     templates: require("./templates")
 };
 
