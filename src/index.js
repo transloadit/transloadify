@@ -9,7 +9,8 @@ let invocation = cli();
 const commands = {
     assemblies: {
         create: assembliesCreate
-    }
+    },
+    templates: require("./templates")
 };
 
 let command = commands[invocation.mode];

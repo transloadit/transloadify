@@ -31,7 +31,7 @@ parser.register("fields", null, true);
 parser.register("reparse-template", null, false);
 parser.register("sort", null, true);
 parser.register("order", null, true);
-parser.register("bill", null, false);
+parser.register("name", "n", true);
 parser.register("verbosity", "v", true);
 parser.register("verbose", null, false);
 parser.register("quiet", "q", false);
@@ -323,11 +323,11 @@ const subcommands = {
 
             let fields = optget(opts, "fields");
             if (fields) fields = fields.split(",");
-            else fields = [];
+            else fields = undefined;
 
             return {
-                before: optget(opts, "before"),
-                after: optget(opts, "after"),
+                before: optget(opts, "before") || undefined,
+                after: optget(opts, "after") || undefined,
                 fields,
                 keywords
             };
@@ -422,7 +422,7 @@ const subcommands = {
         modify(opts, tgts) {
             let err = validate(opts, tgts,
 
-                allowOptions(anyOf(),
+                allowOptions(anyOf("name"),
                              opt => `templates modify doesn't accept the option --${opt.name}`),
 
                 nTargets(1, 2,
@@ -433,6 +433,7 @@ const subcommands = {
 
             return {
                 template: tgts[0],
+                name: optget(opts, "name") || undefined,
                 file: tgts.length === 2 ? tgts[1] : "-"
             };
         },
@@ -479,11 +480,11 @@ const subcommands = {
 
             let fields = optget(opts, "fields");
             if (fields) fields = fields.split(",");
-            else fields = [];
+            else fields = undefined;
 
             return {
-                before: optget(opts, "before"),
-                after: optget(opts, "after"),
+                before: optget(opts, "before") || undefined,
+                after: optget(opts, "after") || undefined,
                 sort: optget(opts, "sort") || "created",
                 order: optget(opts, "order") || "desc",
                 fields
