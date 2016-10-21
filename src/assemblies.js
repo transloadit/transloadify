@@ -1,31 +1,33 @@
 import Q from "q";
-import { stream2buf, createReadStream } from "./helpers";
+import { stream2buf, createReadStream, inSequence, formatAPIError } from "./helpers";
 import assembliesCreate from "./assemblies-create";
 
 export const create = assembliesCreate;
 
-export function list(client, { before, after, fields, keywords }) {
+export function list(output, client, { before, after, fields, keywords }) {
     let assemblies = client.streamAssemblies({
         fromdate: after,
         todate: before,
         fields, keywords
     });
+    
     assemblies.on("readable", () => {
         let assembly = assemblies.read();
-        if (assembly === null) return;
+        if (assembly == null) return;
 
         if (fields == null) {
-            console.log(assembly.id);
+            output.print(assembly.id, assembly);
         } else {
-            console.log(assembly);
+            output.print(fields.map(field => assembly[field]).join(" "), assembly);
         }
     });
+
     assemblies.on("error", err => {
-        console.error("ERROR", err);
+        output.error(formatAPIError(err));
     });
 }
 
-export function get(client, { assemblies }) {
+export function get(output, client, { assemblies }) {
     let requests = assemblies.map(assembly => {
         let deferred = Q.defer();
         
@@ -37,30 +39,26 @@ export function get(client, { assemblies }) {
         return deferred.promise;
     });
 
-    requests.reduce((a, b) => {
-        return a.then(result => {
-            console.log(result);
-            return b;
-        });
-    }).then(result => {
-        console.log(result);
-    }).fail(err => {
-        console.error("ERROR", err.error, err);
+    inSequence(requests, result => {
+        output.print(result, result);
+    }, err => {
+        output.error(formatAPIError(err));
     });
 }
 
-exports["delete"] = function _delete(client, { assemblies }) {
+exports["delete"] = function _delete(output, client, { assemblies }) {
     for (let assembly of assemblies) {
         client.deleteAssembly(assembly, err => {
-            if (err) console.error(err);
+            if (err) output.error(formatAPIError(err));
         });
     }
 };
 
-export function replay(client, { fields, reparse, steps, assemblies }) {
+export function replay(output, client, { fields, reparse, steps, assemblies }) {
     if (steps) {
         stream2buf(createReadStream(steps), (err, buf) => {
-            if (err) return console.err("ERROR", err);
+            if (err) return output.error(err.message);
+
             apiCall(JSON.parse(buf.toString()));
         });
     } else {
@@ -75,7 +73,7 @@ export function replay(client, { fields, reparse, steps, assemblies }) {
                 reparse_template: reparse,
                 fields, steps
             }, (err, result) => {
-                if (err) return console.error("ERROR", err);
+                if (err) return output.error(formatAPIError(err));
             });
         }
     }

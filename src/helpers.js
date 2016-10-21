@@ -31,3 +31,16 @@ export function stream2buf(stream, cb) {
         cb(null, buf);
     });
 }
+
+export function inSequence(promises, fulfilled, rejected) {
+    promises.reduce((a, b) => {
+        return a.then((...args) => {
+            fulfilled(...args);
+            return b;
+        });
+    }).then(fulfilled).fail(rejected);
+}
+
+export function formatAPIError(err) {
+    return `${err.error}: ${err.message}`;
+}

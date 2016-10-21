@@ -1,3 +1,5 @@
+import { formatAPIError } from "./helpers";
+
 let fs, watch, http, _STDIN, STDOUT;
 if (process.env.NODE_ENV === "test") {
     const mocks = require("./process-mocks");
@@ -263,7 +265,7 @@ function makeJobEmitter(inputs, { recursive, outstreamProvider, streamRegistry, 
     return emitter;
 }
 
-export default function run(client, { steps, template, fields, watch, recursive, inputs, output }) {
+export default function run(outputctl, client, { steps, template, fields, watch, recursive, inputs, output }) {
     if (inputs.length === 0) inputs = [ "-" ];
 
     let params = steps ? { steps: require(steps) } : { template_id: template };
@@ -271,8 +273,9 @@ export default function run(client, { steps, template, fields, watch, recursive,
     
     let outstat = myStatSync(STDOUT, output);
     if (!outstat.isDirectory()) {
-        if (inputs.length > 1) throw new Error();
-        if (myStatSync(STDIN(), inputs[0]).isDirectory()) throw new Error();
+        if (inputs.length > 1 || myStatSync(STDIN(), inputs[0]).isDirectory()) {
+            return outputctl.error("Output must be a directory when specifying multiple inputs");
+        }
     }
 
     let outstreamProvider = outstat.isDirectory() ? dirProvider(output) : fileProvider(output);
@@ -281,19 +284,19 @@ export default function run(client, { steps, template, fields, watch, recursive,
     let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry });
 
     emitter.on("job", job => {
-        console.error("GOT JOB", job.in.path, job.out.path);
+        outputctl.debug(`GOT JOB ${job.in.path} ${job.out.path}`);
         let superceded = false;
         job.out.on("finish", () => superceded = true);
 
         client.addStream("in", job.in);
 
         client.createAssembly({ params }, (err, result) => {
-            if (err != null) return console.error(err);
+            if (err != null) return outputctl.error(err);
 
             if (superceded) return;
             
             client.getAssembly(result.assembly_id, function callback(err, result) {
-                if (err != null) return console.error(err);
+                if (err != null) return outputctl.error(formatAPIError(err));
 
                 if (superceded) return;
 
@@ -306,21 +309,23 @@ export default function run(client, { steps, template, fields, watch, recursive,
                 
                 http.get(resulturl, res => {
                     if (res.statusCode !== 200) {
-                        console.error(new Error(`Server returned http status ${res.statusCode}`));
+                        outputctl.error(`Server returned http status ${res.statusCode}`);
                         return;
                     }
 
                     if (superceded) return;
 
                     res.pipe(job.out);
-                    res.on("end", () => console.error("COMPLETED", job.in.path, job.out.path));
+                    res.on("end", () => outputctl.debug(`COMPLETED ${job.in.path} ${job.out.path}`));
                     job.out.on("finish", () => res.unpipe()); // TODO is this done automatically?
-                }).on("error", console.error);
+                }).on("error", err => {
+                    outputctl.error(err.message);
+                });
             });
         });
     });
 
     emitter.on("error", err => {
-        console.error(err);
+        outputctl.error(err);
     });
 }

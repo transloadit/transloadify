@@ -35,6 +35,7 @@ parser.register("name", "n", true);
 parser.register("verbosity", "v", true);
 parser.register("verbose", null, false);
 parser.register("quiet", "q", false);
+parser.register("json", "j", false);
 parser.register("version", null, false);
 parser.register("help", "h", false);
 
@@ -124,6 +125,7 @@ function modeDispatch({ mode, action }, opts, tgts) {
     
     if (!result.error) {
         result.logLevel = verbosity;
+        result.jsonMode = opts.filter(opt => opt.name === "json").length !== 0;
         result.mode = mode;
         result.action = action;
     }
