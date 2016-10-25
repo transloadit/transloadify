@@ -54,7 +54,7 @@ exports["delete"] = function _delete(output, client, { assemblies }) {
     }
 };
 
-export function replay(output, client, { fields, reparse, steps, assemblies }) {
+export function replay(output, client, { fields, reparse, steps, notify_url, assemblies }) {
     if (steps) {
         stream2buf(createReadStream(steps), (err, buf) => {
             if (err) return output.error(err.message);
@@ -71,7 +71,7 @@ export function replay(output, client, { fields, reparse, steps, assemblies }) {
             client.replayAssembly({
                 assembly_id: assembly,
                 reparse_template: reparse,
-                fields, steps
+                fields, steps, notify_url
             }, (err, result) => {
                 if (err) return output.error(formatAPIError(err));
             });

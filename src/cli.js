@@ -29,9 +29,12 @@ parser.register("before", "b", true);
 parser.register("keywords", null, true);
 parser.register("fields", null, true);
 parser.register("reparse-template", null, false);
+parser.register("notify-url", null, true);
 parser.register("sort", null, true);
 parser.register("order", null, true);
 parser.register("name", "n", true);
+parser.register("failed", null, false);
+parser.register("successful", null, false);
 parser.register("verbosity", "v", true);
 parser.register("verbose", null, false);
 parser.register("quiet", "q", false);
@@ -368,11 +371,14 @@ const subcommands = {
         replay(opts, tgts) {
             let err = validate(opts, tgts,
 
-                allowOptions(anyOf("reparse-template", "field", "steps"),
+                allowOptions(anyOf("reparse-template", "field", "steps", "notify-url"),
                              opt => `assemblies replay doesn't accept the option --${opt.name}`),
 
                 atMostOneOfOption(anyOf("steps"),
                                   opt => `too many --steps provided to assemblies replay`),
+
+                atMostOneOfOption(anyOf("notify-url"),
+                                  opt => `too many --notify-urls provided to assemblies replay`),
 
                 requireTargets("no assemblies specified"));
 
@@ -382,6 +388,7 @@ const subcommands = {
                 fields: getfields(opts),
                 reparse: optget(opts, "reparse-template"),
                 steps: optget(opts, "steps"),
+                notiy_url: optget(opts, "notify-url") || undefined,
                 assemblies: tgts
             };
         }
@@ -491,6 +498,49 @@ const subcommands = {
                 order: optget(opts, "order") || "desc",
                 fields
             };
+        }
+    },
+
+    "assembly-notifications": {
+        replay(opts, tgts) {
+            let err = validate(opts, tgts,
+
+                allowOptions(anyOf("notify-url"),
+                             opt => `assembly-notifications replay doesn't accept the option --${opt.name}`),
+
+                atMostOneOfOption(anyOf("notify-url"),
+                                  opt => `assembly-notifications replay accepts at most one of --${opt.name}`),
+
+                requireTargets("no assemblies specified"));
+
+            if (err) return err;
+
+            return {
+                notify_url: optget(opts, "notify-url") || undefined,
+                assemblies: tgts
+            };
+
+        },
+
+        list(opts, tgts) {
+            let err = validate(opts, tgts,
+
+                allowOptions(anyOf("failed", "successful"),
+                             opt => `assembly-notifications list doesn't accept the option --${opt.name}`),
+
+                atMostOneOfOption(anyOf("failed", "successful"),
+                                  opt => `assembly-notifications accepts at most one of --failed and --successful`),
+
+                nTargets(0, 1,
+                         { few: undefined, // can't have <0 targets
+                           many: "too many assembly ids provided to assembly-notifications list" }));
+
+                if (err) return err;
+
+                return {
+                    type: optget(opts, "failed") ? "failed" : optget(opts, "successful") ? "successful" : undefined,
+                    assembly_id: tgts[0]
+                };
         }
     },
 
