@@ -105,6 +105,10 @@ function modeDispatch({ mode, action }, opts, tgts) {
     }
 
     let verbosity = getVerbosity(opts);
+    
+    let noJsonFlag = opts.filter(opt => opt.name !== "json");
+    let jsonMode = opts.length != noJsonFlag.length;
+    opts = noJsonFlag;
 
     let handler = subcommands[mode];
     if (action != null) {
@@ -128,7 +132,7 @@ function modeDispatch({ mode, action }, opts, tgts) {
     
     if (!result.error) {
         result.logLevel = verbosity;
-        result.jsonMode = opts.filter(opt => opt.name === "json").length !== 0;
+        result.jsonMode = jsonMode;
         result.mode = mode;
         result.action = action;
     }
