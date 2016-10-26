@@ -35,8 +35,7 @@ parser.register("order", null, true);
 parser.register("name", "n", true);
 parser.register("failed", null, false);
 parser.register("successful", null, false);
-parser.register("verbosity", "v", true);
-parser.register("verbose", null, false);
+parser.register("verbose", "v", false);
 parser.register("quiet", "q", false);
 parser.register("json", "j", false);
 parser.register("version", null, false);
@@ -96,10 +95,19 @@ function generalValidation(options) {
 }
 
 function modeDispatch({ mode, action }, opts, tgts) {
+    if (opts.filter(opt => opt.name === "help").length !== 0) {
+        return {
+            mode: "help",
+            logLevel: 1,
+            jsonMode: false,
+            helpMode: mode,
+            helpAction: action
+        };
+    }
+
     if (mode == null) {
         if (action != null) mode = "assemblies";
         else if (opts.length === 0) mode = "register";
-        else if (opts.filter(opt => opt.name === "help").length !== 0) mode = "help";
         else if (opts.filter(opt => opt.name === "version").length !== 0) mode = "version";
         else mode = "assemblies", action = "create";
     }
@@ -146,8 +154,7 @@ function getVerbosity(opts) {
     let result = 1;
     let writeAt = 0;
     for (let readFrom = 0; readFrom < opts.length; readFrom++) {
-        if (opts[readFrom].name === "verbosity") result = parseInt(opts[i].value, 10);
-        else if (opts[readFrom].name === "verbose") result = 2;
+        if (opts[readFrom].name === "verbose") result = 2;
         else if (opts[readFrom].name === "quiet") result = 0;
         else opts[writeAt++] = opts[readFrom];
     }
