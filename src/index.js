@@ -16,7 +16,8 @@ if (invocation.error) {
 const commands = {
     assemblies: require("./assemblies"),
     templates: require("./templates"),
-    "assembly-notifications": require("./notifications")
+    "assembly-notifications": require("./notifications"),
+    bills: require("./bills")
 };
 
 let command = commands[invocation.mode];
