@@ -1,6 +1,6 @@
 import { formatAPIError } from "./helpers";
 import fs from "fs";
-import watch from "watch";
+import watch from "node-watch";
 import http from "http";
 import path from "path";
 import EventEmitter from "events";
@@ -115,7 +115,17 @@ class SingleJobEmitter extends MyEventEmitter {
         file = path.normalize(file);
         if (streamRegistry[file]) streamRegistry[file].end();
         let outstream = streamRegistry[file] = outstreamProvider(file);
-        let instream = file === "-" ? process.stdin : fs.createReadStream(file);
+
+        let instream;
+        if (file === "-") {
+            if (tty.isatty(process.stdin.fd)) {
+                instream = null; // Don't read from stdin if it's input from the console
+            } else {
+                instream = process.stdin;
+            }
+        } else {
+            instream = fs.createReadStream(file);
+        }
 
         process.nextTick(() => {
             this.emit("job", { in: instream, out: outstream });
@@ -269,7 +279,7 @@ export default function run(outputctl, client, { steps, template, fields, watch,
         let superceded = false;
         job.out.on("finish", () => superceded = true);
 
-        client.addStream("in", job.in);
+        if (job.in != null) client.addStream("in", job.in);
 
         client.createAssembly({ params }, (err, result) => {
             if (err != null) return outputctl.error(err);
