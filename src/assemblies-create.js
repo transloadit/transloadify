@@ -1,31 +1,12 @@
 import { formatAPIError } from "./helpers";
-
-let fs, watch, http, _STDIN, STDOUT;
-if (process.env.NODE_ENV === "test") {
-    const mocks = require("./process-mocks");
-    fs = mocks.fs;
-    watch = mocks.watch;
-    http = mocks.http;
-    STDOUT = mocks.stdio.stdout;
-} else {
-    fs = require("fs");
-    watch = require("node-watch");
-    http = require("http");
-    STDOUT = process.stdout;
-}
-
-function STDIN() {
-    if (_STDIN) return _STDIN;
-    if (process.env.NODE_ENV === "test") _STDIN = mocks.stdio.stdin;
-    else {
-        _STDIN = fs.createReadStream("/dev/stdin");
-        _STDIN.fd = 0; // careful...
-    }
-    return _STDIN;
-}
-
+import fs from "fs";
+import watch from "watch";
+import http from "http";
 import path from "path";
 import EventEmitter from "events";
+
+// workaround for determining mime-type of stdin
+process.stdin.path = "/dev/stdin";
 
 function myStatSync(stdioStream, path) {
     if (path === "-") return fs.fstatSync(stdioStream.fd);
@@ -64,7 +45,7 @@ function dirProvider(output) {
 
 function fileProvider(output) {
     ensureDir(path.dirname(output));
-    return inpath => output === "-" ? STDOUT : fs.createWriteStream(output);
+    return inpath => output === "-" ? process.stdout : fs.createWriteStream(output);
 }
 
 class MyEventEmitter extends EventEmitter {
@@ -134,7 +115,7 @@ class SingleJobEmitter extends MyEventEmitter {
         file = path.normalize(file);
         if (streamRegistry[file]) streamRegistry[file].end();
         let outstream = streamRegistry[file] = outstreamProvider(file);
-        let instream = file === "-" ? STDIN() : fs.createReadStream(file);
+        let instream = file === "-" ? process.stdin : fs.createReadStream(file);
 
         process.nextTick(() => {
             this.emit("job", { in: instream, out: outstream });
@@ -271,9 +252,9 @@ export default function run(outputctl, client, { steps, template, fields, watch,
     let params = steps ? { steps: require(steps) } : { template_id: template };
     params.fields = fields;
     
-    let outstat = myStatSync(STDOUT, output);
+    let outstat = myStatSync(process.stdout, output);
     if (!outstat.isDirectory()) {
-        if (inputs.length > 1 || myStatSync(STDIN(), inputs[0]).isDirectory()) {
+        if (inputs.length > 1 || myStatSync(process.stdin, inputs[0]).isDirectory()) {
             return outputctl.error("Output must be a directory when specifying multiple inputs");
         }
     }
