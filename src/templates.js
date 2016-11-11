@@ -30,13 +30,24 @@ export function get(output, client, { templates }) {
 }
 
 export function modify(output, client, { template, name, file }) {
-    stream2buff(createReadStream(file), (err, buf) => {
+    stream2buf(createReadStream(file), (err, buf) => {
         if (err) return output.error(err.message);
         
-        client.createTemplate(template, { name, template: buf.toString() }, (err, result) => {
-            if (err) return output.error(formatAPIError(err));
-            output.print(result.id, result);
-        });
+        let promise = (name && buf.length !== 0)
+            ? Q.fcall(() => ({ name, json: buf.toString() }))
+            : Q.nfcall(client.getTemplate.bind(client), template)
+                .then(template => ({
+                    name: name || template.name,
+                    json: buf.length !== 0 ? buf.toString() : template.content
+                }));
+
+        promise
+            .then(({ name, json }) => {
+                client.editTemplate(template, { name, template: json }, (err, result) => {
+                    if (err) return output.error(formatAPIError(err));
+                });
+            })
+            .fail(err => output.error(formatAPIError(err)));
     });
 }
 
@@ -62,7 +73,7 @@ export function list(output, client, { before, after, order, sort, fields }) {
         if (fields == null) {
             output.print(template.id, template);
         } else {
-            output.print(fields.map(field => assembly[field]).join(" "), template);
+            output.print(fields.map(field => template[field]).join(" "), template);
         }
     });
 

@@ -2,6 +2,13 @@ export default class OutputCtl {
     constructor({ logLevel, jsonMode }) {
         this.json = jsonMode;
         this.logLevel = logLevel;
+        
+        process.stdout.on("error", err => {
+            if (err.code === "EPIPE") return process.exit(0);
+        });
+        process.stderr.on("error", err => {
+            if (err.code === "EPIPE") return process.exit(0);
+        });
     }
     
     error(msg) {
@@ -21,7 +28,8 @@ export default class OutputCtl {
     }
 
     print(simple, json) {
-        if (this.json) console.log(json);
-        else console.log(simple);
+        if (this.json) console.log(JSON.stringify(json));
+        else if (typeof simple === "string") console.log(simple);
+        else console.dir(simple, { depth: null });
     }
 }

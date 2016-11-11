@@ -259,7 +259,7 @@ function makeJobEmitter(inputs, { recursive, outstreamProvider, streamRegistry, 
 export default function run(outputctl, client, { steps, template, fields, watch, recursive, inputs, output }) {
     if (inputs.length === 0) inputs = [ "-" ];
 
-    let params = steps ? { steps: require(steps) } : { template_id: template };
+    let params = steps ? { steps: JSON.parse(fs.readFileSync(steps)) } : { template_id: template };
     params.fields = fields;
     
     let outstat = myStatSync(process.stdout, output);

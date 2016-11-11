@@ -67,7 +67,6 @@ export function replay(output, client, { fields, reparse, steps, notify_url, ass
 
     function apiCall(steps) {
         for (let assembly of assemblies) {
-            // TODO notify_url
             client.replayAssembly({
                 assembly_id: assembly,
                 reparse_template: reparse,
