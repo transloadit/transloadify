@@ -4,6 +4,7 @@ import watch from "node-watch";
 import http from "http";
 import path from "path";
 import EventEmitter from "events";
+import tty from "tty";
 
 // workaround for determining mime-type of stdin
 process.stdin.path = "/dev/stdin";
@@ -146,19 +147,24 @@ class WatchJobEmitter extends MyEventEmitter {
     constructor({ file, streamRegistry, recursive, outstreamProvider }) {
         super();
 
-        let watcher = watch(file, { recursive, followSymLinks: true });
+        fs.stat(file, (err, stats) => {
+            if (err) return this.emit("error", err);
+            let topdir = stats.isDirectory() ? file : undefined;
 
-        watcher.on("error", err => this.emit("error", err));
-        watcher.on("end", () => this.emit("end"));
-        watcher.on("change", file => {
-            file = path.normalize(file);
-            fs.stat(file, (err, stats) => {
-                if (err) return this.emit("error", err);
-                if (stats.isDirectory()) return;
-                if (streamRegistry[file]) streamRegistry[file].end();
-                let outstream = streamRegistry[file] = outstreamProvider(file);
-                let instream = fs.createReadStream(file);
-                this.emit("job", { in: instream, out: outstream });
+            let watcher = watch(file, { recursive, followSymLinks: true });
+
+            watcher.on("error", err => this.emit("error", err));
+            watcher.on("end", () => this.emit("end"));
+            watcher.on("change", file => {
+                file = path.normalize(file);
+                fs.stat(file, (err, stats) => {
+                    if (err) return this.emit("error", err);
+                    if (stats.isDirectory()) return;
+                    if (streamRegistry[file]) streamRegistry[file].end();
+                    let outstream = streamRegistry[file] = outstreamProvider(file, topdir);
+                    let instream = fs.createReadStream(file);
+                    this.emit("job", { in: instream, out: outstream });
+                });
             });
         });
     }
