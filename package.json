@@ -42,6 +42,7 @@
   "dependencies": {
     "node-watch": "^0.4.1",
     "q": "1.4.1",
+    "recursive-readdir": "2.1.0",
     "transloadit": "1.9.1"
   },
   "devDependencies": {

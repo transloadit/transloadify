@@ -15,6 +15,7 @@ parser.command('action', 'modify', 'edit', 'alter', 'm')
 parser.command('action', 'replay', 'r')
 parser.command('action', 'list', 'l')
 parser.command('action', 'get', 'info', 'view', 'display', 'g')
+parser.command('action', 'sync', 's')
 
 parser.register('steps', null, true)
 parser.register('template', 't', true)
@@ -503,6 +504,20 @@ const subcommands = {
         sort: optget(opts, 'sort') || 'created',
         order: optget(opts, 'order') || 'desc',
         fields
+      }
+    },
+
+    sync (opts, tgts) {
+      let err = validate(opts, tgts,
+
+                allowOptions(anyOf('recursive'),
+                             opt => `templates sync doesn't accept the option --${opt.name}`))
+
+      if (err) return err
+
+      return {
+        recursive: optget(opts, 'recursive'),
+        files: tgts
       }
     }
   },
