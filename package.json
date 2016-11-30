@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "bash3boilerplate": "^1.0.2"
+    "bash3boilerplate": "^1.0.2",
+    "lanyon": "0.0.15"
   }
 }
