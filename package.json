@@ -1,6 +1,26 @@
 {
+  "name": "transloadify",
+  "scripts": {
+    "build:production": "LANYON_ENV=production lanyon build",
+    "build": "lanyon build",
+    "deploy": "lanyon deploy",
+    "inject": "./website/_scripts/inject.sh",
+    "encrypt": "lanyon encrypt",
+    "injecter": "nodemon --verbose --watch ./  --ignore 'website/*.md' --ignore website/_site --ignore website/.lanyon --ext html,json,md,js,css,png,jpg --exec 'npm run inject'",
+    "install": "lanyon postinstall",
+    "serve:production": "LANYON_ENV=production lanyon serve",
+    "start": "npm-run-all --parallel injecter starter",
+    "starter": "lanyon start"
+  },
+  "lanyon": {
+    "projectDir": "website"
+  },
+  "devDependencies": {
+    "fakefile": "0.0.8",
+    "lanyon": "0.0.15",
+    "npm-run-all": "^3.1.1"
+  },
   "dependencies": {
-    "bash3boilerplate": "^1.0.2",
-    "lanyon": "0.0.15"
+    "nodemon": "^1.11.0"
   }
 }

@@ -27,3 +27,18 @@ bin/transloadify
 
 demo-session.sh
 node_modules/
+assets/build
+.lanyon
+.lanyon/bin
+website/.lanyon
+website/.lanyon/bin
+
+website/.jekyll-metadata
+
+env.sh
+
+npm-debug.log
+
+website/_site/
+
+website/faq.md
