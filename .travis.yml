@@ -9,8 +9,8 @@ cache:
   - node_modules
   - website/.lanyon
 install: npm install
-before_script: node_modules/.bin/lanyon postinstall
 script: npm run test
+before_deploy: node_modules/.bin/lanyon postinstall
 deploy:
   skip_cleanup: true
   provider: script
