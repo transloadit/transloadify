@@ -10,6 +10,8 @@ cache:
   - website/.lanyon
 install: npm install
 script: npm run test
+before_cache:
+  - rm -f ./node_modules/.bin/which # <-- workaround for https://github.com/travis-ci/travis-ci/issues/5092
 before_deploy: node_modules/.bin/lanyon postinstall
 deploy:
   skip_cleanup: true
