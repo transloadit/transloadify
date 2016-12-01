@@ -5,4 +5,4 @@
 
 ## What is a Template, Assembly, Robot, or Step?
 
-These
+This is Transloadit vocabulary. An exhaustive list of Transloadit terminology and definitions can be found over at <https://transloadit.com/docs/#terminology>.
