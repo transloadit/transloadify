@@ -1,6 +1,32 @@
 {
+  "name": "transloadify",
+  "version": "0.1.0",
+  "description": "CLI client for transloadit",
+  "scripts": {
+    "test": "npm-run-all build mocha",
+    "mocha": "NODE_ENV=test mocha --compilers js:babel-register --reporter spec test/",
+    "build": "babel src/ -d lib/",
+    "prestart": "npm run build",
+    "start": "node bin/transloadify.js"
+  },
+  "author": "Adrian Sinclair <adrian@transloadit.com>",
+  "license": "MIT",
   "dependencies": {
-    "bash3boilerplate": "^1.0.2",
-    "lanyon": "0.0.15"
+    "node-watch": "0.4.0",
+    "q": "1.4.1",
+    "transloadit": "1.9.2"
+  },
+  "devDependencies": {
+    "babel-cli": "6.14.0",
+    "babel-preset-es2015": "6.14.0",
+    "chai": "3.5.0",
+    "mocha": "3.0.2",
+    "source-map-support": "0.4.2"
+  },
+  "babel": {
+    "sourceMaps": "inline",
+    "presets": [
+      "es2015"
+    ]
   }
 }
