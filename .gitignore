@@ -1,2 +1,10 @@
 node_modules/
 lib/
+assets/build
+env.sh
+npm-debug.log
+website/_site/
+website/.jekyll-metadata
+website/.lanyon
+website/assets/build/
+website/*.md

@@ -3,11 +3,24 @@
   "version": "0.1.0",
   "description": "CLI client for transloadit",
   "scripts": {
+    "web:build:production": "LANYON_ENV=production lanyon build",
+    "web:build": "lanyon build",
+    "web:deploy": "lanyon deploy",
+    "web:inject": "./website/_scripts/inject.sh",
+    "web:encrypt": "lanyon encrypt",
+    "web:injecter": "nodemon --verbose --watch ./  --ignore 'website/*.md' --ignore website/_site --ignore website/.lanyon --ext html,json,md,js,css,png,jpg --exec 'npm run web:inject'",
+    "web:install": "lanyon postinstall",
+    "web:serve:production": "LANYON_ENV=production lanyon serve",
+    "web:start": "npm-run-all --parallel web:injecter web:starter",
+    "web:starter": "lanyon start",
     "test": "npm-run-all build mocha",
     "mocha": "NODE_ENV=test mocha --compilers js:babel-register --reporter spec test/",
     "build": "babel src/ -d lib/",
     "prestart": "npm run build",
     "start": "node bin/transloadify.js"
+  },
+  "lanyon": {
+    "projectDir": "website"
   },
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
@@ -21,6 +34,10 @@
     "babel-preset-es2015": "6.14.0",
     "chai": "3.5.0",
     "mocha": "3.0.2",
+    "fakefile": "0.0.8",
+    "lanyon": "0.0.15",
+    "npm-run-all": "^3.1.1",
+    "nodemon": "^1.11.0",
     "source-map-support": "0.4.2"
   },
   "babel": {
