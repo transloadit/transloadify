@@ -6,7 +6,7 @@
     "fix": "eslint src test --fix",
     "lint": "eslint src test",
     "deploy": "lanyon deploy",
-    "web:build:production": "LANYON_ENV=production lanyon build",
+    "web:build:production": "npm run web:inject && LANYON_ENV=production lanyon build",
     "web:build": "lanyon build",
     "web:inject": "./website/_scripts/inject.sh",
     "web:encrypt": "lanyon encrypt",
