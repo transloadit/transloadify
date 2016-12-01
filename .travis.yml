@@ -11,6 +11,7 @@ cache:
   yarn: true
   directories:
   - website/.lanyon
+install: npm install # <-- yarn still messes up nested bins: https://github.com/yarnpkg/yarn/issues/760
 script: npm run test
 before_cache:
 - rm -f ./node_modules/.bin/which
