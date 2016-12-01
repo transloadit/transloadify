@@ -5,6 +5,7 @@ Here's is a combined todo/done list. You can see what todos are planned for the 
 ## Ideas
 
 - [ ] Add a logo for display up on http://transloadify.io
+- [ ] Can we get this tested on appveyor so we can try to get Windows support?
 
 ## v0.2.2
 
