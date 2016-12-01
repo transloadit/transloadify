@@ -1,6 +1,6 @@
 {
   "name": "transloadify",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI client for transloadit",
   "scripts": {
     "web:build:production": "LANYON_ENV=production lanyon build",
@@ -13,6 +13,10 @@
     "web:serve:production": "LANYON_ENV=production lanyon serve",
     "web:start": "npm-run-all --parallel web:injecter web:starter",
     "web:starter": "lanyon start",
+    "release:major": "env SEMANTIC=major npm run release",
+    "release:minor": "env SEMANTIC=minor npm run release",
+    "release:patch": "env SEMANTIC=patch npm run release",
+    "release": "npm version ${SEMANTIC:-patch} -m \"Release %s\" && npm run build && git push && git push --tags && npm publish",
     "test": "npm-run-all build mocha",
     "mocha": "NODE_ENV=test mocha --compilers js:babel-register --reporter spec test/",
     "build": "babel src/ -d lib/",

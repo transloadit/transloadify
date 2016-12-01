@@ -32,8 +32,7 @@ __dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 __file="${__dir}/$(basename "${BASH_SOURCE[0]}")"
 __base="$(basename ${__file} .sh)"
 
-# for doc in "README" "FAQ" "CHANGELOG"; do
-for doc in "README"; do
+for doc in "README" "FAQ" "CHANGELOG"; do
   targetName="$(echo "${doc}" | awk '{print tolower($0)}')"
   permalink="/${targetName}/"
   subtitle="$(tr '[:lower:]' '[:upper:]' <<< ${targetName:0:1})${targetName:1} | "

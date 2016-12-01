@@ -2,6 +2,8 @@
 
 # Transloadify
 
+<!--more-->
+
 Transloadify is a command line interface to the
 [Transloadit](https://transloadit.com) API. It is a way for non-programmers to
 access the service, and serves as the shell script SDK. It can also be used as a
@@ -179,6 +181,16 @@ $ transloadify bills get 2016-11 --json
   - `get`, `info`, `view`, `display`, `g`
 - All output, from any command, can also be provided in JSON format using the
   `--json` flag
+
+
+## Changelog
+
+Please see the [CHANGELOG.md](./CHANGELOG.md) file.
+
+## Frequently Asked Questions
+
+Please see the [FAQ.md](./FAQ.md) file.
+
 
 ## Authors
 
