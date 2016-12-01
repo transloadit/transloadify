@@ -5,9 +5,9 @@
   "scripts": {
     "fix": "eslint src test --fix",
     "lint": "eslint src test",
+    "deploy": "lanyon deploy",
     "web:build:production": "LANYON_ENV=production lanyon build",
     "web:build": "lanyon build",
-    "web:deploy": "lanyon deploy",
     "web:inject": "./website/_scripts/inject.sh",
     "web:encrypt": "lanyon encrypt",
     "web:injecter": "nodemon --verbose --watch ./  --ignore 'website/*.md' --ignore website/_site --ignore website/.lanyon --ext html,json,md,js,css,png,jpg --exec 'npm run web:inject'",
