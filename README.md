@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/transloadit/transloadify.svg?branch=master)](https://travis-ci.org/transloadit/transloadify)
+
 # Transloadify
 
 Transloadify is a command line interface to the
@@ -177,6 +179,10 @@ $ transloadify bills get 2016-11 --json
   - `get`, `info`, `view`, `display`, `g`
 - All output, from any command, can also be provided in JSON format using the
   `--json` flag
+
+## Authors
+
+ - [Adrian Sinclair](https://transloadit.com/about/#adrian)
 
 ## License
 
