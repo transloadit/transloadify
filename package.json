@@ -1,6 +1,6 @@
 {
   "name": "transloadify",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CLI client for transloadit",
   "scripts": {
     "web:build:production": "LANYON_ENV=production lanyon build",
