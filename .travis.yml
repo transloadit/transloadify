@@ -10,7 +10,6 @@ cache:
   apt: true
   yarn: true
   directories:
-  - node_modules
   - website/.lanyon
 script: npm run test
 before_cache:
