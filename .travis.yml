@@ -8,18 +8,18 @@ env:
   - secure: SmQ+YNersmisfZhj1IRFLGdWnSs6Fas9BNl4J6DI4BRbv/EKU07lZqi5D7reDcEo3rinxXES9hksR+/oUC73/OHE9d19TEh0O20uaq9rciLtOrgQAHVfj/k38GtG8ZQE7DpKe/kesSreBagbebMk7AIYG0hf981qebt5qs8B8dI=
 cache:
   apt: true
+  yarn: true
   directories:
   - node_modules
   - website/.lanyon
-install: npm install
 script: npm run test
 before_cache:
 - rm -f ./node_modules/.bin/which
-before_deploy: node_modules/.bin/lanyon postinstall
+# before_deploy: node_modules/.bin/lanyon postinstall
 deploy:
   skip_cleanup: true
   provider: script
-  script: .lanyon/bin/deploy
+  script: website/.lanyon/bin/deploy
   on:
     branch: master
     condition: $TRAVIS_OS_NAME = linux
