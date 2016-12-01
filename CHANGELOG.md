@@ -13,6 +13,7 @@ Released: TBA.
 
 [Diff](https://github.com/transloadit/transloadify/compare/v0.2.0...master).
 
+- [ ] Document the Template on-disk feature in the README.md (@adrusi)
 - [ ] Fix remaining linting issues (@adrusi)
 - [x] Add linting via eslint with standardjs.com (Fix codebase via `eslint --fix`, make violations fatal on Travis CI tests) (@kvz)
 - [x] Make tests running & passing on Travis (@adrusi)
