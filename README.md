@@ -1,158 +1,183 @@
-[![Build Status](https://travis-ci.org/transloadit/transloadify.svg)](https://travis-ci.org/transloadit/transloadify)
+# Transloadify
 
-# transloadify
+Transloadify is a command line interface to the
+[Transloadit](https://transloadit.com) API. It is a way for non-programmers to
+access the service, and serves as the shell script SDK. It can also be used as a
+cloud-based transcoding and media processing utility.
 
-`transloadify` is a commandline utility to convert local media using [Transloadit](https://transloadit.com), without writing a single line of code.
+## Features
 
-![transloadify](https://cloud.githubusercontent.com/assets/26752/6804908/9230d0b4-d240-11e4-9adb-01ecf0036196.gif)
+- Create and manage assemblies, templates, notifications and bills
+- Process media in the cloud using any of Transloadit's facilities, including
+  full ffmpeg and ImageMagick support
+- Synchronize your Transloadit templates with local files (WIP)
+- File watching
+- Tab completion
 
-`transloadify` comes as binaries for all (main) platforms and can monitor directories for incoming media files.
+## Usage
 
-`transloadify` if built on top of the [Transloadit Go SDK](https://github.com/transloadit/go-sdk)
+Transloadify needs Transloadit API authentication information. It looks for it
+in the environment variables `TRANSLOADIT_KEY` and `TRANSLOADIT_SECRET`. Check
+the [API credentials](https://transloadit.com/accounts/credentials) page for
+these values.
 
-```bash
-# Use -h for more help
-transloadify -h
+See `transloadify --help` for complete usage instructions.
 
-# Upload all files from ./input and process them using the steps defined in the template with the id 'tpl123id'.
-# Download the results and put them into ./output.
-# Watch the input directory to automatically upload all new files.
-TRANSLOADIT_KEY=abc123 \
-TRANSLOADIT_SECRET=abc123efg \
-./transloadify \
-  -input="./input" \
-  -output="./output" \
-  -template="tpl123id" \
-  -watch
-```
+### Processing media
 
-Instead of using a template id you can also load the steps from a local template file using the `template-file` option (see [`templates/imgresize.json`](templates/imgresize.json), for example):
-```bash
-TRANSLOADIT_KEY=abc123 \
-TRANSLOADIT_SECRET=abc123efg \
-./transloadify \
-  -input="./input" \
-  -output="./output" \
-  -template-file="./templates/imgresize.json" \
-  -watch
-```
-
-## Install
-
-Download the tranloadify binary
+Transloadify uses the [Transloadit API](https://transloadit.com/docs/).
+Transloadit allows you to process media in the cloud by creating _assemblies_.
+An assembly in an execution of processing instructions on an uploaded file.  The
+simplest way to create assemblies using transloadify is to put the processing
+instructions (called _assembly instructions_) in a JSON file and give it to
+transloadify using the `--steps` option. Transloadify will then upload whatever
+is passed to it via standard in, and output the result file to standard out.
 
 ```bash
-curl http://releases.transloadit.com/transloadify/transloadify-linux-amd64-latest \
-  -o ./transloadify && chmod 755 $_
+$ transloadify --steps steps.json < input.jpg > output.jpg
 ```
 
-Use the binary
+Transloadit supports _templates_ which are assembly instructions stored in the
+cloud. Templates can be created and managed through transloadify using the
+[templates](#user-content-templates) commands. If you have a template that you
+would like to use to process media, you can specify it with the `--template`
+option instead of specifying a `--steps`.
 
 ```bash
-./transloadify -h
+$ transloadify --template TEMPLATE_ID < input.jpg > output.jpg
 ```
 
-## Daemonize
-
-To run transloadify in the background as a daemon on Linux, continuously monitoring a directory for new media, and converting it according to your wishes, you can use a convenience argument that generates an [Upstart](http://upstart.ubuntu.com/) file:
+If your template expects certain custom fields to be set, those can be specified
+using the `--field` option.
 
 ```bash
-TRANSLOADIT_KEY=abc123 \
-TRANSLOADIT_SECRET=abc123efg \
-./transloadify \
-  -input="./input" \
-  -output="./output" \
-  -template-file="./templates/imgresize.json" \
-  -watch \
-  -upstart \
-|sudo tee /etc/init/transloadify.conf
+$ transloadify --template TEMPLATE_ID --field size=100 < input.jpg > output.jpg
 ```
 
-Transloadify will now start on boot, and you can control it like so:
+Rather than use STDIN and STDOUT, you can also pass files to transloadify using
+the `--input` and `--output` flags. These flags are also more flexible than
+standard IO because they can take directories, to process media in batch,
+optionally traversing subdirectories with the `--recursive` option.
 
 ```bash
-sudo start transloadify
-sudo restart transloadify
-sudo stop transloadify
-sudo status transloadify
+$ transloadify --template TEMPLATE_ID --field size=100 \
+    --input images --recursive --output thumbs
 ```
 
-Logs will be written to syslog under the `transloadify` tag so you can redirect them using e.g. rsyslog, but by default they're accessible in the main `syslog`
+Transloadify also has the option to watch inputs for changes, using the
+`--watch` option, and reprocessing them whenever a change is detected.
 
 ```bash
-sudo tail -f /var/log/syslog
+$ transloadify --template TEMPLATE_ID --field size=100 \
+    --input images --recursive --output thumbs --watch
 ```
 
-## Contribute
-
-If you want to get into `transloadify` development, here are the steps:
-
-### Set up Go
-
-If you haven't already, [download Go](http://golang.org/dl/) for your platform.
-
-### Paths
-
-You [don't need GOROOT](http://dave.cheney.net/2013/06/14/you-dont-need-to-set-goroot-)
+All of these flags support shortened versions, to avoid invocations getting too
+long. See `transloadify assemblies create --help` for details. The above can be
+shortened to:
 
 ```bash
-unset GOROOT
+$ transloadify -tTEMPLATE_ID -fsize=100 -i images -o thumbs -wr
 ```
 
-Set `GOPATH` to your projects directory, e.g.:
+### Assemblies
+
+The `transloadify assemblies` subcommand lets you manage assemblies. Using
+transloadify you can create, cancel, replay, list and fetch assembly statuses.
+See `transloadify assemblies --help` for a list of available actions, and
+`transloadify assemblies ACTION --help` for specific action documentation.
+
+#### Creation
+
+The usage described in [Processing media](#user-content-processing-media)
+implicitly uses the `transloadify assemblies create` command, which has the same
+behavior as the bare `transloadify` command.
+
+#### Listing
+
+You can use transloadify to list assemblies associated with the account,
+optionally filtered by date and keywords. For instance:
 
 ```bash
-export GOPATH=~/go
+$ transloadify assemblies list --after 2016-11-08
 ```
 
-### Get the SDK & Dependencies
+See `transloadify assemblies list --help` for a list of accepted options.
+
+One use-case is to recover failed assemblies once the issue has been resolved.
+If a template definition contained an error that caused assemblies to fail, you
+can salvage them by fixing the template and using an invocation like this, using
+the [jq](https://stedolan.github.io/jq/) JSON utility.
 
 ```bash
-mkdir -p $GOPATH/src/github.com/transloadit && \
- cd $_ && \
- git clone https://github.com/transloadit/go-sdk && \
- git clone https://github.com/transloadit/transloadify && \
- cd transloadify
+$ transloadify assemblies list --json --after "$AFFECTED_DATE" \
+  | jq -r 'select(.error) | .id' \
+  | xargs transloadify assemblies get --json \
+  | jq -r 'select(.template_id == "'$AFFECTED_TEMPLATE'") | .assembly_id' \
+  | xargs transloadify assemblies replay --reparse-template
 ```
 
-### Run transloadify in debug mode
+### Templates
+
+`transloadify templates` is used to create and manage templates. `transloadify
+templates --help` gives a list of supported actions.
+
+#### Modification
+
+`transloadify templates modify` will read new template contents from standard in
+if no file is specified. If you just want to rename a template using the
+`--name` option, the command will ignore empty input:
 
 ```bash
-go run transloadify.go -h
+$ transloadify templates rename $TEMPLATE_ID --name my_template < /dev/null
 ```
 
-### Build
+### Assembly notifications
+
+Support for listing and replaying assembly notifications is provided by
+`transloadify assembly-notifications list` and `transloadify
+assembly-notifications replay` respectively.
+
+#### Listing
+
+`transloadify assembly-notifcations list` can list, optionally
+filtered by whether they succeeded or failed, either all notifications
+associated with an account, or for a given assembly. If you would like to see
+notifications for a list of assemblies, it must be called for each one
+individually.
 
 ```bash
-make build
+$ transloadify assemblies list --after 2016-11-08 \
+  | xargs -n1 transloadify assembly-notifications list
 ```
 
-### Release
+### Bills
 
-Releasing requires the [AWS Command Line Interface
-](http://aws.amazon.com/cli/) and write access to the `transloadify` S3 bucket, hence this can only be done by Transloadit's staff.
-
-Depending on [SemVer](http://semver.org/) impact, any of the following will release a new version
+Monthly billing information can be fetched with `transloadify bills get
+YYYY-MM...`. By default only the total charge is output, but more detailed
+information can be displayed in JSON format with the `--json` flag.
 
 ```bash
-make release bump=major
-make release bump=minor
-make release bump=patch
+$ transloadify bills get 2016-11 --json
 ```
 
-This means:
+### Tips
 
- - Aborts unless working tree is clean
- - Build to `./bin`
- - Test
- - Bumps specified SemVer part in `./VERSION`
- - Commits the file with msg "Release v<version>"
- - Creates a Git tag with this version
- - Pushes commit & tag to GitHub
- - Runs gobuild.io on this tag for *most* platforms, saving to `./builds`
- - Uploads them to S3 as `s3://releases.transloadit.com/transloadify/transloadify-<platform>-<arch>-<version>` with `public-read` access, making the file accessible as e.g. http://releases.transloadit.com/transloadify/transloadify-darwin-amd64-v0.1.0 and http://releases.transloadit.com/transloadify/transloadify-darwin-amd64-latest
- - Clears the `./builds` directory
+- Command names have aliases, the following are interchangeable
+  - `assemblies`, `assembly`, `a`
+  - `templates`, `template`, `t`
+  - `assembly-notifications`, `assembly-notification`, `notifications`,
+    `notification`, `n`
+  - `bills`, `bill`, `b`
+  - `create`, `new`, `c`
+  - `delete`, `cancel`, `d`
+  - `modify`, `edit`, `alter`, `m`
+  - `replay`, `r`
+  - `list`, `l`
+  - `get`, `info`, `view`, `display`, `g`
+- All output, from any command, can also be provided in JSON format using the
+  `--json` flag
 
 ## License
 
-[MIT Licensed](LICENSE)
+[The MIT License](LICENSE)
