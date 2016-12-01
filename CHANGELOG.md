@@ -4,7 +4,8 @@ Here's is a combined todo/done list. You can see what todos are planned for the 
 
 ## Ideas
 
-- [ ] Add a logo for display up on http://transloadify.io
+- [ ] Add a logo for display up on http://transloadify.io (@kvz)
+- [ ] A way to register at Transloadit straight from the CLI
 
 ## v0.2.2
 
