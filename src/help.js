@@ -1,16 +1,16 @@
-export default function help(output, client, { helpMode: mode, helpAction: action }) {
-    if (!mode && action) return output.print(messages.default);
+export default function help (output, client, { helpMode: mode, helpAction: action }) {
+  if (!mode && action) return output.print(messages.default)
 
-    let msg = messages;
-    if (mode) msg = msg[mode];
-    if (action) msg = msg[action];
-    if (typeof msg === "object") msg = msg.default;
+  let msg = messages
+  if (mode) msg = msg[mode]
+  if (action) msg = msg[action]
+  if (typeof msg === 'object') msg = msg.default
 
-    output.print(msg.slice(1));
+  output.print(msg.slice(1))
 }
 
 const register = `
-Command: register`;
+Command: register`
 
 const assemblies = `
 Command: assemblies
@@ -19,7 +19,7 @@ Subcommands:
   delete
   replay
   list
-  get`;
+  get`
 
 const templates = `
 Command: templates
@@ -28,18 +28,18 @@ Subcommands:
   delete
   modify
   list
-  get`;
+  get`
 
 const bills = `
 Command: bills
 Subcommands:
-  get`;
+  get`
 
 const notifications = `
 Command: assembly-notifications
 Subcommands:
   replay
-  list`;
+  list`
 
 const main = `
 Transloadit client.
@@ -60,7 +60,7 @@ ${register}
 ${assemblies}
 ${templates}
 ${notifications}
-${bills}`;
+${bills}`
 
 const assembliesCreate = `
 Create assemblies to process media.
@@ -75,7 +75,7 @@ Options:
   -o --output     Specify an output file or directory; uses STDOUT if absent
   -f --field      Set a template field
   -w --watch      Watch inputs for changes
-  -r --recursive  Enumerate input directories recursively`;
+  -r --recursive  Enumerate input directories recursively`
 
 const assembliesList = `
 List assemblies matching given criteria.
@@ -87,17 +87,17 @@ Options:
   -b --before  Return only assemblies created before specified date
   -a --after   Return only assemblies created after specified date
   --kewords    Specify a comma-separated list of keywords to match assemblies
-  --fields     Specify a list of fields to return for each assembly`;
+  --fields     Specify a list of fields to return for each assembly`
 
 const assembliesGet = `
 Fetch assembly statuses.
 
-Usage: transloadify assemblies get ID...`;
+Usage: transloadify assemblies get ID...`
 
 const assembliesDelete = `
 Cancel assemblies.
 
-Usage: transloadify assemblies delete ID...`;
+Usage: transloadify assemblies delete ID...`
 
 const assembliesReplay = `
 Replay assemblies.
@@ -109,19 +109,19 @@ Options:
   -f --field          Set a template field
   -s --steps          Override assembly instructions
   --notify-url        Specify a new url for assembly notifications
-  --reparse-template  Use the most up-to-date version of the template`;
+  --reparse-template  Use the most up-to-date version of the template`
 
 const templatesCreate = `
 Create a new template.
 
 Usage: transloadify templates create NAME [FILE]
 
-If FILE is not specified, default to STDIN.`;
+If FILE is not specified, default to STDIN.`
 
 const templatesGet = `
 Retrieve the template content as JSON.
 
-Usage: transloadify templates get ID...`;
+Usage: transloadify templates get ID...`
 
 const templatesModify = `
 Change the JSON content of a template.
@@ -131,12 +131,12 @@ Usage: transloadify templates modify [--name NAME] ID [FILE]
 If FILE is not specified, default to STDIN.
 
 Options:
-  -n --name  A new name for the template`;
+  -n --name  A new name for the template`
 
 const templatesDelete = `
 Delete templates.
 
-Usage: transloadify templates delete ID...`;
+Usage: transloadify templates delete ID...`
 
 const templatesList = `
 List templates matching given criteria.
@@ -149,7 +149,7 @@ Options:
    -b --before  Return only templates created before specified date
    --sort       Field to sort by (id, name, created, or modified)
    --order      Sort ascending or descending (default: descending)
-   --fields     A list of fields to return for each templates`;
+   --fields     A list of fields to return for each templates`
 
 const notificationsReplay = `
 Replay notifications for assemblies.
@@ -157,7 +157,7 @@ Replay notifications for assemblies.
 Usage: transloadify assembly-notifications replay [--notify-url URL] ASSEMBLY...
 
 Options:
-  --notify-url  Specify a new url to send the notifications to`;
+  --notify-url  Specify a new url to send the notifications to`
 
 const notificationsList = `
 List notifications matching given criteria.
@@ -169,41 +169,41 @@ If ASSEMBLY is specified, return only notifications sent for that assembly.
 
 Options:
   --failed      Return only failed notifications
-  --successful  Return only successful notifications`;
+  --successful  Return only successful notifications`
 
 const billsGet = `
 Fetch billing information.
 
 Usage: transloadify bills get MONTH...
 
-Months should be specified in YYYY-MM format.`;
+Months should be specified in YYYY-MM format.`
 
 const messages = {
-    default: main,
-    register: register,
-    assemblies: {
-        default: assemblies,
-        create: assembliesCreate,
-        list: assembliesList,
-        get: assembliesGet,
-        delete: assembliesDelete,
-        replay: assembliesReplay
-    },
-    templates: {
-        default: templates,
-        create: templatesCreate,
-        get: templatesGet,
-        modify: templatesModify,
-        delete: templatesDelete,
-        list: templatesList
-    },
-    "assembly-notifications": {
-        default: notifications,
-        replay: notificationsReplay,
-        list: notificationsList
-    },
-    bills: {
-        default: bills,
-        get: billsGet
-    }
-};
+  default: main,
+  register: register,
+  assemblies: {
+    default: assemblies,
+    create: assembliesCreate,
+    list: assembliesList,
+    get: assembliesGet,
+    delete: assembliesDelete,
+    replay: assembliesReplay
+  },
+  templates: {
+    default: templates,
+    create: templatesCreate,
+    get: templatesGet,
+    modify: templatesModify,
+    delete: templatesDelete,
+    list: templatesList
+  },
+  'assembly-notifications': {
+    default: notifications,
+    replay: notificationsReplay,
+    list: notificationsList
+  },
+  bills: {
+    default: bills,
+    get: billsGet
+  }
+}
