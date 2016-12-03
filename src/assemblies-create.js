@@ -282,7 +282,7 @@ export default function run (outputctl, client, { steps, template, fields, watch
   emitter.on('job', job => {
     outputctl.debug(`GOT JOB ${job.in.path} ${job.out.path}`)
     let superceded = false
-    job.out.on('finish', () => superceded = true)
+    job.out.on('finish', () => { superceded = true })
 
     if (job.in != null) client.addStream('in', job.in)
 

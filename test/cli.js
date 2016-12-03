@@ -371,7 +371,7 @@ describe('Cli', function () {
 
     for (let test of tests) {
       let args = test.args.split(/\s+/)
-      let result = cli(args == false ? [] : args)
+      let result = cli(args.filter(arg => arg.trim() !== '').length === 0 ? [] : args)
       if (args[0] === '--edit-template') console.log(result)
       for (let key in test.rslt) {
         if (!test.rslt.hasOwnProperty(key)) continue
