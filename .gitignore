@@ -9,3 +9,4 @@ website/.lanyon
 website/assets/build/
 website/*.md
 website/index.md
+website/.lanyon/bin

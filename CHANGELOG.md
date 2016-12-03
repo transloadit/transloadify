@@ -6,6 +6,7 @@ Here's is a combined todo/done list. You can see what todos are planned for the 
 
 - [ ] Add a logo for display up on http://transloadify.io (@kvz)
 - [ ] A way to register at Transloadit straight from the CLI
+- [ ] Can we get this tested on appveyor so we can try to get Windows support?
 
 ## v0.2.2
 
