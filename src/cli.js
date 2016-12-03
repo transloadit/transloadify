@@ -1,4 +1,3 @@
-import fs from 'fs'
 import Parser from './Parser'
 
 const parser = new Parser()
@@ -54,7 +53,6 @@ export default function cli (...args) {
 }
 
 function generalValidation (options) {
-  let modesSpecified = []
   for (let option of options) {
     if (option.name === 'field' && !option.value.match(/^[^=]+=[\s\S]*$/)) {
       return {
@@ -109,13 +107,13 @@ function modeDispatch ({ mode, action }, opts, tgts) {
     if (action != null) mode = 'assemblies'
     else if (opts.length === 0) mode = 'register'
     else if (opts.filter(opt => opt.name === 'version').length !== 0) mode = 'version'
-    else mode = 'assemblies', action = 'create'
+    else [mode, action] = ['assemblies', 'create']
   }
 
   let verbosity = getVerbosity(opts)
 
   let noJsonFlag = opts.filter(opt => opt.name !== 'json')
-  let jsonMode = opts.length != noJsonFlag.length
+  let jsonMode = opts.length !== noJsonFlag.length
   opts = noJsonFlag
 
   let handler = subcommands[mode]
@@ -191,9 +189,6 @@ function exactlyOneOfOption (optClassFn, msgfn) {
 }
 function atMostOneOfOption (optClassFn, msgfn) {
   return nOfOption(optClassFn, 0, 1, msgfn)
-}
-function atLeastOneOfOption (optClassFn, msgfn) {
-  return nOfOption(optClassFn, 1, Infinity, msgfn)
 }
 
 function noTargets (msg) {

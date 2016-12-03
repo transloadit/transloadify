@@ -8,7 +8,8 @@ export function list (output, client, { before, after, fields, keywords }) {
   let assemblies = client.streamAssemblies({
     fromdate: after,
     todate: before,
-    fields, keywords
+    fields,
+    keywords
   })
 
   assemblies.on('readable', () => {
@@ -70,7 +71,9 @@ export function replay (output, client, { fields, reparse, steps, notify_url, as
       client.replayAssembly({
         assembly_id: assembly,
         reparse_template: reparse,
-        fields, steps, notify_url
+        fields,
+        steps,
+        notify_url
       }, (err, result) => {
         if (err) return output.error(formatAPIError(err))
       })

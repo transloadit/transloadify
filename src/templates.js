@@ -3,6 +3,8 @@ import { stream2buf, createReadStream, inSequence, formatAPIError } from './help
 
 export function create (output, client, { name, file }) {
   stream2buf(createReadStream(file), (err, buf) => {
+    if (err) return output.error(err.message)
+
     client.createTemplate({ name, template: buf.toString() }, (err, result) => {
       if (err) return output.error(err.message)
       output.print(result.id, result)
@@ -63,7 +65,9 @@ export function list (output, client, { before, after, order, sort, fields }) {
   let stream = client.streamTemplates({
     todate: before,
     fromdate: after,
-    order, sort, fields
+    order,
+    sort,
+    fields
   })
 
   stream.on('readable', () => {

@@ -21,7 +21,8 @@ export default class Parser {
 
   parse (args) {
     if (args == null) args = Array.from(process.argv.slice(2))
-    return this._parse(args, {}, [], [])
+
+    return this._parse(args, {}, [], [])
   }
 
   _parse (args, cmds, opts, tgts) {
