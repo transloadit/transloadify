@@ -28,7 +28,8 @@ Subcommands:
   delete
   modify
   list
-  get`
+  get
+  sync`
 
 const bills = `
 Command: bills
@@ -145,11 +146,27 @@ Usage: transloadify templates list [--after DATE] [--before DATE]
   [--sort FIELD] [--order asc|desc] [--fields LIST]
 
 Options:
-   -a --after   Return only templates created after specified date
-   -b --before  Return only templates created before specified date
-   --sort       Field to sort by (id, name, created, or modified)
-   --order      Sort ascending or descending (default: descending)
-   --fields     A list of fields to return for each templates`
+  -a --after   Return only templates created after specified date
+  -b --before  Return only templates created before specified date
+  --sort       Field to sort by (id, name, created, or modified)
+  --order      Sort ascending or descending (default: descending)
+  --fields     A list of fields to return for each templates`
+
+const templatesSync = `
+Synchronize local template files with the transloadify API.
+
+Usage: transloadify templates sync [--recursive] FILE...
+
+Template files must be named *.json and have the key "transloadit_template_id"
+and optionally "steps". If "transloadit_template_id" is an empty string, then
+a new template will be created using the instructions in "steps". If "steps" is
+missing then it will be filled in by the instructions of the template specified
+by "transloadit_template_id". If both keys are present then the local template
+file and the remote template will be synchronized to whichever was more recently
+modified.
+
+Options:
+  -r --recursive  Look for template files in directories recursively`
 
 const notificationsReplay = `
 Replay notifications for assemblies.
@@ -195,7 +212,8 @@ const messages = {
     get: templatesGet,
     modify: templatesModify,
     delete: templatesDelete,
-    list: templatesList
+    list: templatesList,
+    sync: templatesSync
   },
   'assembly-notifications': {
     default: notifications,
