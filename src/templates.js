@@ -91,22 +91,38 @@ export function list (output, client, { before, after, order, sort, fields }) {
 }
 
 export function sync (output, client, { files, recursive }) {
-  const flatten = Array.prototype.concat.apply
+  const flatten = Function.prototype.apply.bind(Array.prototype.concat, [])
 
-    // Promise [String] -- all files in the directory tree
+  // Promise [String] -- all files in the directory tree
   let relevantFiles = Q.all(
         files.map(file => Q.Promise((resolve, reject) => {
           fs.stat(file, (err, stats) => {
             if (err) return reject(err)
+
             if (!stats.isDirectory()) return resolve([file])
-            resolve(
-                    Q.nfcall(recursive ? rreaddir : fs.readdir, file)
-                    .then(children => children.map(child => path.join(file, child))))
+            
+            let children = Q.nfcall(recursive ? rreaddir : fs.readdir, file)
+              .then(children => children.map(child => path.join(file, child)))
+
+            // omit subdirectories from fs.readdir results
+            if (!recursive) {
+              children = children.then(children => Q.all(
+                children.map(child => Q.Promise((resolve, reject) => {
+                  fs.stat(child, (err, stats) => {
+                    if (err) return reject(err);
+                    if (!stats.isDirectory()) return resolve(child);
+                    resolve();
+                  });
+                })))
+                .then(children => children.filter(child => child != null)));
+            }
+
+            resolve(children)
           })
         })))
         .then(flatten)
 
-    // Promise [{ file: String, data: JSON }] -- all templates
+  // Promise [{ file: String, data: JSON }] -- all templates
   let templates = relevantFiles.then(
         files => Q.all(files.map(templateFileOrNull))
                  .then(maybeFiles => maybeFiles.filter(maybeFile => maybeFile !== null)))
