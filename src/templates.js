@@ -203,7 +203,7 @@ export function sync (output, client, { files, recursive }) {
       client.getTemplate(template.data.transloadit_template_id, (err, result) => {
         if (err) return reject(err)
 
-        template.data.steps = result.content.steps
+        template.data.steps = result.content
         let file = path.join(path.dirname(template.file), result.name + '.json')
 
         fs.writeFile(template.file, JSON.stringify(template.data), err => {
