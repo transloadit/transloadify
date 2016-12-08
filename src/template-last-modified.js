@@ -23,7 +23,7 @@ class MemoizedPagination {
 }
 
 export default class ModifiedLookup {
-  constructor (client, pagesize=50) {
+  constructor (client, pagesize = 50) {
     this.byOrdinal = new MemoizedPagination(pagesize, (page, pagesize, cb) => {
       let params = {
         sort: 'id',

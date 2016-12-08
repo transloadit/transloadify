@@ -100,7 +100,7 @@ export function sync (output, client, { files, recursive }) {
             if (err) return reject(err)
 
             if (!stats.isDirectory()) return resolve([file])
-            
+
             let children = Q.nfcall(recursive ? rreaddir : fs.readdir, file)
               .then(children => children.map(child => path.join(file, child)))
 
@@ -109,12 +109,12 @@ export function sync (output, client, { files, recursive }) {
               children = children.then(children => Q.all(
                 children.map(child => Q.Promise((resolve, reject) => {
                   fs.stat(child, (err, stats) => {
-                    if (err) return reject(err);
-                    if (!stats.isDirectory()) return resolve(child);
-                    resolve();
-                  });
+                    if (err) return reject(err)
+                    if (!stats.isDirectory()) return resolve(child)
+                    resolve()
+                  })
                 })))
-                .then(children => children.filter(child => child != null)));
+                .then(children => children.filter(child => child != null)))
             }
 
             resolve(children)

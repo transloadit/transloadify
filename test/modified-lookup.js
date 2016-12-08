@@ -42,5 +42,4 @@ describe('ModifiedLookup', function () {
         return Q.all(lookups)
       })
   })
-
 })
