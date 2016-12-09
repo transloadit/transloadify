@@ -6,14 +6,26 @@ import rreaddir from 'recursive-readdir'
 import ModifiedLookup from './template-last-modified'
 
 export function create (output, client, { name, file }) {
+  let deferred = Q.defer()
+
   stream2buf(createReadStream(file), (err, buf) => {
-    if (err) return output.error(err.message)
+    if (err) {
+        output.error(err.message)
+        return deferred.reject(err)
+    }
 
     client.createTemplate({ name, template: buf.toString() }, (err, result) => {
-      if (err) return output.error(err.message)
+      if (err) {
+          output.error(err.message)
+          return deferred.reject(err)
+      }
+
       output.print(result.id, result)
+      deferred.resolve(result)
     })
   })
+
+  return deferred.promise
 }
 
 export function get (output, client, { templates }) {
