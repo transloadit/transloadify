@@ -29,22 +29,20 @@ export function create (output, client, { name, file }) {
 }
 
 export function get (output, client, { templates }) {
+  let deferred = Q.defer()
+
   let requests = templates.map(template => {
-    let deferred = Q.defer()
-
-    client.getTemplate(template, (err, result) => {
-      if (err) deferred.reject(err)
-      else deferred.resolve(result)
-    })
-
-    return deferred.promise
+    return Q.nfcall(client.getTemplate.bind(client), template)
   })
 
   inSequence(requests, result => {
     output.print(result, result)
   }, err => {
     output.error(formatAPIError(err))
-  })
+    deferred.reject(err)
+  }).then(deferred.resolve.bind(deferred))
+
+  return deferred.promise
 }
 
 export function modify (output, client, { template, name, file }) {

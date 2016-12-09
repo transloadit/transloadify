@@ -33,7 +33,7 @@ export function stream2buf (stream, cb) {
 }
 
 export function inSequence (promises, fulfilled, rejected) {
-  promises.reduce((a, b) => {
+  return promises.reduce((a, b) => {
     return a.then((...args) => {
       fulfilled(...args)
       return b
@@ -44,3 +44,12 @@ export function inSequence (promises, fulfilled, rejected) {
 export function formatAPIError (err) {
   return `${err.error}: ${err.message}`
 }
+
+export function zip (...lists) {
+  let length = Math.max(...lists.map(list => list.length))
+  let result = new Array(length)
+  for (let i = 0; i < result.length; i++) result[i] = lists.map(list => list[i])
+  return result
+}
+      
+
