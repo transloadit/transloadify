@@ -78,11 +78,13 @@ export function modify (output, client, { template, name, file }) {
 }
 
 exports['delete'] = function _delete (output, client, { templates }) {
-  for (let template of templates) {
-    client.deleteTemplate(template, err => {
-      if (err) output.error(formatAPIError(err))
-    })
-  }
+  return Q.all(templates.map(template => {
+    return Q.nfcall(client.deleteTemplate.bind(client), template)
+      .fail(err => {
+        output.error(formatAPIError(err))
+        throw err
+      })
+  }))
 }
 
 export function list (output, client, { before, after, order, sort, fields }) {

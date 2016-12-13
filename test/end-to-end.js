@@ -217,5 +217,33 @@ describe("End-to-end", function () {
         return Q.nfcall(client.deleteTemplate.bind(client), templateId)
       })
     })
+
+    describe("delete", function () {
+      it("should delete templates", testCase(client => {
+        let templateIdsPromise = Q.all([1, 2, 3, 4, 5].map(n => {
+          return Q.nfcall(client.createTemplate.bind(client), {
+            name: `delete_test_${n}`,
+            template: JSON.stringify({ n })
+          }).then(response => response.id)
+        }))
+
+        let resultPromise = templateIdsPromise.then(ids => {
+          let output = new OutputCtl()
+          return templates.delete(output, client, { templates: ids })
+            .then(() => output.get())
+        })
+
+        return Q.spread([resultPromise, templateIdsPromise], (result, ids) => {
+          assert.lengthOf(result, 0)
+          return Q.all(ids.map(id => {
+            return Q.nfcall(client.getTemplate.bind(client), id)
+              .then(response => { assert.isUndefined(response) })
+              .fail(err => {
+                if (err.error !== "TEMPLATE_NOT_FOUND") throw err
+              })
+          }))
+        })
+      }))
+    })
   })
 })
