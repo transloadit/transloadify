@@ -46,8 +46,13 @@ export function get (output, client, { templates }) {
 }
 
 export function modify (output, client, { template, name, file }) {
+  let deferred = Q.defer()
+
   stream2buf(createReadStream(file), (err, buf) => {
-    if (err) return output.error(err.message)
+    if (err) {
+      output.error(err.message)
+      return Q.reject(err)
+    }
 
     let promise = (name && buf.length !== 0)
             ? Q.fcall(() => ({ name, json: buf.toString() }))
@@ -57,14 +62,19 @@ export function modify (output, client, { template, name, file }) {
                   json: buf.length !== 0 ? buf.toString() : template.content
                 }))
 
-    promise
+    deferred.resolve(promise
             .then(({ name, json }) => {
               client.editTemplate(template, { name, template: json }, (err, result) => {
                 if (err) return output.error(formatAPIError(err))
               })
             })
-            .fail(err => output.error(formatAPIError(err)))
+            .fail(err => {
+              output.error(formatAPIError(err))
+              throw err
+            }))
   })
+
+  return deferred.promise
 }
 
 exports['delete'] = function _delete (output, client, { templates }) {

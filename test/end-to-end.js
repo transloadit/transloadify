@@ -79,7 +79,7 @@ describe("End-to-end", function () {
     describe("get", function () {
       it("should get templates", testCase(client => {
         // get some valid template IDs to request
-        let templateRequests = Q.nfcall(client.listTemplates.bind(client), { pagesize: 1 })
+        let templateRequests = Q.nfcall(client.listTemplates.bind(client), { pagesize: 5 })
           .then(response => response.items)
           .then(templates => {
             if (templates.length === 0) throw new Error("account has no templates to fetch")
@@ -108,6 +108,114 @@ describe("End-to-end", function () {
           }))
         })
       }))
+
+      it("should return templates in the order specified", testCase(client => {
+        let templateRequests = Q.nfcall(client.listTemplates.bind(client), { pagesize: 5 })
+          .then(response => response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1))
+          .then(templates => {
+            if (templates.length === 0) throw new Error("account has no templates to fetch")
+            return templates
+          })
+
+        let idsPromise = templateRequests
+          .then(templates => templates.map(template => template.id))
+        
+        let resultsPromise = idsPromise.then(ids => {
+          let output = new OutputCtl()
+          return templates.get(output, client, { templates: ids })
+            .then(() => output.get())
+        })
+
+        return Q.spread([resultsPromise, idsPromise], (results, ids) => {
+          assert.lengthOf(results, ids.length)
+          return Q.all(zip(results, ids).map(([result, id]) => {
+            assert.property(result, "type", "print")
+            assert.equal(result.json.id, id)
+          }))
+        })
+      }))
+    })
+
+    describe("modify", function () {
+      let templateId;
+
+      before(function () {
+        let client = new TransloaditClient({ authKey, authSecret })
+        return Q.nfcall(client.createTemplate.bind(client), {
+          name: "originalName",
+          template: JSON.stringify({ stage: 0 })
+        }).then(response => { templateId = response.id })
+      })
+
+      it("should modify but not rename the template", testCase(client => {
+        let filePromise = Q.nfcall(fs.writeFile, "template.json", JSON.stringify({ stage: 1 }))
+
+        let resultPromise = filePromise.then(() => {
+          let output = new OutputCtl()
+          return templates.modify(output, client, {
+            template: templateId, 
+            file: "template.json"
+          }).then(() => output.get())
+        })
+        
+        return resultPromise.then(result => {
+          assert.lengthOf(result, 0)
+          return Q.nfcall(client.getTemplate.bind(client), templateId)
+            .then(template => {
+              assert.property(template, "name", "originalName")
+              assert.property(template, "content", JSON.stringify({ stage: 1 }))
+            })
+        })
+      }))
+
+      it("should not modify but rename the template", testCase(client => {
+        let filePromise = Q.nfcall(fs.writeFile, "template.json", "")
+
+        let resultPromise = filePromise.then(() => {
+          let output = new OutputCtl()
+          return templates.modify(output, client, {
+            template: templateId, 
+            name: "newName",
+            file: "template.json"
+          }).then(() => output.get())
+        })
+        
+        return resultPromise.then(result => {
+          assert.lengthOf(result, 0)
+          return Q.nfcall(client.getTemplate.bind(client), templateId)
+            .then(template => {
+              assert.property(template, "name", "newName")
+              assert.property(template, "content", JSON.stringify({ stage: 1 }))
+            })
+        })
+      }))
+
+      it("should not modify but rename the template", testCase(client => {
+        let filePromise = Q.nfcall(fs.writeFile, "template.json", JSON.stringify({ stage: 2 }))
+
+        let resultPromise = filePromise.then(() => {
+          let output = new OutputCtl()
+          return templates.modify(output, client, {
+            template: templateId, 
+            name: "newerName",
+            file: "template.json"
+          }).then(() => output.get())
+        })
+        
+        return resultPromise.then(result => {
+          assert.lengthOf(result, 0)
+          return Q.nfcall(client.getTemplate.bind(client), templateId)
+            .then(template => {
+              assert.property(template, "name", "newerName")
+              assert.property(template, "content", JSON.stringify({ stage: 2 }))
+            })
+        })
+      }))
+
+      after(function () {
+        let client = new TransloaditClient({ authKey, authSecret })
+        return Q.nfcall(client.deleteTemplate.bind(client), templateId)
+      })
     })
   })
 })
