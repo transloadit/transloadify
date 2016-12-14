@@ -51,7 +51,7 @@
     "eslint-plugin-promise": "3.4.0",
     "eslint-plugin-standard": "2.0.1",
     "fakefile": "^0.0.8",
-    "lanyon": "0.0.34",
+    "lanyon": "0.0.35",
     "mocha": "^3.2.0",
     "nodemon": "1.11.0",
     "npm-run-all": "^3.1.2",
