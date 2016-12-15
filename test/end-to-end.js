@@ -3,8 +3,8 @@ import TransloaditClient from 'transloadit'
 import fs from 'fs'
 import path from 'path'
 import Q from 'q'
-import rreaddir from 'recursive-readdir'
-import { assert } from 'chai'
+import rimraf from 'rimraf'
+import { expect } from 'chai'
 import { zip } from '../src/helpers'
 const templates = require('../src/templates')
 
@@ -29,15 +29,7 @@ function testCase(cb) {
         process.chdir(dirname)
         return cb(client)
       })
-      .fin(() => {
-        return Q.nfcall(rreaddir, dirname)
-          .then(children => {
-            children = children.sort((a, b) => b.length - a.length)
-            return Q.all(children.map(child => Q.nfcall(fs.unlink, child)))
-              .fail(() => {})
-          })
-          .then(() => Q.nfcall(fs.rmdir, dirname).fail(() => {}))
-      })
+      .fin(() => Q.nfcall(rimraf, dirname))
   }
 }
 
@@ -62,9 +54,9 @@ describe("End-to-end", function () {
           return Q.all(results.map(result => {
             return Q.fcall(() => {
               // Verify that the output looks as expected
-              assert.lengthOf(result, 1)
-              assert.propertyVal(result[0], "type", "print")
-              assert.equal(result[0].msg, result[0].json.id)
+              expect(result).to.have.lengthOf(1)
+              expect(result).to.have.deep.property('[0].type').that.equals('print')
+              expect(result).to.have.deep.property('[0].msg').that.equals(result[0].json.id)
             }).fin(() => {
               // delete these test templates from the server, but don't fail the
               // test if it doesn't work
@@ -102,9 +94,9 @@ describe("End-to-end", function () {
 
         return Q.spread([sdkResults, transloadifyResults], (expectations, actuals) => {
           return Q.all(zip(expectations, actuals).map(([expectation, actual]) => {
-            assert.lengthOf(actual, 1)
-            assert.propertyVal(actual[0], "type", "print")
-            assert.deepEqual(actual[0].json, expectation)
+            expect(actual).to.have.lengthOf(1)
+            expect(actual).to.have.deep.property('[0].type').that.equals('print')
+            expect(actual).to.have.deep.property('[0].json').that.deep.equals(expectation)
           }))
         })
       }))
@@ -127,10 +119,10 @@ describe("End-to-end", function () {
         })
 
         return Q.spread([resultsPromise, idsPromise], (results, ids) => {
-          assert.lengthOf(results, ids.length)
+          expect(results).to.have.lengthOf(ids.length)
           return Q.all(zip(results, ids).map(([result, id]) => {
-            assert.property(result, "type", "print")
-            assert.equal(result.json.id, id)
+            expect(result).to.have.property('type').that.equals('print')
+            expect(result).to.have.deep.property('json.id').that.equals(id)
           }))
         })
       }))
@@ -159,11 +151,11 @@ describe("End-to-end", function () {
         })
         
         return resultPromise.then(result => {
-          assert.lengthOf(result, 0)
-          return Q.nfcall(client.getTemplate.bind(client), templateId)
+          expect(result).to.have.lengthOf(0)
+          return Q.delay(2000).then(() => Q.nfcall(client.getTemplate.bind(client), templateId))
             .then(template => {
-              assert.property(template, "name", "originalName")
-              assert.property(template, "content", JSON.stringify({ stage: 1 }))
+              expect(template).to.have.property('name').that.equals('originalName')
+              expect(template).to.have.property('content').that.deep.equals({ stage: 1 })
             })
         })
       }))
@@ -181,16 +173,16 @@ describe("End-to-end", function () {
         })
         
         return resultPromise.then(result => {
-          assert.lengthOf(result, 0)
-          return Q.nfcall(client.getTemplate.bind(client), templateId)
+          expect(result).to.have.lengthOf(0)
+          return Q.delay(2000).then(() => Q.nfcall(client.getTemplate.bind(client), templateId))
             .then(template => {
-              assert.property(template, "name", "newName")
-              assert.property(template, "content", JSON.stringify({ stage: 1 }))
+              expect(template).to.have.property('name').that.equals('newName')
+              expect(template).to.have.property('content').that.deep.equals({ stage: 1 })
             })
         })
       }))
 
-      it("should not modify but rename the template", testCase(client => {
+      it("should modify and rename the template", testCase(client => {
         let filePromise = Q.nfcall(fs.writeFile, "template.json", JSON.stringify({ stage: 2 }))
 
         let resultPromise = filePromise.then(() => {
@@ -203,11 +195,11 @@ describe("End-to-end", function () {
         })
         
         return resultPromise.then(result => {
-          assert.lengthOf(result, 0)
-          return Q.nfcall(client.getTemplate.bind(client), templateId)
+          expect(result).to.have.lengthOf(0)
+          return Q.delay(2000).then(() => Q.nfcall(client.getTemplate.bind(client), templateId))
             .then(template => {
-              assert.property(template, "name", "newerName")
-              assert.property(template, "content", JSON.stringify({ stage: 2 }))
+              expect(template).to.have.property('name').that.equals('newerName')
+              expect(template).to.have.property('content').that.deep.equals({ stage: 2 })
             })
         })
       }))
@@ -234,14 +226,53 @@ describe("End-to-end", function () {
         })
 
         return Q.spread([resultPromise, templateIdsPromise], (result, ids) => {
-          assert.lengthOf(result, 0)
+          expect(result).to.have.lengthOf(0)
           return Q.all(ids.map(id => {
             return Q.nfcall(client.getTemplate.bind(client), id)
-              .then(response => { assert.isUndefined(response) })
+              .then(response => { expect(response).to.not.exist })
               .fail(err => {
                 if (err.error !== "TEMPLATE_NOT_FOUND") throw err
               })
           }))
+        })
+      }))
+    })
+
+    describe("sync", function () {
+      it("should handle directories recursively", testCase(client => {
+        let templateIdsPromise = Q.nfcall(client.listTemplates.bind(client), { pagesize: 5 })
+          .then(response => response.items.map(item => ({ id: item.id, name: item.name })))
+
+        let filesPromise = templateIdsPromise.then(ids => {
+          let dirname = "d";
+          let promise = Q.fcall(() => {})
+          
+          return Q.all(ids.map(({id, name}) => {
+            return (promise = promise.then(() => {
+              let fname = path.join(dirname, `${name}.json`)
+              return Q.nfcall(fs.mkdir, dirname)
+                .then(() => Q.nfcall(fs.writeFile, fname, `{"transloadit_template_id":"${id}"}`))
+                .then(() => { dirname = path.join(dirname, "d") })
+                .then(() => fname)
+            }))
+          }))
+        })
+
+        let resultPromise = filesPromise.then(files => {
+          let output = new OutputCtl()
+          return templates.sync(output, client, { recursive: true, files: ["d"] })
+            .then(() => output.get())
+        })
+
+        return Q.spread([resultPromise, templateIdsPromise, filesPromise], (result, ids, files) => {
+          expect(result).to.have.lengthOf(0)
+          let fileContentsPromise = Q.all(files.map(file => Q.nfcall(fs.readFile, file).then(JSON.parse)))
+          return fileContentsPromise.then(contents => {
+            return Q.all(zip(contents, ids).map(([content, id]) => {
+              expect(content).to.have.property('transloadit_template_id').that.equals(id.id)
+              expect(content).to.have.property('steps')
+            }))
+          })
         })
       }))
     })

@@ -124,7 +124,7 @@ export function sync (output, client, { files, recursive }) {
             if (!stats.isDirectory()) return resolve([file])
 
             let children = Q.nfcall(recursive ? rreaddir : fs.readdir, file)
-              .then(children => children.map(child => path.join(file, child)))
+              // .then(children => children.map(child => path.join(file, child)))
 
             // omit subdirectories from fs.readdir results
             if (!recursive) {
@@ -243,5 +243,8 @@ export function sync (output, client, { files, recursive }) {
 
   complete.fail(err => {
     output.error(err)
+    throw err
   })
+
+  return complete
 }

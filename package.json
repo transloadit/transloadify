@@ -57,6 +57,7 @@
     "lanyon": "0.0.62",
     "mocha": "^3.2.0",
     "npm-run-all": "^3.1.2",
+    "rimraf": "2.5.4",
     "source-map-support": "^0.4.6"
   },
   "babel": {
