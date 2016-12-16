@@ -26,7 +26,8 @@
     "start": "node bin/transloadify.js"
   },
   "lanyon": {
-    "projectDir": "website"
+    "projectDir": "website",
+    "prebuild": "npm run web:inject"
   },
   "eslintConfig": {
     "extends": "standard",
