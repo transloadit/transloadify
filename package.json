@@ -55,7 +55,6 @@
     "fakefile": "^0.0.8",
     "lanyon": "0.0.47",
     "mocha": "^3.2.0",
-    "nodemon": "1.11.0",
     "npm-run-all": "^3.1.2",
     "source-map-support": "^0.4.6"
   },
