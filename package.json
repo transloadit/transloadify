@@ -6,15 +6,12 @@
     "fix": "eslint src test --fix",
     "lint": "eslint src test",
     "deploy": "lanyon deploy",
-    "web:build:production": "npm run web:inject && LANYON_ENV=production lanyon build",
+    "web:build:production": "LANYON_ENV=production lanyon build",
     "web:build": "lanyon build",
-    "web:inject": "./website/_scripts/inject.sh",
     "web:encrypt": "lanyon encrypt",
-    "web:injecter": "nodemon --verbose --watch ./  --ignore 'website/*.md' --ignore website/_site --ignore website/.lanyon --ext html,json,md,js,css,png,jpg --exec 'npm run web:inject'",
     "web:install": "lanyon postinstall",
     "web:serve:production": "LANYON_ENV=production lanyon serve",
-    "web:start": "npm-run-all --parallel web:injecter web:starter",
-    "web:starter": "lanyon start",
+    "web:start": "lanyon start",
     "release:major": "env SEMANTIC=major npm run release",
     "release:minor": "env SEMANTIC=minor npm run release",
     "release:patch": "env SEMANTIC=patch npm run release",
@@ -27,7 +24,11 @@
   },
   "lanyon": {
     "projectDir": "website",
-    "prebuild": "npm run web:inject"
+    "prebuild": "./_scripts/inject.sh",
+    "contentScandir": "../",
+    "contentIgnore": [
+      "website/*.md"
+    ]
   },
   "eslintConfig": {
     "extends": "standard",

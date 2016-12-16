@@ -31,6 +31,9 @@ set -o pipefail
 __dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 __file="${__dir}/$(basename "${BASH_SOURCE[0]}")"
 __base="$(basename ${__file} .sh)"
+__root="$(cd "$(dirname $(dirname "${__dir}"))" && pwd)"
+
+pushd "${__root}"
 
 for doc in "README" "FAQ" "CHANGELOG"; do
   targetName="$(echo "${doc}" | awk '{print tolower($0)}')"
@@ -68,3 +71,5 @@ EOF
 
   echo "--> written website/${targetName}.md"
 done
+
+popd
