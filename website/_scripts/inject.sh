@@ -9,7 +9,7 @@
 #  ./inject.sh
 #
 # Based on a template by Transloadify v2.0.0
-# http://transloadify.sh/#authors
+# http://transloadify.io/#authors
 #
 # The MIT License (MIT)
 # Copyright (c) 2013 Kevin van Zonneveld and contributors
