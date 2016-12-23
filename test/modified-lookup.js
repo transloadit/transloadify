@@ -19,7 +19,7 @@ describe('ModifiedLookup', function () {
 
           return Q.nfcall(lookup.byId.bind(lookup), item.id)
             .then(modified => {
-              assert.equal(item.modified, modified)
+              assert.equal(Date.parse(item.modified), modified.valueOf())
             })
         })
 
@@ -35,7 +35,7 @@ describe('ModifiedLookup', function () {
         let lookups = items.map(item => {
           return Q.nfcall(lookup.byId.bind(lookup), item.id)
             .then(modified => {
-              assert.equal(item.modified, modified)
+              assert.equal(Date.parse(item.modified), modified.valueOf())
             })
         })
 

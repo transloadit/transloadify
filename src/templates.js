@@ -175,7 +175,7 @@ export function sync (output, client, { files, recursive }) {
 
     let fileModified =
             Q.nfcall(fs.stat, template.file)
-            .then(stats => stats.mtime.valueOf())
+            .then(stats => stats.mtime)
 
     let templateModified =
             Q.nfcall(client.getTemplate.bind(client),

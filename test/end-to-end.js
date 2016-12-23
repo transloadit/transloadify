@@ -275,6 +275,90 @@ describe("End-to-end", function () {
           })
         })
       }))
+
+      it("should update local files when outdated", testCase(client => {
+        let params = {
+          name: "test_local_update",
+          template: JSON.stringify({ changed: true })
+        }
+        let templateIdPromise = Q.nfcall(client.createTemplate.bind(client), params)
+          .then(response => response.id)
+
+        let filePromise = templateIdPromise.then(id => {
+          let fname = `${params.name}.json`
+          return Q.nfcall(fs.writeFile,
+                          fname,
+                          JSON.stringify({
+                            transloadit_template_id: id,
+                            steps: { changed: false }
+                          }))
+            .then(() => Q.nfcall(fs.utimes, fname, 0, 0)) // make the file appear old
+            .then(() => fname)
+        })
+
+        let resultPromise = filePromise.then(fname => {
+          let output = new OutputCtl()
+          return templates.sync(output, client, { files: [fname] })
+            .then(() => output.get())
+        })
+
+        return Q.spread([resultPromise, templateIdPromise, filePromise], (result, id, fname) => {
+          expect(result).to.have.lengthOf(0)
+          return Q.nfcall(fs.readFile, fname).then(JSON.parse)
+            .then(content => {
+              expect(content).to.have.property('steps').that.has.property('changed').that.is.true
+            })
+            .then(() => Q.nfcall(client.getTemplate.bind(client), id))
+            .then(response => {
+              expect(response).to.have.property('content').that.has.property('changed').that.is.true
+            })
+        }).fin(() => {
+          return templateIdPromise.then(id => Q.nfcall(client.deleteTemplate.bind(client), id))
+            .fail(() => {})
+        })
+      }))
+
+      it("should update remote template when outdated", testCase(client => {
+        let params = {
+          name: "test_local_update",
+          template: JSON.stringify({ changed: false })
+        }
+        let templateIdPromise = Q.nfcall(client.createTemplate.bind(client), params)
+          .then(response => response.id)
+
+        let filePromise = templateIdPromise.then(id => {
+          let fname = `${params.name}.json`
+          return Q.nfcall(fs.writeFile,
+                          fname,
+                          JSON.stringify({
+                            transloadit_template_id: id,
+                            steps: { changed: true }
+                          }))
+            .then(() => Q.nfcall(fs.utimes, fname, Date.now() * 2, Date.now() * 2)) // make the file appear new
+            .then(() => fname)
+        })
+
+        let resultPromise = filePromise.then(fname => {
+          let output = new OutputCtl()
+          return templates.sync(output, client, { files: [fname] })
+            .then(() => output.get())
+        })
+
+        return Q.spread([resultPromise, templateIdPromise, filePromise], (result, id, fname) => {
+          expect(result).to.have.lengthOf(0)
+          return Q.nfcall(fs.readFile, fname).then(JSON.parse)
+            .then(content => {
+              expect(content).to.have.property('steps').that.has.property('changed').that.is.true
+            })
+            .then(() => Q.nfcall(client.getTemplate.bind(client), id))
+            .then(response => {
+              expect(response).to.have.property('content').that.has.property('changed').that.is.true
+            })
+        }).fin(() => {
+          return templateIdPromise.then(id => Q.nfcall(client.deleteTemplate.bind(client), id))
+            .fail(() => {})
+        })
+      }))
     })
   })
 })

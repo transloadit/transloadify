@@ -76,7 +76,7 @@ export default class ModifiedLookup {
     complete = ord => {
       this.byOrdinal.get(ord, (err, result) => {
         if (err) return cb(err)
-        cb(null, result.modified)
+        cb(null, new Date(result.modified))
       })
     }
 
