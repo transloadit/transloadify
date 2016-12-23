@@ -29,6 +29,8 @@ export function list (output, client, { before, after, fields, keywords }) {
 }
 
 export function get (output, client, { assemblies }) {
+  let deferred = Q.defer()
+
   let requests = assemblies.map(assembly => {
     let deferred = Q.defer()
 
@@ -44,7 +46,9 @@ export function get (output, client, { assemblies }) {
     output.print(result, result)
   }, err => {
     output.error(formatAPIError(err))
-  })
+  }).then(deferred.resolve.bind(deferred))
+
+  return deferred.promise
 }
 
 exports['delete'] = function _delete (output, client, { assemblies }) {

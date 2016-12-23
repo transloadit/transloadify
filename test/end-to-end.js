@@ -7,6 +7,7 @@ import rimraf from 'rimraf'
 import { expect } from 'chai'
 import { zip } from '../src/helpers'
 const templates = require('../src/templates')
+const assemblies = require('../src/assemblies')
 
 const tmpDir = '/tmp'
 
@@ -357,6 +358,68 @@ describe("End-to-end", function () {
         }).fin(() => {
           return templateIdPromise.then(id => Q.nfcall(client.deleteTemplate.bind(client), id))
             .fail(() => {})
+        })
+      }))
+    })
+  })
+
+  describe("assemblies", function () {
+    describe("get", function () {
+      it("should get assemblies", testCase(client => {
+        // get some valid assembly IDs to request
+        let assemblyRequests = Q.nfcall(client.listAssemblies.bind(client), { pagesize: 5 })
+          .then(response => response.items)
+          .then(assemblies => {
+            if (assemblies.length === 0) throw new Error("account has no assemblies to fetch")
+            return assemblies
+          })
+
+        let sdkResults = assemblyRequests.then(as => {
+          return Q.all(as.map(assembly => {
+            return Q.nfcall(client.getAssembly.bind(client), assembly.id)
+          }))
+        })
+
+        let transloadifyResults = assemblyRequests.then(as => {
+          return Q.all(as.map(assembly => {
+            let output = new OutputCtl()
+            return assemblies.get(output, client, { assemblies: [assembly.id] })
+              .then(() => output.get())
+          }))
+        })
+
+        return Q.spread([sdkResults, transloadifyResults], (expectations, actuals) => {
+          return Q.all(zip(expectations, actuals).map(([expectation, actual]) => {
+            expect(actual).to.have.lengthOf(1)
+            expect(actual).to.have.deep.property('[0].type').that.equals('print')
+            expect(actual).to.have.deep.property('[0].json').that.deep.equals(expectation)
+          }))
+        })
+      }))
+
+      it("should return assemblies in the order specified", testCase(client => {
+        let assemblyRequests = Q.nfcall(client.listAssemblies.bind(client), { pagesize: 5 })
+          .then(response => response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1))
+          .then(assemblies => {
+            if (assemblies.length === 0) throw new Error("account has no assemblies to fetch")
+            return assemblies
+          })
+
+        let idsPromise = assemblyRequests
+          .then(assemblies => assemblies.map(assembly => assembly.id))
+
+        let resultsPromise = idsPromise.then(ids => {
+          let output = new OutputCtl()
+          return assemblies.get(output, client, { assemblies: ids })
+            .then(() => output.get())
+        })
+
+        return Q.spread([resultsPromise, idsPromise], (results, ids) => {
+          expect(results).to.have.lengthOf(ids.length)
+          return Q.all(zip(results, ids).map(([result, id]) => {
+            expect(result).to.have.property('type').that.equals('print')
+            expect(result).to.have.deep.property('json.assembly_id').that.equals(id)
+          }))
         })
       }))
     })
