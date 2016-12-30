@@ -5,6 +5,7 @@ import http from 'http'
 import path from 'path'
 import EventEmitter from 'events'
 import tty from 'tty'
+import Q from 'q'
 
 // workaround for determining mime-type of stdin
 process.stdin.path = '/dev/stdin'
@@ -191,13 +192,12 @@ class ConcattedJobEmitter extends MyEventEmitter {
 
     let emitter = emitterFn()
 
+    emitter.on('error', err => this.emit('error', err))
+    emitter.on('job', job => this.emit('job', job))
+    
     if (emitterFns.length === 0) {
-      emitter.on('error', err => this.emit('error', err))
-      emitter.on('job', job => this.emit('job', job))
-      emitter.on('end', () => this.emit('end'))
+      emitter.on('end', () => console.log("CJE end"), this.emit('end'))
     } else {
-      emitter.on('error', err => this.emit('error', err))
-      emitter.on('job', job => this.emit('job', job))
       emitter.on('end', () => {
         let restEmitter = new ConcattedJobEmitter(...emitterFns)
         restEmitter.on('error', err => this.emit('error', err))
@@ -262,15 +262,26 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
 }
 
 export default function run (outputctl, client, { steps, template, fields, watch, recursive, inputs, output }) {
+  let deferred = Q.defer()
+
   if (inputs.length === 0) inputs = [ '-' ]
 
   let params = steps ? { steps: JSON.parse(fs.readFileSync(steps)) } : { template_id: template }
   params.fields = fields
 
-  let outstat = myStatSync(process.stdout, output)
+  let outstat
+  try {
+    outstat = myStatSync(process.stdout, output)
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e
+    outstat = { isDirectory: () => false }
+  }
+
   if (!outstat.isDirectory()) {
     if (inputs.length > 1 || myStatSync(process.stdin, inputs[0]).isDirectory()) {
-      return outputctl.error('Output must be a directory when specifying multiple inputs')
+      const msg = 'Output must be a directory when specifying multiple inputs'
+      outputctl.error(msg)
+      return deferred.reject(new Error(msg))
     }
   }
 
@@ -279,7 +290,12 @@ export default function run (outputctl, client, { steps, template, fields, watch
 
   let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry })
 
+  let jobPromises = []
+
   emitter.on('job', job => {
+    let deferred = Q.defer()
+    jobPromises.push(deferred.promise)
+    
     outputctl.debug(`GOT JOB ${job.in.path} ${job.out.path}`)
     let superceded = false
     job.out.on('finish', () => { superceded = true })
@@ -287,14 +303,20 @@ export default function run (outputctl, client, { steps, template, fields, watch
     if (job.in != null) client.addStream('in', job.in)
 
     client.createAssembly({ params }, (err, result) => {
-      if (err != null) return outputctl.error(err)
+      if (err != null) {
+        outputctl.error(err)
+        return deferred.reject(err)
+      }
 
-      if (superceded) return
+      if (superceded) return referred.resolve()
 
       client.getAssembly(result.assembly_id, function callback (err, result) {
-        if (err != null) return outputctl.error(formatAPIError(err))
+        if (err != null) {
+          outputctl.error(formatAPIError(err))
+          return deferred.reject(err)
+        }
 
-        if (superceded) return
+        if (superceded) return deferred.resolve()
 
         if (result.ok !== 'ASSEMBLY_COMPLETED') {
           client.getAssembly(result.assembly_id, callback)
@@ -305,17 +327,22 @@ export default function run (outputctl, client, { steps, template, fields, watch
 
         http.get(resulturl, res => {
           if (res.statusCode !== 200) {
-            outputctl.error(`Server returned http status ${res.statusCode}`)
-            return
+            let msg = `Server returned http status ${res.statusCode}`
+            outputctl.error(msg)
+            return deferred.reject(msg)
           }
 
-          if (superceded) return
+          if (superceded) return deferred.resolve()
 
           res.pipe(job.out)
-          res.on('end', () => outputctl.debug(`COMPLETED ${job.in.path} ${job.out.path}`))
+          res.on('end', () => {
+            outputctl.debug(`COMPLETED ${job.in.path} ${job.out.path}`)
+            deferred.resolve()
+          })
           job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
         }).on('error', err => {
           outputctl.error(err.message)
+          deferred.reject(err)
         })
       })
     })
@@ -323,5 +350,12 @@ export default function run (outputctl, client, { steps, template, fields, watch
 
   emitter.on('error', err => {
     outputctl.error(err)
+    deferred.reject(err)
   })
+
+  emitter.on('end', () => {
+    deferred.resolve(Q.all(jobPromises))
+  })
+
+  return deferred.promise
 }

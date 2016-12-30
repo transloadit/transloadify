@@ -6,8 +6,11 @@ import Q from 'q'
 import rimraf from 'rimraf'
 import { expect } from 'chai'
 import { zip } from '../src/helpers'
+import imgSize from 'image-size'
+import request from 'request'
 const templates = require('../src/templates')
 const assemblies = require('../src/assemblies')
+import assembliesCreate from '../src/assemblies-create'
 
 const tmpDir = '/tmp'
 
@@ -21,16 +24,23 @@ if (!authKey || !authSecret) {
 
 let testno = 0
 
+process.setMaxListeners(Infinity)
+
 function testCase(cb) {
   return () => {
     let dirname = path.join(tmpDir, `transloadify_test_${testno++}`) 
     let client = new TransloaditClient({ authKey, authSecret })
     return Q.nfcall(fs.mkdir, dirname)
       .then(() => {
+        for (let evt of ['exit', 'SIGINT', 'uncaughtException']) {
+          process.on(evt, () => {
+            rimraf.sync(dirname)
+            process.exit()
+          })
+        }
         process.chdir(dirname)
         return cb(client)
       })
-      .fin(() => Q.nfcall(rimraf, dirname))
   }
 }
 
@@ -420,6 +430,55 @@ describe("End-to-end", function () {
             expect(result).to.have.property('type').that.equals('print')
             expect(result).to.have.deep.property('json.assembly_id').that.equals(id)
           }))
+        })
+      }))
+    })
+
+    describe("create", function () {
+      const genericImg = "https://transloadit.com/img/robots/170x170/audio-encode.jpg"
+      function imgPromise (fname = 'in.jpg') {
+        return Q.Promise((resolve, reject) => {
+          let req = request(genericImg)
+          req.pipe(fs.createWriteStream(fname))
+          req.on('error', reject)
+          req.on('end', () => resolve(fname))
+        })
+      }
+
+      const genericSteps = {
+        resize: {
+          robot:  "/image/resize",
+          use:    ":original",
+          result: true,
+          width:  130,
+          height: 130
+        }
+      }
+      function stepsPromise (fname = 'steps.json') {
+        return Q.nfcall(fs.writeFile, 'steps.json', JSON.stringify(genericSteps))
+          .then(() => 'steps.json')
+      }
+
+      it("should do your laundry", testCase(client => {
+        let inFilePromise = imgPromise()
+        let stepsFilePromise = stepsPromise()
+        
+        let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, { steps, inputs: [infile], output: 'out.jpg' })
+            .then(() => output.get())
+        })
+
+        return resultPromise.then(result => {
+          expect(result).to.have.lengthOf(2)
+          expect(result).to.have.deep.property('[0].type').that.equals('debug')
+          expect(result).to.have.deep.property('[0].msg').that.equals('GOT JOB in.jpg out.jpg')
+          expect(result).to.have.deep.property('[1].type').that.equals('debug')
+          expect(result).to.have.deep.property('[1].msg').that.equals('COMPLETED in.jpg out.jpg')
+          return Q.nfcall(imgSize, 'out.jpg').then(dim => {
+            expect(dim).to.have.property('width').that.equals(130)
+            expect(dim).to.have.property('height').that.equals(130)
+          })
         })
       }))
     })
