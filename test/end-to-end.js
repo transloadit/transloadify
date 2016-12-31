@@ -8,6 +8,7 @@ import { expect } from 'chai'
 import { zip } from '../src/helpers'
 import imgSize from 'image-size'
 import request from 'request'
+import rreaddir from 'recursive-readdir'
 const templates = require('../src/templates')
 const assemblies = require('../src/assemblies')
 import assembliesCreate from '../src/assemblies-create'
@@ -34,13 +35,17 @@ function testCase(cb) {
       .then(() => {
         for (let evt of ['exit', 'SIGINT', 'uncaughtException']) {
           process.on(evt, () => {
-            rimraf.sync(dirname)
+            try {
+              rimraf.sync(dirname)
+            } catch (e) {
+              if (e.code !== 'ENOENT') throw e
+            }
             process.exit()
           })
         }
         process.chdir(dirname)
         return cb(client)
-      })
+      }).fin(() => Q.nfcall(rimraf, dirname))
   }
 }
 
@@ -459,7 +464,7 @@ describe("End-to-end", function () {
           .then(() => 'steps.json')
       }
 
-      it("should do your laundry", testCase(client => {
+      it("should transcode a file", testCase(client => {
         let inFilePromise = imgPromise()
         let stepsFilePromise = stepsPromise()
         
@@ -479,6 +484,155 @@ describe("End-to-end", function () {
             expect(dim).to.have.property('width').that.equals(130)
             expect(dim).to.have.property('height').that.equals(130)
           })
+        })
+      }))
+
+      it("should handle multiple inputs", testCase(client => {
+        let inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
+        let stepsFilePromise = stepsPromise()
+        let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+
+        let resultPromise = Q.spread([inFilesPromise, stepsFilePromise, outdirPromise], (infiles, steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, { steps, inputs: infiles, output: 'out' })
+            .then(() => output.get())
+        })
+
+        return resultPromise.then(result => {
+          return Q.nfcall(fs.readdir, 'out').then(outs => {
+            expect(outs).to.have.property(0).that.equals('in1.jpg')
+            expect(outs).to.have.property(1).that.equals('in2.jpg')
+            expect(outs).to.have.property(2).that.equals('in3.jpg')
+            expect(outs).to.have.lengthOf(3)
+          })
+        })
+      }))
+
+      it("should not output outside outdir", testCase(client => {
+        return Q.nfcall(fs.mkdir, 'sub').then(() => {
+          process.chdir('sub')
+          let inFilePromise = imgPromise('../in.jpg')
+          let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+          let stepsFilePromise = stepsPromise()
+
+          let resultPromise = Q.spread([inFilePromise, stepsFilePromise, outdirPromise], (infile, steps) => {
+            let output = new OutputCtl()
+            return assembliesCreate(output, client, { steps, inputs: [infile], output: 'out' })
+              .then(() => output.get())
+          })
+
+          return resultPromise.then(result => {
+            let outcheck = Q.nfcall(fs.readdir, 'out').then(outs => {
+              expect(outs).to.have.property(0).that.equals('in.jpg')
+              expect(outs).to.have.lengthOf(1)
+            })
+            
+            let pwdcheck = Q.nfcall(fs.readdir, '.').then(ls => {
+              expect(ls).to.not.contain('in.jpg')
+            })
+
+            return Q.all([outcheck, pwdcheck])
+          })
+        })
+      }))
+
+      it("should structure output directory correctly", testCase(client => {
+        let indirPromise = Q.nfcall(fs.mkdir, 'in')
+          .then(() => Q.nfcall(fs.mkdir, 'in/sub'))
+        let inFilesPromise = indirPromise.then(() => {
+          return Q.all(['1.jpg', 'in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
+        })
+        let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+        let stepsFilePromise = stepsPromise()
+
+        let resultPromise = Q.spread([stepsFilePromise, inFilesPromise, outdirPromise], (steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, { recursive: true, steps, inputs: ['1.jpg', 'in'], output: 'out' })
+            .then(() => output.get())
+        })
+
+        return resultPromise.then(result => {
+          return Q.nfcall(rreaddir, 'out').then(outs => {
+            expect(outs).to.include('out/1.jpg')
+            expect(outs).to.include('out/2.jpg')
+            expect(outs).to.include('out/sub/3.jpg')
+            expect(outs).to.have.lengthOf(3)
+          })
+        })
+      }))
+
+
+      it("should not be recursive by default", testCase(client => {
+        let indirPromise = Q.nfcall(fs.mkdir, 'in')
+          .then(() => Q.nfcall(fs.mkdir, 'in/sub'))
+        let inFilesPromise = indirPromise.then(() => {
+          return Q.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
+        })
+        let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+        let stepsFilePromise = stepsPromise()
+
+        let resultPromise = Q.spread([stepsFilePromise, inFilesPromise, outdirPromise], (steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, { steps, inputs: ['in'], output: 'out' })
+            .then(() => output.get())
+        })
+
+        return resultPromise.then(result => {
+          return Q.nfcall(rreaddir, 'out').then(outs => {
+            expect(outs).to.include('out/2.jpg')
+            expect(outs).to.not.include('out/sub/3.jpg')
+            expect(outs).to.have.lengthOf(1)
+          })
+        })
+      }))
+
+      it("should be able to handle directories recursively", testCase(client => {
+        let indirPromise = Q.nfcall(fs.mkdir, 'in')
+          .then(() => Q.nfcall(fs.mkdir, 'in/sub'))
+        let inFilesPromise = indirPromise.then(() => {
+          return Q.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
+        })
+        let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+        let stepsFilePromise = stepsPromise()
+
+        let resultPromise = Q.spread([stepsFilePromise, inFilesPromise, outdirPromise], (steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, { recursive: true, steps, inputs: ['in'], output: 'out' })
+            .then(() => output.get())
+        })
+
+        return resultPromise.then(result => {
+          return Q.nfcall(rreaddir, 'out').then(outs => {
+            expect(outs).to.include('out/2.jpg')
+            expect(outs).to.include('out/sub/3.jpg')
+            expect(outs).to.have.lengthOf(2)
+          })
+        })
+      }))
+
+      it("should detect outdir conflicts", testCase(client => {
+        let indirPromise = Q.nfcall(fs.mkdir, 'in')
+        let inFilesPromise = indirPromise.then(() => {
+          return Q.all(['1.jpg', 'in/1.jpg'].map(imgPromise))
+        })
+        let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+        let stepsFilePromise = stepsPromise()
+
+        let errMsgDeferred = Q.defer()
+
+        let resultPromise = Q.spread([stepsFilePromise, inFilesPromise, outdirPromise], (steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, { steps, inputs: ['1.jpg', 'in'], output: 'out' })
+            .then(() => errMsgDeferred.reject(new Error('assembliesCreate didnt err; should have')))
+            .fail(err => {
+              errMsgDeferred.resolve(output.get())
+            })
+        })
+
+        return errMsgDeferred.promise.then(result => {
+          expect(result[result.length - 1]).to.have.property('type').that.equals('error')
+          expect(result[result.length - 1]).to.have.deep.property('msg.message').that.equals(
+            'Output collision between \'in/1.jpg\' and \'1.jpg\'')
         })
       }))
     })

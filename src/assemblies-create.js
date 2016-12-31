@@ -208,6 +208,24 @@ class ConcattedJobEmitter extends MyEventEmitter {
   }
 }
 
+function detectConflicts(jobEmitter) {
+  let emitter = new MyEventEmitter()
+  let outfileAssociations = {}
+
+  jobEmitter.on('end', () => emitter.emit('end'))
+  jobEmitter.on('error', err => emitter.emit('error', err))
+  jobEmitter.on('job', job => {
+    if (outfileAssociations.hasOwnProperty(job.out.path) && outfileAssociations[job.out.path] !== job.in.path) {
+      emitter.emit('error', new Error(`Output collision between '${job.in.path}' and '${outfileAssociations[job.out.path]}'`))
+    } else {
+      outfileAssociations[job.out.path] = job.in.path
+      emitter.emit('job', job)
+    }
+  })
+
+  return emitter
+}
+
 function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry, watch }) {
   let emitter = new EventEmitter()
 
@@ -225,7 +243,6 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
     } else {
       fs.stat(input, (err, stats) => {
         if (err != null) return emitter.emit('error', err)
-
         if (stats.isDirectory()) {
           emitterFns.push(
                         () => new ReaddirJobEmitter({ dir: input, recursive, outstreamProvider, streamRegistry }))
@@ -250,7 +267,7 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
 
     if (watch) {
       source = new ConcattedJobEmitter(() => source,
-                                             () => new MergedJobEmitter(...watcherFns.map(f => f())))
+                                       () => new MergedJobEmitter(...watcherFns.map(f => f())))
     }
 
     source.on('job', job => emitter.emit('job', job))
@@ -258,7 +275,7 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
     source.on('end', () => emitter.emit('end'))
   }
 
-  return emitter
+  return detectConflicts(emitter)
 }
 
 export default function run (outputctl, client, { steps, template, fields, watch, recursive, inputs, output }) {
