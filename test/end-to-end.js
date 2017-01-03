@@ -27,9 +27,9 @@ let testno = 0
 
 process.setMaxListeners(Infinity)
 
-function testCase(cb) {
+function testCase (cb) {
   return () => {
-    let dirname = path.join(tmpDir, `transloadify_test_${testno++}`) 
+    let dirname = path.join(tmpDir, `transloadify_test_${testno++}`)
     let client = new TransloaditClient({ authKey, authSecret })
     return Q.nfcall(fs.mkdir, dirname)
       .then(() => {
@@ -49,12 +49,12 @@ function testCase(cb) {
   }
 }
 
-describe("End-to-end", function () {
+describe('End-to-end', function () {
   this.timeout(100000)
 
-  describe("templates", function () {
-    describe("create", function () {
-      it("should create templates", testCase(client => {
+  describe('templates', function () {
+    describe('create', function () {
+      it('should create templates', testCase(client => {
         let executions = [1, 2, 3, 4, 5].map(n => {
           let output = new OutputCtl()
           // Make a file with the template contents
@@ -65,7 +65,7 @@ describe("End-to-end", function () {
             // see
             .then(() => output.get())
         })
-        
+
         return Q.all(executions).then(results => {
           return Q.all(results.map(result => {
             return Q.fcall(() => {
@@ -84,13 +84,13 @@ describe("End-to-end", function () {
       }))
     })
 
-    describe("get", function () {
-      it("should get templates", testCase(client => {
+    describe('get', function () {
+      it('should get templates', testCase(client => {
         // get some valid template IDs to request
         let templateRequests = Q.nfcall(client.listTemplates.bind(client), { pagesize: 5 })
           .then(response => response.items)
           .then(templates => {
-            if (templates.length === 0) throw new Error("account has no templates to fetch")
+            if (templates.length === 0) throw new Error('account has no templates to fetch')
             return templates
           })
 
@@ -117,17 +117,17 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should return templates in the order specified", testCase(client => {
+      it('should return templates in the order specified', testCase(client => {
         let templateRequests = Q.nfcall(client.listTemplates.bind(client), { pagesize: 5 })
           .then(response => response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1))
           .then(templates => {
-            if (templates.length === 0) throw new Error("account has no templates to fetch")
+            if (templates.length === 0) throw new Error('account has no templates to fetch')
             return templates
           })
 
         let idsPromise = templateRequests
           .then(templates => templates.map(template => template.id))
-        
+
         let resultsPromise = idsPromise.then(ids => {
           let output = new OutputCtl()
           return templates.get(output, client, { templates: ids })
@@ -144,28 +144,28 @@ describe("End-to-end", function () {
       }))
     })
 
-    describe("modify", function () {
-      let templateId;
+    describe('modify', function () {
+      let templateId
 
       before(function () {
         let client = new TransloaditClient({ authKey, authSecret })
         return Q.nfcall(client.createTemplate.bind(client), {
-          name: "originalName",
+          name: 'originalName',
           template: JSON.stringify({ stage: 0 })
         }).then(response => { templateId = response.id })
       })
 
-      it("should modify but not rename the template", testCase(client => {
-        let filePromise = Q.nfcall(fs.writeFile, "template.json", JSON.stringify({ stage: 1 }))
+      it('should modify but not rename the template', testCase(client => {
+        let filePromise = Q.nfcall(fs.writeFile, 'template.json', JSON.stringify({ stage: 1 }))
 
         let resultPromise = filePromise.then(() => {
           let output = new OutputCtl()
           return templates.modify(output, client, {
-            template: templateId, 
-            file: "template.json"
+            template: templateId,
+            file: 'template.json'
           }).then(() => output.get())
         })
-        
+
         return resultPromise.then(result => {
           expect(result).to.have.lengthOf(0)
           return Q.delay(2000).then(() => Q.nfcall(client.getTemplate.bind(client), templateId))
@@ -176,18 +176,18 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should not modify but rename the template", testCase(client => {
-        let filePromise = Q.nfcall(fs.writeFile, "template.json", "")
+      it('should not modify but rename the template', testCase(client => {
+        let filePromise = Q.nfcall(fs.writeFile, 'template.json', '')
 
         let resultPromise = filePromise.then(() => {
           let output = new OutputCtl()
           return templates.modify(output, client, {
-            template: templateId, 
-            name: "newName",
-            file: "template.json"
+            template: templateId,
+            name: 'newName',
+            file: 'template.json'
           }).then(() => output.get())
         })
-        
+
         return resultPromise.then(result => {
           expect(result).to.have.lengthOf(0)
           return Q.delay(2000).then(() => Q.nfcall(client.getTemplate.bind(client), templateId))
@@ -198,18 +198,18 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should modify and rename the template", testCase(client => {
-        let filePromise = Q.nfcall(fs.writeFile, "template.json", JSON.stringify({ stage: 2 }))
+      it('should modify and rename the template', testCase(client => {
+        let filePromise = Q.nfcall(fs.writeFile, 'template.json', JSON.stringify({ stage: 2 }))
 
         let resultPromise = filePromise.then(() => {
           let output = new OutputCtl()
           return templates.modify(output, client, {
-            template: templateId, 
-            name: "newerName",
-            file: "template.json"
+            template: templateId,
+            name: 'newerName',
+            file: 'template.json'
           }).then(() => output.get())
         })
-        
+
         return resultPromise.then(result => {
           expect(result).to.have.lengthOf(0)
           return Q.delay(2000).then(() => Q.nfcall(client.getTemplate.bind(client), templateId))
@@ -226,8 +226,8 @@ describe("End-to-end", function () {
       })
     })
 
-    describe("delete", function () {
-      it("should delete templates", testCase(client => {
+    describe('delete', function () {
+      it('should delete templates', testCase(client => {
         let templateIdsPromise = Q.all([1, 2, 3, 4, 5].map(n => {
           return Q.nfcall(client.createTemplate.bind(client), {
             name: `delete_test_${n}`,
@@ -247,28 +247,28 @@ describe("End-to-end", function () {
             return Q.nfcall(client.getTemplate.bind(client), id)
               .then(response => { expect(response).to.not.exist })
               .fail(err => {
-                if (err.error !== "TEMPLATE_NOT_FOUND") throw err
+                if (err.error !== 'TEMPLATE_NOT_FOUND') throw err
               })
           }))
         })
       }))
     })
 
-    describe("sync", function () {
-      it("should handle directories recursively", testCase(client => {
+    describe('sync', function () {
+      it('should handle directories recursively', testCase(client => {
         let templateIdsPromise = Q.nfcall(client.listTemplates.bind(client), { pagesize: 5 })
           .then(response => response.items.map(item => ({ id: item.id, name: item.name })))
 
         let filesPromise = templateIdsPromise.then(ids => {
-          let dirname = "d";
+          let dirname = 'd'
           let promise = Q.fcall(() => {})
-          
+
           return Q.all(ids.map(({id, name}) => {
             return (promise = promise.then(() => {
               let fname = path.join(dirname, `${name}.json`)
               return Q.nfcall(fs.mkdir, dirname)
                 .then(() => Q.nfcall(fs.writeFile, fname, `{"transloadit_template_id":"${id}"}`))
-                .then(() => { dirname = path.join(dirname, "d") })
+                .then(() => { dirname = path.join(dirname, 'd') })
                 .then(() => fname)
             }))
           }))
@@ -276,7 +276,7 @@ describe("End-to-end", function () {
 
         let resultPromise = filesPromise.then(files => {
           let output = new OutputCtl()
-          return templates.sync(output, client, { recursive: true, files: ["d"] })
+          return templates.sync(output, client, { recursive: true, files: ['d'] })
             .then(() => output.get())
         })
 
@@ -292,9 +292,9 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should update local files when outdated", testCase(client => {
+      it('should update local files when outdated', testCase(client => {
         let params = {
-          name: "test_local_update",
+          name: 'test_local_update',
           template: JSON.stringify({ changed: true })
         }
         let templateIdPromise = Q.nfcall(client.createTemplate.bind(client), params)
@@ -334,9 +334,9 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should update remote template when outdated", testCase(client => {
+      it('should update remote template when outdated', testCase(client => {
         let params = {
-          name: "test_local_update",
+          name: 'test_local_update',
           template: JSON.stringify({ changed: false })
         }
         let templateIdPromise = Q.nfcall(client.createTemplate.bind(client), params)
@@ -378,14 +378,14 @@ describe("End-to-end", function () {
     })
   })
 
-  describe("assemblies", function () {
-    describe("get", function () {
-      it("should get assemblies", testCase(client => {
+  describe('assemblies', function () {
+    describe('get', function () {
+      it('should get assemblies', testCase(client => {
         // get some valid assembly IDs to request
         let assemblyRequests = Q.nfcall(client.listAssemblies.bind(client), { pagesize: 5 })
           .then(response => response.items)
           .then(assemblies => {
-            if (assemblies.length === 0) throw new Error("account has no assemblies to fetch")
+            if (assemblies.length === 0) throw new Error('account has no assemblies to fetch')
             return assemblies
           })
 
@@ -412,11 +412,11 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should return assemblies in the order specified", testCase(client => {
+      it('should return assemblies in the order specified', testCase(client => {
         let assemblyRequests = Q.nfcall(client.listAssemblies.bind(client), { pagesize: 5 })
           .then(response => response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1))
           .then(assemblies => {
-            if (assemblies.length === 0) throw new Error("account has no assemblies to fetch")
+            if (assemblies.length === 0) throw new Error('account has no assemblies to fetch')
             return assemblies
           })
 
@@ -439,8 +439,8 @@ describe("End-to-end", function () {
       }))
     })
 
-    describe("create", function () {
-      const genericImg = "https://transloadit.com/img/robots/170x170/audio-encode.jpg"
+    describe('create', function () {
+      const genericImg = 'https://transloadit.com/img/robots/170x170/audio-encode.jpg'
       function imgPromise (fname = 'in.jpg') {
         return Q.Promise((resolve, reject) => {
           let req = request(genericImg)
@@ -452,10 +452,10 @@ describe("End-to-end", function () {
 
       const genericSteps = {
         resize: {
-          robot:  "/image/resize",
-          use:    ":original",
+          robot: '/image/resize',
+          use: ':original',
           result: true,
-          width:  130,
+          width: 130,
           height: 130
         }
       }
@@ -464,10 +464,10 @@ describe("End-to-end", function () {
           .then(() => 'steps.json')
       }
 
-      it("should transcode a file", testCase(client => {
+      it('should transcode a file', testCase(client => {
         let inFilePromise = imgPromise()
         let stepsFilePromise = stepsPromise()
-        
+
         let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
           let output = new OutputCtl()
           return assembliesCreate(output, client, { steps, inputs: [infile], output: 'out.jpg' })
@@ -487,7 +487,7 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should handle multiple inputs", testCase(client => {
+      it('should handle multiple inputs', testCase(client => {
         let inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
         let stepsFilePromise = stepsPromise()
         let outdirPromise = Q.nfcall(fs.mkdir, 'out')
@@ -508,7 +508,7 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should not output outside outdir", testCase(client => {
+      it('should not output outside outdir', testCase(client => {
         return Q.nfcall(fs.mkdir, 'sub').then(() => {
           process.chdir('sub')
           let inFilePromise = imgPromise('../in.jpg')
@@ -526,7 +526,7 @@ describe("End-to-end", function () {
               expect(outs).to.have.property(0).that.equals('in.jpg')
               expect(outs).to.have.lengthOf(1)
             })
-            
+
             let pwdcheck = Q.nfcall(fs.readdir, '.').then(ls => {
               expect(ls).to.not.contain('in.jpg')
             })
@@ -536,7 +536,7 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should structure output directory correctly", testCase(client => {
+      it('should structure output directory correctly', testCase(client => {
         let indirPromise = Q.nfcall(fs.mkdir, 'in')
           .then(() => Q.nfcall(fs.mkdir, 'in/sub'))
         let inFilesPromise = indirPromise.then(() => {
@@ -561,8 +561,7 @@ describe("End-to-end", function () {
         })
       }))
 
-
-      it("should not be recursive by default", testCase(client => {
+      it('should not be recursive by default', testCase(client => {
         let indirPromise = Q.nfcall(fs.mkdir, 'in')
           .then(() => Q.nfcall(fs.mkdir, 'in/sub'))
         let inFilesPromise = indirPromise.then(() => {
@@ -586,7 +585,7 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should be able to handle directories recursively", testCase(client => {
+      it('should be able to handle directories recursively', testCase(client => {
         let indirPromise = Q.nfcall(fs.mkdir, 'in')
           .then(() => Q.nfcall(fs.mkdir, 'in/sub'))
         let inFilesPromise = indirPromise.then(() => {
@@ -610,7 +609,7 @@ describe("End-to-end", function () {
         })
       }))
 
-      it("should detect outdir conflicts", testCase(client => {
+      it('should detect outdir conflicts', testCase(client => {
         let indirPromise = Q.nfcall(fs.mkdir, 'in')
         let inFilesPromise = indirPromise.then(() => {
           return Q.all(['1.jpg', 'in/1.jpg'].map(imgPromise))
@@ -620,12 +619,12 @@ describe("End-to-end", function () {
 
         let errMsgDeferred = Q.defer()
 
-        let resultPromise = Q.spread([stepsFilePromise, inFilesPromise, outdirPromise], (steps) => {
+        Q.spread([stepsFilePromise, inFilesPromise, outdirPromise], (steps) => {
           let output = new OutputCtl()
           return assembliesCreate(output, client, { steps, inputs: ['1.jpg', 'in'], output: 'out' })
             .then(() => errMsgDeferred.reject(new Error('assembliesCreate didnt err; should have')))
             .fail(err => {
-              errMsgDeferred.resolve(output.get())
+              errMsgDeferred.resolve(output.get(), err) // pass err to satisfy linter
             })
         })
 

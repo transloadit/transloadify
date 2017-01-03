@@ -51,5 +51,4 @@ export function zip (...lists) {
   for (let i = 0; i < result.length; i++) result[i] = lists.map(list => list[i])
   return result
 }
-      
 

@@ -194,9 +194,9 @@ class ConcattedJobEmitter extends MyEventEmitter {
 
     emitter.on('error', err => this.emit('error', err))
     emitter.on('job', job => this.emit('job', job))
-    
+
     if (emitterFns.length === 0) {
-      emitter.on('end', () => console.log("CJE end"), this.emit('end'))
+      emitter.on('end', () => this.emit('end'))
     } else {
       emitter.on('end', () => {
         let restEmitter = new ConcattedJobEmitter(...emitterFns)
@@ -208,7 +208,7 @@ class ConcattedJobEmitter extends MyEventEmitter {
   }
 }
 
-function detectConflicts(jobEmitter) {
+function detectConflicts (jobEmitter) {
   let emitter = new MyEventEmitter()
   let outfileAssociations = {}
 
@@ -312,7 +312,7 @@ export default function run (outputctl, client, { steps, template, fields, watch
   emitter.on('job', job => {
     let deferred = Q.defer()
     jobPromises.push(deferred.promise)
-    
+
     outputctl.debug(`GOT JOB ${job.in.path} ${job.out.path}`)
     let superceded = false
     job.out.on('finish', () => { superceded = true })
@@ -325,7 +325,7 @@ export default function run (outputctl, client, { steps, template, fields, watch
         return deferred.reject(err)
       }
 
-      if (superceded) return referred.resolve()
+      if (superceded) return deferred.resolve()
 
       client.getAssembly(result.assembly_id, function callback (err, result) {
         if (err != null) {

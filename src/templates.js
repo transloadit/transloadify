@@ -10,14 +10,14 @@ export function create (output, client, { name, file }) {
 
   stream2buf(createReadStream(file), (err, buf) => {
     if (err) {
-        output.error(err.message)
-        return deferred.reject(err)
+      output.error(err.message)
+      return deferred.reject(err)
     }
 
     client.createTemplate({ name, template: buf.toString() }, (err, result) => {
       if (err) {
-          output.error(err.message)
-          return deferred.reject(err)
+        output.error(err.message)
+        return deferred.reject(err)
       }
 
       output.print(result.id, result)
