@@ -20,7 +20,8 @@
     "mocha": "NODE_ENV=test mocha --compilers js:babel-register --reporter spec test/",
     "build": "babel src/ -d lib/",
     "prestart": "npm run build",
-    "start": "node bin/transloadify.js"
+    "start": "npm run web:start",
+    "preinstall": "npm run build"
   },
   "lanyon": {
     "projectDir": "website",
@@ -39,6 +40,7 @@
   },
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
+  "bin": "./lib/index.js",
   "dependencies": {
     "node-watch": "^0.4.1",
     "q": "1.4.1",
