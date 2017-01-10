@@ -41,6 +41,7 @@
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
   "bin": "./bin/cmd.js",
+  "main": "./lib/index.js",
   "dependencies": {
     "node-watch": "^0.4.1",
     "q": "1.4.1",
