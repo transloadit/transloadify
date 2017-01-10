@@ -18,10 +18,10 @@
     "release": "npm version ${SEMANTIC:-patch} -m \"Release %s\" && npm run build && git push && git push --tags && npm publish",
     "test": "npm-run-all build mocha",
     "mocha": "NODE_ENV=test mocha --compilers js:babel-register --reporter spec test/",
-    "build": "babel src/ -d lib/",
+    "build": "./node_modules/babel-cli/bin/babel.js src/ -d lib/",
     "prestart": "npm run build",
     "start": "npm run web:start",
-    "preinstall": "npm run build"
+    "prepublish": "npm run build"
   },
   "lanyon": {
     "projectDir": "website",
