@@ -42,6 +42,7 @@
   "license": "MIT",
   "bin": "./bin/cmd.js",
   "main": "./lib/index.js",
+  "files": ["lib", "bin"],
   "dependencies": {
     "node-watch": "^0.4.1",
     "q": "1.4.1",
