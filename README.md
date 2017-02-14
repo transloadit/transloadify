@@ -182,6 +182,9 @@ $ transloadify bills get 2016-11 --json
 - All output, from any command, can also be provided in JSON format using the
   `--json` flag
 
+## Getting Started
+
+Please see the [GETTING-STARTED.md](./GETTING-STARTED.md) file.
 
 ## Changelog
 
@@ -190,7 +193,6 @@ Please see the [CHANGELOG.md](./CHANGELOG.md) file.
 ## Frequently Asked Questions
 
 Please see the [FAQ.md](./FAQ.md) file.
-
 
 ## Authors
 
