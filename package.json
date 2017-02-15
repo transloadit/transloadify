@@ -9,7 +9,7 @@
     "web:build:production": "LANYON_ENV=production lanyon build",
     "web:build": "lanyon build",
     "web:encrypt": "lanyon encrypt",
-    "web:install": "lanyon postinstall",
+    "web:install": "lanyon install",
     "web:serve:production": "LANYON_ENV=production lanyon serve",
     "web:start": "lanyon start",
     "release:major": "env SEMANTIC=major npm run release",
@@ -53,7 +53,7 @@
     "eslint-plugin-promise": "3.4.0",
     "eslint-plugin-standard": "2.0.1",
     "fakefile": "^0.0.8",
-    "lanyon": "0.0.47",
+    "lanyon": "0.0.57",
     "mocha": "^3.2.0",
     "npm-run-all": "^3.1.2",
     "source-map-support": "^0.4.6"
