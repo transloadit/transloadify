@@ -5,7 +5,7 @@
   "scripts": {
     "fix": "eslint src test --fix",
     "lint": "eslint src test",
-    "deploy": "lanyon deploy",
+    "web:deploy": "lanyon deploy",
     "web:build:production": "LANYON_ENV=production lanyon build",
     "web:build": "lanyon build",
     "web:encrypt": "lanyon encrypt",
