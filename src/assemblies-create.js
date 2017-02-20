@@ -4,6 +4,7 @@ import watch from 'node-watch'
 import http from 'http'
 import path from 'path'
 import EventEmitter from 'events'
+import { PassThrough } from 'stream'
 import tty from 'tty'
 import Q from 'q'
 
@@ -30,14 +31,18 @@ function ensureDir (dir) {
 
 function dirProvider (output) {
   return (inpath, indir = process.cwd()) => {
+    if (inpath == null || inpath === '-') {
+      throw new Error('You must provide an input to output to a directory')
+    }
+
     let relpath = path.relative(indir, inpath)
-        // if inpath is outside indir, ensure that outpath will still be inside
-        // output
+    // if inpath is outside indir, ensure that outpath will still be inside
+    // output
     relpath = relpath.replace(/^(\.\.\/)+/, '')
     let outpath = path.join(output, relpath)
     let outdir = path.dirname(outpath)
 
-        // TODO can this be moved elsewhere to avoid synchronous IO?
+    // TODO can this be moved elsewhere to avoid synchronous IO?
     ensureDir(outdir)
 
     return fs.createWriteStream(outpath)
@@ -47,6 +52,10 @@ function dirProvider (output) {
 function fileProvider (output) {
   ensureDir(path.dirname(output))
   return inpath => output === '-' ? process.stdout : fs.createWriteStream(output)
+}
+
+function nullProvider () {
+  return inpath => null
 }
 
 class MyEventEmitter extends EventEmitter {
@@ -135,6 +144,20 @@ class SingleJobEmitter extends MyEventEmitter {
   }
 }
 
+class InputlessJobEmitter extends MyEventEmitter {
+  constructor ({ streamRegistry, outstreamProvider }) {
+    super()
+
+    try {
+      this.emit('job', { in: null, out: outstreamProvider(null) })
+    } catch (err) {
+      this.emit('error', err)
+    }
+
+    this.emit('end')
+  }
+}
+
 class NullJobEmitter extends MyEventEmitter {
   constructor () {
     super()
@@ -183,6 +206,10 @@ class MergedJobEmitter extends MyEventEmitter {
         if (++ncomplete === jobEmitters.length) this.emit('end')
       })
     }
+
+    if (jobEmitters.length === 0) {
+      this.emit('end')
+    }
   }
 }
 
@@ -217,7 +244,7 @@ function detectConflicts (jobEmitter) {
   jobEmitter.on('job', job => {
     if (outfileAssociations.hasOwnProperty(job.out.path) && outfileAssociations[job.out.path] !== job.in.path) {
       emitter.emit('error', new Error(`Output collision between '${job.in.path}' and '${outfileAssociations[job.out.path]}'`))
-    } else {
+    } else if (!(job.out instanceof PassThrough)) {
       outfileAssociations[job.out.path] = job.in.path
       emitter.emit('job', job)
     }
@@ -235,9 +262,9 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
   for (let input of inputs) {
     if (input === '-') {
       emitterFns.push(
-                () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }))
+        () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }))
       watcherFns.push(
-                () => new NullJobEmitter())
+        () => new NullJobEmitter())
 
       startEmitting()
     } else {
@@ -245,19 +272,26 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
         if (err != null) return emitter.emit('error', err)
         if (stats.isDirectory()) {
           emitterFns.push(
-                        () => new ReaddirJobEmitter({ dir: input, recursive, outstreamProvider, streamRegistry }))
+            () => new ReaddirJobEmitter({ dir: input, recursive, outstreamProvider, streamRegistry }))
           watcherFns.push(
-                        () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }))
+            () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }))
         } else {
           emitterFns.push(
-                        () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }))
+            () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }))
           watcherFns.push(
-                        () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }))
+            () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }))
         }
 
         startEmitting()
       })
     }
+  }
+
+  if (inputs.length === 0) {
+    console.log("PLEASE")
+    emitterFns.push(
+      () => new InputlessJobEmitter({ outstreamProvider, streamRegistry }))
+    startEmitting()
   }
 
   function startEmitting () {
@@ -278,31 +312,36 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
   return detectConflicts(emitter)
 }
 
-export default function run (outputctl, client, { steps, template, fields, watch, recursive, inputs, output }) {
+export default function run (outputctl, client, { steps, template, fields, watch, recursive, inputs, output, del }) {
   let deferred = Q.defer()
-
-  if (inputs.length === 0) inputs = [ '-' ]
 
   let params = steps ? { steps: JSON.parse(fs.readFileSync(steps)) } : { template_id: template }
   params.fields = fields
 
   let outstat
-  try {
-    outstat = myStatSync(process.stdout, output)
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e
-    outstat = { isDirectory: () => false }
-  }
 
-  if (!outstat.isDirectory()) {
-    if (inputs.length > 1 || myStatSync(process.stdin, inputs[0]).isDirectory()) {
-      const msg = 'Output must be a directory when specifying multiple inputs'
-      outputctl.error(msg)
-      return deferred.reject(new Error(msg))
+  if (output != null) {
+    try {
+      outstat = myStatSync(process.stdout, output)
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e
+      outstat = { isDirectory: () => false }
+    }
+
+    if (!outstat.isDirectory()) {
+      if (inputs.length > 1 || myStatSync(process.stdin, inputs[0]).isDirectory()) {
+        const msg = 'Output must be a directory when specifying multiple inputs'
+        outputctl.error(msg)
+        return deferred.reject(new Error(msg))
+      }
     }
   }
 
-  let outstreamProvider = outstat.isDirectory() ? dirProvider(output) : fileProvider(output)
+  let outstreamProvider = output == null
+                        ? nullProvider()
+                        : outstat.isDirectory()
+                        ? dirProvider(output)
+                        : fileProvider(output)
   let streamRegistry = {}
 
   let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry })
@@ -342,25 +381,30 @@ export default function run (outputctl, client, { steps, template, fields, watch
 
         let resulturl = result.results[Object.keys(result.results)[0]][0].url
 
-        http.get(resulturl, res => {
-          if (res.statusCode !== 200) {
-            let msg = `Server returned http status ${res.statusCode}`
-            outputctl.error(msg)
-            return deferred.reject(msg)
-          }
+        if (job.out != null) {
+          http.get(resulturl, res => {
+            if (res.statusCode !== 200) {
+              let msg = `Server returned http status ${res.statusCode}`
+              outputctl.error(msg)
+              return deferred.reject(msg)
+            }
 
-          if (superceded) return deferred.resolve()
+            if (superceded) return deferred.resolve()
 
-          res.pipe(job.out)
-          res.on('end', () => {
-            outputctl.debug(`COMPLETED ${job.in.path} ${job.out.path}`)
-            deferred.resolve()
+            res.pipe(job.out)
+            res.on('end', () => {
+              outputctl.debug(`COMPLETED ${job.in && job.in.path} ${job.out.path}`)
+              deferred.resolve()
+            })
+            job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
+          }).on('error', err => {
+            outputctl.error(err.message)
+            deferred.reject(err)
           })
-          job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
-        }).on('error', err => {
-          outputctl.error(err.message)
-          deferred.reject(err)
-        })
+        } else {
+          outputctl.debug(`COMPLETED ${job.in && job.in.path}`)
+          deferred.resolve()
+        }
       })
     })
   })
