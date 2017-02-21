@@ -398,8 +398,7 @@ export default function run (outputctl, client, { steps, template, fields, watch
 
             res.pipe(job.out)
             res.on('end', () => {
-              outputctl.debug(`COMPLETED ${job.in && job.in.path} ${job.out.path}`)
-              deferred.resolve()
+              completeJob()
             })
             job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
           }).on('error', err => {
@@ -407,8 +406,16 @@ export default function run (outputctl, client, { steps, template, fields, watch
             deferred.reject(err)
           })
         } else {
-          outputctl.debug(`COMPLETED ${job.in && job.in.path}`)
-          deferred.resolve()
+          completeJob()
+        }
+
+        function completeJob () {
+          outputctl.debug(`COMPLETED ${job.in && job.in.path} ${job.out && job.out.path}`)
+          if (del && job.in != null) {
+            Q.nfcall(fs.unlink, job.in.path).then(() => deferred.resolve())
+          } else {
+            deferred.resolve()
+          }
         }
       })
     })

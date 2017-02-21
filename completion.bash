@@ -81,7 +81,7 @@ function _transloadify {
 		esac
 	fi
 	if ([ -z "$action" ] && [ -z "$mode" ]) || ([ "$mode" == "assemblies" ] && [ "$action" == "create" ]); then
-		opts+=(--steps --template --field --watch --recursive --input --output)
+		opts+=(--steps --template --field --watch --recursive --input --output --delete-after-processing)
 	fi
 	case "$mode" in
 		assemblies)

@@ -676,6 +676,30 @@ describe('End-to-end', function () {
 
         return resultPromise.then(result => Q.nfcall(fs.access, 'out.jpg'))
       }))
+
+      it('should allow deleting inputs after processing', testCase(client => {
+        let inFilePromise = imgPromise()
+        let stepsFilePromise = stepsPromise()
+
+        let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, { steps, inputs: [infile], output: null, del: true })
+            .then(() => output.get(true))
+        })
+
+        return Q.spread([inFilePromise, resultPromise], infile => {
+          return Q.Promise((resolve, reject) => {
+            fs.access(infile, err => {
+              try {
+                expect(err).to.exist
+                resolve()
+              } catch (err) {
+                reject(err)
+              }
+            })
+          })
+        })
+      }))
     })
   })
 })

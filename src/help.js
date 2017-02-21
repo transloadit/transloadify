@@ -68,6 +68,7 @@ Create assemblies to process media.
 
 Usage: transloadify [assemblies create] (--steps FILE | --template ID)
   [--input FILE]... [--output FILE] [--field KEY=VAL]... [--watch] [--recursive]
+  [--delete-after-processing]
 
 Options:
   -s --steps      Specify assembly instructions with a JSON file
@@ -76,7 +77,8 @@ Options:
   -o --output     Specify an output file or directory
   -f --field      Set a template field
   -w --watch      Watch inputs for changes
-  -r --recursive  Enumerate input directories recursively`
+  -r --recursive  Enumerate input directories recursively
+  -d --delete-after-processing  Delete input files after they are processed`
 
 const assembliesList = `
 List assemblies matching given criteria.
