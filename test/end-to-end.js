@@ -459,8 +459,8 @@ describe('End-to-end', function () {
           height: 130
         }
       }
-      function stepsPromise (fname = 'steps.json') {
-        return Q.nfcall(fs.writeFile, 'steps.json', JSON.stringify(genericSteps))
+      function stepsPromise (fname = 'steps.json', steps = genericSteps) {
+        return Q.nfcall(fs.writeFile, 'steps.json', JSON.stringify(steps))
           .then(() => 'steps.json')
       }
 
@@ -471,15 +471,17 @@ describe('End-to-end', function () {
         let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
           let output = new OutputCtl()
           return assembliesCreate(output, client, { steps, inputs: [infile], output: 'out.jpg' })
-            .then(() => output.get())
+            .then(() => output.get(true))
         })
 
         return resultPromise.then(result => {
-          expect(result).to.have.lengthOf(2)
+          expect(result).to.have.lengthOf(3)
           expect(result).to.have.deep.property('[0].type').that.equals('debug')
           expect(result).to.have.deep.property('[0].msg').that.equals('GOT JOB in.jpg out.jpg')
           expect(result).to.have.deep.property('[1].type').that.equals('debug')
-          expect(result).to.have.deep.property('[1].msg').that.equals('COMPLETED in.jpg out.jpg')
+          expect(result).to.have.deep.property('[1].msg').that.equals('DOWNLOADING')
+          expect(result).to.have.deep.property('[2].type').that.equals('debug')
+          expect(result).to.have.deep.property('[2].msg').that.equals('COMPLETED in.jpg out.jpg')
           return Q.nfcall(imgSize, 'out.jpg').then(dim => {
             expect(dim).to.have.property('width').that.equals(130)
             expect(dim).to.have.property('height').that.equals(130)
@@ -633,6 +635,46 @@ describe('End-to-end', function () {
           expect(result[result.length - 1]).to.have.deep.property('msg.message').that.equals(
             'Output collision between \'in/1.jpg\' and \'1.jpg\'')
         })
+      }))
+
+      it('should not download the result if not output is specified', testCase(client => {
+        let inFilePromise = imgPromise()
+        let stepsFilePromise = stepsPromise()
+
+        let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, { steps, inputs: [infile], output: null })
+            .then(() => output.get(true))
+        })
+
+        return resultPromise.then(result => {
+          expect(result.filter(line => line.msg === 'DOWNLOADING')).to.have.lengthOf(0)
+        })
+      }))
+
+      it('should accept invocations with no inputs', testCase(client => {
+        let inFilePromise = imgPromise()
+        let stepsFilePromise = stepsPromise('steps.json', {
+          import: {
+            robot: '/http/import',
+            url: genericImg
+          },
+          resize: {
+            robot: '/image/resize',
+            use: 'import',
+            result: true,
+            width: 130,
+            height: 130
+          }
+        })
+
+        let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, { steps, inputs: [], output: 'out.jpg' })
+            .then(() => output.get(true))
+        })
+
+        return resultPromise.then(result => Q.nfcall(fs.access, 'out.jpg'))
       }))
     })
   })

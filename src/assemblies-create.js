@@ -4,7 +4,6 @@ import watch from 'node-watch'
 import http from 'http'
 import path from 'path'
 import EventEmitter from 'events'
-import { PassThrough } from 'stream'
 import tty from 'tty'
 import Q from 'q'
 
@@ -148,13 +147,15 @@ class InputlessJobEmitter extends MyEventEmitter {
   constructor ({ streamRegistry, outstreamProvider }) {
     super()
 
-    try {
-      this.emit('job', { in: null, out: outstreamProvider(null) })
-    } catch (err) {
-      this.emit('error', err)
-    }
+    process.nextTick(() => {
+      try {
+        this.emit('job', { in: null, out: outstreamProvider(null) })
+      } catch (err) {
+        this.emit('error', err)
+      }
 
-    this.emit('end')
+      this.emit('end')
+    })
   }
 }
 
@@ -242,9 +243,13 @@ function detectConflicts (jobEmitter) {
   jobEmitter.on('end', () => emitter.emit('end'))
   jobEmitter.on('error', err => emitter.emit('error', err))
   jobEmitter.on('job', job => {
+    if (job.in == null || job.out == null) {
+      emitter.emit('job', job)
+      return
+    }
     if (outfileAssociations.hasOwnProperty(job.out.path) && outfileAssociations[job.out.path] !== job.in.path) {
       emitter.emit('error', new Error(`Output collision between '${job.in.path}' and '${outfileAssociations[job.out.path]}'`))
-    } else if (!(job.out instanceof PassThrough)) {
+    } else {
       outfileAssociations[job.out.path] = job.in.path
       emitter.emit('job', job)
     }
@@ -288,14 +293,13 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
   }
 
   if (inputs.length === 0) {
-    console.log("PLEASE")
     emitterFns.push(
       () => new InputlessJobEmitter({ outstreamProvider, streamRegistry }))
     startEmitting()
   }
 
   function startEmitting () {
-    if (emitterFns.length !== inputs.length) return
+    if (inputs.length !== 0 && emitterFns.length !== inputs.length) return
 
     let source = new MergedJobEmitter(...emitterFns.map(f => f()))
 
@@ -328,7 +332,7 @@ export default function run (outputctl, client, { steps, template, fields, watch
       outstat = { isDirectory: () => false }
     }
 
-    if (!outstat.isDirectory()) {
+    if (!outstat.isDirectory() && inputs.length !== 0) {
       if (inputs.length > 1 || myStatSync(process.stdin, inputs[0]).isDirectory()) {
         const msg = 'Output must be a directory when specifying multiple inputs'
         outputctl.error(msg)
@@ -347,14 +351,14 @@ export default function run (outputctl, client, { steps, template, fields, watch
   let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry })
 
   let jobPromises = []
-
   emitter.on('job', job => {
     let deferred = Q.defer()
     jobPromises.push(deferred.promise)
 
-    outputctl.debug(`GOT JOB ${job.in.path} ${job.out.path}`)
+    outputctl.debug(`GOT JOB ${job.in && job.in.path} ${job.out && job.out.path}`)
     let superceded = false
-    job.out.on('finish', () => { superceded = true })
+
+    if (job.out != null) job.out.on('finish', () => { superceded = true })
 
     if (job.in != null) client.addStream('in', job.in)
 
@@ -382,6 +386,7 @@ export default function run (outputctl, client, { steps, template, fields, watch
         let resulturl = result.results[Object.keys(result.results)[0]][0].url
 
         if (job.out != null) {
+          outputctl.debug('DOWNLOADING')
           http.get(resulturl, res => {
             if (res.statusCode !== 200) {
               let msg = `Server returned http status ${res.statusCode}`

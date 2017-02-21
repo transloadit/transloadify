@@ -23,7 +23,7 @@ export default class OutputCtl {
     this.output.push({ type: 'print', msg, json })
   }
 
-  get () {
-    return this.output
+  get (debug = false) {
+    return this.output.filter(line => debug || line.type !== 'debug')
   }
 }

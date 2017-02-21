@@ -72,8 +72,8 @@ Usage: transloadify [assemblies create] (--steps FILE | --template ID)
 Options:
   -s --steps      Specify assembly instructions with a JSON file
   -t --template   Specify a template to use for these assemblies
-  -i --input      Provide an input file or a directory; uses STDIN if absent
-  -o --output     Specify an output file or directory; uses STDOUT if absent
+  -i --input      Provide an input file or a directory
+  -o --output     Specify an output file or directory
   -f --field      Set a template field
   -w --watch      Watch inputs for changes
   -r --recursive  Enumerate input directories recursively`
