@@ -314,7 +314,7 @@ function dismissStaleJobs (jobEmitter) {
   return emitter
 }
 
-function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry, watch }) {
+function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry, watch, reprocessStale }) {
   let emitter = new EventEmitter()
 
   let emitterFns = []
@@ -369,10 +369,12 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
     source.on('end', () => emitter.emit('end'))
   }
 
-  return dismissStaleJobs(detectConflicts(emitter))
+  let stalefilter = reprocessStale ? x => x : dismissStaleJobs
+  return stalefilter(detectConflicts(emitter))
 }
 
-export default function run (outputctl, client, { steps, template, fields, watch, recursive, inputs, output, del }) {
+export default function run (outputctl, client,
+                             { steps, template, fields, watch, recursive, inputs, output, del, reprocessStale }) {
   let deferred = Q.defer()
 
   let params = steps ? { steps: JSON.parse(fs.readFileSync(steps)) } : { template_id: template }
@@ -404,7 +406,7 @@ export default function run (outputctl, client, { steps, template, fields, watch
                         : fileProvider(output)
   let streamRegistry = {}
 
-  let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry })
+  let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry, reprocessStale })
 
   let jobPromises = []
   emitter.on('job', job => {

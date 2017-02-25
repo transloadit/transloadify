@@ -78,7 +78,8 @@ Options:
   -f --field      Set a template field
   -w --watch      Watch inputs for changes
   -r --recursive  Enumerate input directories recursively
-  -d --delete-after-processing  Delete input files after they are processed`
+  -d --delete-after-processing  Delete input files after they are processed
+  --reprocess-stale             Process inputs even if output is newer`
 
 const assembliesList = `
 List assemblies matching given criteria.

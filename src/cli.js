@@ -25,6 +25,7 @@ parser.register('recursive', 'r', false)
 parser.register('input', 'i', true)
 parser.register('output', 'o', true)
 parser.register('delete-after-processing', 'd', false)
+parser.register('reprocess-stale', null, false)
 parser.register('after', 'a', true)
 parser.register('before', 'b', true)
 parser.register('keywords', null, true)
@@ -283,7 +284,7 @@ const subcommands = {
     create (opts, tgts) {
       let err = validate(opts, tgts,
 
-                allowOptions(anyOf('steps', 'template', 'field', 'watch', 'recursive', 'input', 'output', 'delete-after-processing'),
+                allowOptions(anyOf('steps', 'template', 'field', 'watch', 'recursive', 'input', 'output', 'delete-after-processing', 'reprocess-stale'),
                              opt => `assemblies create doesn't accept the option --${opt.name}`),
 
                 exactlyOneOfOption(anyOf('steps', 'template'),
@@ -313,6 +314,7 @@ const subcommands = {
         recursive: optget(opts, 'recursive'),
         output: optget(opts, 'output') || null,
         del: optget(opts, 'delete-after-processing'),
+        reprocessStale: optget(opts, 'reprocess-stale'),
         inputs
       }
     },
