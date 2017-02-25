@@ -28,6 +28,7 @@ let testno = 0
 process.setMaxListeners(Infinity)
 
 function testCase (cb) {
+  let cwd = process.cwd()
   return () => {
     let dirname = path.join(tmpDir, `transloadify_test_${testno++}`)
     let client = new TransloaditClient({ authKey, authSecret })
@@ -45,7 +46,10 @@ function testCase (cb) {
         }
         process.chdir(dirname)
         return cb(client)
-      }).fin(() => Q.nfcall(rimraf, dirname))
+      }).fin(() => {
+        process.chdir(cwd)
+        return Q.nfcall(rimraf, dirname)
+      })
   }
 }
 
@@ -637,7 +641,7 @@ describe('End-to-end', function () {
         })
       }))
 
-      it('should not download the result if not output is specified', testCase(client => {
+      it('should not download the result if no output is specified', testCase(client => {
         let inFilePromise = imgPromise()
         let stepsFilePromise = stepsPromise()
 
@@ -698,6 +702,35 @@ describe('End-to-end', function () {
               }
             })
           })
+        })
+      }))
+
+      it('should not reprocess inputs that are older than their output', testCase(client => {
+        let inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
+        let stepsFilePromise = stepsPromise()
+        let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+
+        let resultPromise = Q.spread([inFilesPromise, stepsFilePromise, outdirPromise], (infiles, steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, {
+            steps,
+            inputs: [infiles[0]],
+            output: 'out'
+          })
+        })
+
+        resultPromise = Q.spread([inFilesPromise, stepsFilePromise, resultPromise], (infiles, steps) => {
+          let output = new OutputCtl()
+          return assembliesCreate(output, client, {
+            steps,
+            inputs: infiles,
+            output: 'out'
+          }).then(() => output.get(true))
+        })
+
+        return resultPromise.then(result => {
+          // assert that no log lines mention the stale input
+          expect(result.map(line => line.msg).filter(msg => msg.includes('in1.jpg'))).to.have.lengthOf(0)
         })
       }))
     })
