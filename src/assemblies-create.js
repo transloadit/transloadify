@@ -6,6 +6,7 @@ import path from 'path'
 import EventEmitter from 'events'
 import tty from 'tty'
 import Q from 'q'
+import JobsPromise from './JobsPromise'
 
 // workaround for determining mime-type of stdin
 process.stdin.path = '/dev/stdin'
@@ -293,15 +294,14 @@ function detectConflicts (jobEmitter) {
 function dismissStaleJobs (jobEmitter) {
   let emitter = new MyEventEmitter()
 
-  let jobPromises = []
+  let jobsPromise = new JobsPromise()
 
-  // jobEmitter.on('end', () => emitter.emit('end'))
-  jobEmitter.on('end', () => Q.all(jobPromises).then(() => emitter.emit('end')))
+  jobEmitter.on('end', () => jobsPromise.promise().then(() => emitter.emit('end')))
   jobEmitter.on('error', err => emitter.emit('error', err))
   jobEmitter.on('job', job => {
     if (job.in == null || job.out == null) return emitter.emit('job', job)
 
-    jobPromises.push(Q.nfcall(fs.stat, job.in.path).then(stats => {
+    jobsPromise.add(Q.nfcall(fs.stat, job.in.path).then(stats => {
       let inM = stats.mtime
       let outM = job.out.mtime || new Date(0)
 
@@ -374,7 +374,8 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
 }
 
 export default function run (outputctl, client,
-                             { steps, template, fields, watch, recursive, inputs, output, del, reprocessStale }) {
+                             { steps, template, fields, watch, recursive,
+                               inputs, output, del, reprocessStale }) {
   let deferred = Q.defer()
 
   let params = steps ? { steps: JSON.parse(fs.readFileSync(steps)) } : { template_id: template }
@@ -408,10 +409,10 @@ export default function run (outputctl, client,
 
   let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry, reprocessStale })
 
-  let jobPromises = []
+  let jobsPromise = new JobsPromise()
   emitter.on('job', job => {
     let deferred = Q.defer()
-    jobPromises.push(deferred.promise)
+    jobsPromise.add(deferred.promise)
 
     outputctl.debug(`GOT JOB ${job.in && job.in.path} ${job.out && job.out.path}`)
     let superceded = false
@@ -485,7 +486,7 @@ export default function run (outputctl, client,
   })
 
   emitter.on('end', () => {
-    deferred.resolve(Q.all(jobPromises))
+    deferred.resolve(jobsPromise.promise())
   })
 
   return deferred.promise
