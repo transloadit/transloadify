@@ -1,4 +1,3 @@
-import { formatAPIError } from './helpers'
 import fs from 'fs'
 import watch from 'node-watch'
 import http from 'http'
@@ -411,73 +410,66 @@ export default function run (outputctl, client,
 
   let jobsPromise = new JobsPromise()
   emitter.on('job', job => {
-    let deferred = Q.defer()
-    jobsPromise.add(deferred.promise)
-
     outputctl.debug(`GOT JOB ${job.in && job.in.path} ${job.out && job.out.path}`)
-    let superceded = false
 
+    let superceded = false
     if (job.out != null) job.out.on('finish', () => { superceded = true })
 
     if (job.in != null) client.addStream('in', job.in)
 
-    client.createAssembly({ params }, (err, result) => {
-      if (err != null) {
-        outputctl.error(err)
-        return deferred.reject(err)
-      }
+    jobsPromise.add(Q.nfcall(client.createAssembly.bind(client), { params }).then(result => {
+      if (superceded) return
 
-      if (superceded) return deferred.resolve()
-
-      client.getAssembly(result.assembly_id, function callback (err, result) {
-        if (err != null) {
-          outputctl.error(formatAPIError(err))
-          return deferred.reject(err)
-        }
-
-        if (superceded) return deferred.resolve()
+      return Q.nfcall(client.getAssembly.bind(client), result.assembly_id).then(function callback (result) {
+        if (superceded) return
 
         if (result.ok !== 'ASSEMBLY_COMPLETED') {
-          client.getAssembly(result.assembly_id, callback)
-          return
+          return Q.delay(250).then(() => Q.nfcall(client.getAssembly.bind(client), result.assembly_id)).then(callback)
         }
 
         let resulturl = result.results[Object.keys(result.results)[0]][0].url
 
         if (job.out != null) {
           outputctl.debug('DOWNLOADING')
-          http.get(resulturl, res => {
-            if (res.statusCode !== 200) {
-              let msg = `Server returned http status ${res.statusCode}`
-              outputctl.error(msg)
-              return deferred.reject(msg)
-            }
+          return Q.Promise((resolve, reject) => {
+            http.get(resulturl, res => {
+              if (res.statusCode !== 200) {
+                let msg = `Server returned http status ${res.statusCode}`
+                outputctl.error(msg)
+                return reject(new Error(msg))
+              }
 
-            if (superceded) return deferred.resolve()
+              if (superceded) return resolve()
 
-            res.pipe(job.out)
-            res.on('end', () => {
-              completeJob()
+              res.pipe(job.out)
+              job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
+              resolve(Q.Promise(resolve => {
+                res.on('end', () => {
+                  resolve(completeJob())
+                })
+              }))
+            }).on('error', err => {
+              outputctl.error(err.message)
+              reject(err)
             })
-            job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
-          }).on('error', err => {
-            outputctl.error(err.message)
-            deferred.reject(err)
           })
         } else {
-          completeJob()
+          return completeJob()
         }
 
         function completeJob () {
           outputctl.debug(`COMPLETED ${job.in && job.in.path} ${job.out && job.out.path}`)
+
           if (del && job.in != null) {
-            Q.nfcall(fs.unlink, job.in.path).then(() => deferred.resolve())
-          } else {
-            deferred.resolve()
+            return Q.nfcall(fs.unlink, job.in.path)
           }
         }
       })
-    })
+    }))
+  })
+
+  jobsPromise.on('error', err => {
+    outputctl.error(err)
   })
 
   emitter.on('error', err => {

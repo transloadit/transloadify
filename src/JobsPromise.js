@@ -1,13 +1,19 @@
 import Q from 'q'
+import { EventEmitter } from 'events'
 
-export default class JobsPromise {
+export default class JobsPromise extends EventEmitter {
   constructor () {
+    super()
+
     this.promises = new Set()
   }
 
   add (promise) {
     this.promises.add(promise)
-    promise.then(() => this.promises.delete(promise))
+    promise.fin(() => this.promises.delete(promise))
+    promise.fail(err => {
+      this.emit('error', err)
+    })
   }
 
   promise () {
