@@ -1,4 +1,4 @@
-if (process.env.NODE_ENV !== 'production') require('source-map-support').install()
+try { require('source-map-support').install() } catch (e) { }
 
 import cli from './cli'
 import TransloaditClient from 'transloadit'

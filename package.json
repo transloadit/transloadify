@@ -21,7 +21,8 @@
     "build": "./node_modules/babel-cli/bin/babel.js src/ -d lib/",
     "prestart": "npm run build",
     "start": "npm run web:start",
-    "prepublish": "npm run build"
+    "prepublish": "npm run build",
+    "postinstall": "install-completion bash _transloadify"
   },
   "lanyon": {
     "projectDir": "website",
@@ -42,11 +43,16 @@
   "license": "MIT",
   "bin": "./bin/cmd.js",
   "main": "./lib/index.js",
-  "files": ["lib", "bin"],
+  "files": [
+    "lib",
+    "bin",
+    "_transloadify"
+  ],
   "dependencies": {
     "node-watch": "^0.4.1",
     "q": "1.4.1",
     "recursive-readdir": "2.1.0",
+    "shell-completion": "0.0.5",
     "transloadit": "1.9.1"
   },
   "devDependencies": {
