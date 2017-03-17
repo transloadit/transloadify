@@ -1,4 +1,4 @@
-if (process.env.NODE_ENV !== 'production') require('source-map-support').install()
+try { require('source-map-support').install() } catch (e) { }
 
 import cli from './cli'
 import TransloaditClient from 'transloadit'
@@ -26,7 +26,7 @@ let command = commands[invocation.mode]
 if (invocation.action) command = command[invocation.action]
 
 let client
-if (!['help', 'version', 'register'].includes(invocation.mode)) {
+if (!['help', 'version', 'register'].indexOf(invocation.mode) !== -1) {
   if (!process.env.TRANSLOADIT_KEY || !process.env.TRANSLOADIT_SECRET) {
     output.error('Please provide API authentication in the environment variables TRANSLOADIT_KEY and TRANSLOADIT_SECRET')
     process.exit(1)
