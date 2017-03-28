@@ -28,7 +28,8 @@ Subcommands:
   delete
   modify
   list
-  get`
+  get
+  sync`
 
 const bills = `
 Command: bills
@@ -67,15 +68,18 @@ Create assemblies to process media.
 
 Usage: transloadify [assemblies create] (--steps FILE | --template ID)
   [--input FILE]... [--output FILE] [--field KEY=VAL]... [--watch] [--recursive]
+  [--delete-after-processing]
 
 Options:
   -s --steps      Specify assembly instructions with a JSON file
   -t --template   Specify a template to use for these assemblies
-  -i --input      Provide an input file or a directory; uses STDIN if absent
-  -o --output     Specify an output file or directory; uses STDOUT if absent
+  -i --input      Provide an input file or a directory
+  -o --output     Specify an output file or directory
   -f --field      Set a template field
   -w --watch      Watch inputs for changes
-  -r --recursive  Enumerate input directories recursively`
+  -r --recursive  Enumerate input directories recursively
+  -d --delete-after-processing  Delete input files after they are processed
+  --reprocess-stale             Process inputs even if output is newer`
 
 const assembliesList = `
 List assemblies matching given criteria.
@@ -145,11 +149,27 @@ Usage: transloadify templates list [--after DATE] [--before DATE]
   [--sort FIELD] [--order asc|desc] [--fields LIST]
 
 Options:
-   -a --after   Return only templates created after specified date
-   -b --before  Return only templates created before specified date
-   --sort       Field to sort by (id, name, created, or modified)
-   --order      Sort ascending or descending (default: descending)
-   --fields     A list of fields to return for each templates`
+  -a --after   Return only templates created after specified date
+  -b --before  Return only templates created before specified date
+  --sort       Field to sort by (id, name, created, or modified)
+  --order      Sort ascending or descending (default: descending)
+  --fields     A list of fields to return for each templates`
+
+const templatesSync = `
+Synchronize local template files with the transloadify API.
+
+Usage: transloadify templates sync [--recursive] FILE...
+
+Template files must be named *.json and have the key "transloadit_template_id"
+and optionally "steps". If "transloadit_template_id" is an empty string, then
+a new template will be created using the instructions in "steps". If "steps" is
+missing then it will be filled in by the instructions of the template specified
+by "transloadit_template_id". If both keys are present then the local template
+file and the remote template will be synchronized to whichever was more recently
+modified.
+
+Options:
+  -r --recursive  Look for template files in directories recursively`
 
 const notificationsReplay = `
 Replay notifications for assemblies.
@@ -195,7 +215,8 @@ const messages = {
     get: templatesGet,
     modify: templatesModify,
     delete: templatesDelete,
-    list: templatesList
+    list: templatesList,
+    sync: templatesSync
   },
   'assembly-notifications': {
     default: notifications,

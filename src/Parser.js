@@ -133,7 +133,7 @@ export default class Parser {
   _isCommand (cmds, arg) {
     for (let field in this._commands) {
       for (let command of this._commands[field]) {
-        if (command.aliases.includes(arg)) {
+        if (command.aliases.indexOf(arg) !== -1) {
           if (field in cmds) return false
           return true
         }
@@ -146,7 +146,7 @@ export default class Parser {
   _parseCommand (arg, args, cmds, opts, tgts) {
     for (let field in this._commands) {
       for (let command of this._commands[field]) {
-        if (command.aliases.includes(arg)) {
+        if (command.aliases.indexOf(arg) !== -1) {
           cmds[field] = command.name
           return this._parse(args, cmds, opts, tgts)
         }

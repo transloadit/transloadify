@@ -1,10 +1,11 @@
-import { formatAPIError } from './helpers'
 import fs from 'fs'
 import watch from 'node-watch'
 import http from 'http'
 import path from 'path'
 import EventEmitter from 'events'
 import tty from 'tty'
+import Q from 'q'
+import JobsPromise from './JobsPromise'
 
 // workaround for determining mime-type of stdin
 process.stdin.path = '/dev/stdin'
@@ -15,37 +16,68 @@ function myStatSync (stdioStream, path) {
 }
 
 function ensureDir (dir) {
-  try { fs.mkdirSync(dir) } catch (e) {
-    if (e.code === 'EEXIST') {
-      if (!fs.statSync(dir).isDirectory()) throw e
-      return
+  return Q.nfcall(fs.mkdir, dir).fail(err => {
+    if (err.code === 'EEXIST') {
+      return Q.nfcall(fs.stat, dir).then(stats => {
+        if (!stats.isDirectory()) throw err
+      })
     }
-    if (e.code !== 'ENOENT') throw e
+    if (err.code !== 'ENOENT') throw err
 
-    ensureDir(path.dirname(dir))
-    fs.mkdirSync(dir)
-  }
+    return ensureDir(path.dirname(dir)).then(() => {
+      return Q.nfcall(fs.mkdir, dir)
+    })
+  })
 }
 
 function dirProvider (output) {
   return (inpath, indir = process.cwd()) => {
+    if (inpath == null || inpath === '-') {
+      throw new Error('You must provide an input to output to a directory')
+    }
+
     let relpath = path.relative(indir, inpath)
-        // if inpath is outside indir, ensure that outpath will still be inside
-        // output
+    // if inpath is outside indir, ensure that outpath will still be inside
+    // output
     relpath = relpath.replace(/^(\.\.\/)+/, '')
     let outpath = path.join(output, relpath)
     let outdir = path.dirname(outpath)
 
-        // TODO can this be moved elsewhere to avoid synchronous IO?
-    ensureDir(outdir)
-
-    return fs.createWriteStream(outpath)
+    return ensureDir(outdir)
+      .then(() => {
+        return Q.nfcall(fs.stat, outpath)
+          .then(stats => stats.mtime)
+          .fail(() => new Date(0))
+      })
+      .then(mtime => {
+        let outstream = fs.createWriteStream(outpath)
+        outstream.mtime = mtime
+        return outstream
+      })
   }
 }
 
 function fileProvider (output) {
-  ensureDir(path.dirname(output))
-  return inpath => output === '-' ? process.stdout : fs.createWriteStream(output)
+  let dirExistsP = ensureDir(path.dirname(output))
+  return inpath => {
+    return dirExistsP.then(() => {
+      if (output === '-') return process.stdout
+
+      let mtimeP = Q.nfcall(fs.stat, output)
+        .then(stats => stats.mtime)
+        .fail(() => new Date(0))
+
+      return mtimeP.then(mtime => {
+        let outstream = fs.createWriteStream(output)
+        outstream.mtime = mtime
+        return outstream
+      })
+    })
+  }
+}
+
+function nullProvider () {
+  return inpath => Q.fcall(() => null)
 }
 
 class MyEventEmitter extends EventEmitter {
@@ -97,9 +129,11 @@ class ReaddirJobEmitter extends MyEventEmitter {
               }
             } else {
               if (streamRegistry[file]) streamRegistry[file].end()
-              let outstream = streamRegistry[file] = outstreamProvider(file, topdir)
-              this.emit('job', { in: fs.createReadStream(file), out: outstream })
-              complete()
+              outstreamProvider(file, topdir).then(outstream => {
+                streamRegistry[file] = outstream
+                this.emit('job', { in: fs.createReadStream(file), out: outstream })
+                complete()
+              })
             }
           })
         }
@@ -114,22 +148,42 @@ class SingleJobEmitter extends MyEventEmitter {
 
     file = path.normalize(file)
     if (streamRegistry[file]) streamRegistry[file].end()
-    let outstream = streamRegistry[file] = outstreamProvider(file)
+    outstreamProvider(file).then(outstream => {
+      streamRegistry[file] = outstream
 
-    let instream
-    if (file === '-') {
-      if (tty.isatty(process.stdin.fd)) {
-        instream = null // Don't read from stdin if it's input from the console
+      let instream
+      if (file === '-') {
+        if (tty.isatty(process.stdin.fd)) {
+          instream = null // Don't read from stdin if it's input from the console
+        } else {
+          instream = process.stdin
+        }
       } else {
-        instream = process.stdin
+        instream = fs.createReadStream(file)
       }
-    } else {
-      instream = fs.createReadStream(file)
-    }
+
+      process.nextTick(() => {
+        this.emit('job', { in: instream, out: outstream })
+        this.emit('end')
+      })
+    })
+  }
+}
+
+class InputlessJobEmitter extends MyEventEmitter {
+  constructor ({ streamRegistry, outstreamProvider }) {
+    super()
 
     process.nextTick(() => {
-      this.emit('job', { in: instream, out: outstream })
-      this.emit('end')
+      outstreamProvider(null).then(outstream => {
+        try {
+          this.emit('job', { in: null, out: outstream })
+        } catch (err) {
+          this.emit('error', err)
+        }
+
+        this.emit('end')
+      })
     })
   }
 }
@@ -160,9 +214,12 @@ class WatchJobEmitter extends MyEventEmitter {
           if (err) return this.emit('error', err)
           if (stats.isDirectory()) return
           if (streamRegistry[file]) streamRegistry[file].end()
-          let outstream = streamRegistry[file] = outstreamProvider(file, topdir)
-          let instream = fs.createReadStream(file)
-          this.emit('job', { in: instream, out: outstream })
+          outstreamProvider(file, topdir).then(outstream => {
+            streamRegistry[file] = outstream
+
+            let instream = fs.createReadStream(file)
+            this.emit('job', { in: instream, out: outstream })
+          })
         })
       })
     })
@@ -182,6 +239,10 @@ class MergedJobEmitter extends MyEventEmitter {
         if (++ncomplete === jobEmitters.length) this.emit('end')
       })
     }
+
+    if (jobEmitters.length === 0) {
+      this.emit('end')
+    }
   }
 }
 
@@ -191,13 +252,12 @@ class ConcattedJobEmitter extends MyEventEmitter {
 
     let emitter = emitterFn()
 
+    emitter.on('error', err => this.emit('error', err))
+    emitter.on('job', job => this.emit('job', job))
+
     if (emitterFns.length === 0) {
-      emitter.on('error', err => this.emit('error', err))
-      emitter.on('job', job => this.emit('job', job))
       emitter.on('end', () => this.emit('end'))
     } else {
-      emitter.on('error', err => this.emit('error', err))
-      emitter.on('job', job => this.emit('job', job))
       emitter.on('end', () => {
         let restEmitter = new ConcattedJobEmitter(...emitterFns)
         restEmitter.on('error', err => this.emit('error', err))
@@ -208,7 +268,52 @@ class ConcattedJobEmitter extends MyEventEmitter {
   }
 }
 
-function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry, watch }) {
+function detectConflicts (jobEmitter) {
+  let emitter = new MyEventEmitter()
+  let outfileAssociations = {}
+
+  jobEmitter.on('end', () => emitter.emit('end'))
+  jobEmitter.on('error', err => emitter.emit('error', err))
+  jobEmitter.on('job', job => {
+    if (job.in == null || job.out == null) {
+      emitter.emit('job', job)
+      return
+    }
+    if (outfileAssociations.hasOwnProperty(job.out.path) && outfileAssociations[job.out.path] !== job.in.path) {
+      emitter.emit('error', new Error(`Output collision between '${job.in.path}' and '${outfileAssociations[job.out.path]}'`))
+    } else {
+      outfileAssociations[job.out.path] = job.in.path
+      emitter.emit('job', job)
+    }
+  })
+
+  return emitter
+}
+
+function dismissStaleJobs (jobEmitter) {
+  let emitter = new MyEventEmitter()
+
+  let jobsPromise = new JobsPromise()
+
+  jobEmitter.on('end', () => jobsPromise.promise().then(() => emitter.emit('end')))
+  jobEmitter.on('error', err => emitter.emit('error', err))
+  jobEmitter.on('job', job => {
+    if (job.in == null || job.out == null) return emitter.emit('job', job)
+
+    jobsPromise.add(Q.nfcall(fs.stat, job.in.path).then(stats => {
+      let inM = stats.mtime
+      let outM = job.out.mtime || new Date(0)
+
+      if (outM <= inM) emitter.emit('job', job)
+    }).fail(() => {
+      emitter.emit('job', job)
+    }))
+  })
+
+  return emitter
+}
+
+function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry, watch, reprocessStale }) {
   let emitter = new EventEmitter()
 
   let emitterFns = []
@@ -217,25 +322,24 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
   for (let input of inputs) {
     if (input === '-') {
       emitterFns.push(
-                () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }))
+        () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }))
       watcherFns.push(
-                () => new NullJobEmitter())
+        () => new NullJobEmitter())
 
       startEmitting()
     } else {
       fs.stat(input, (err, stats) => {
         if (err != null) return emitter.emit('error', err)
-
         if (stats.isDirectory()) {
           emitterFns.push(
-                        () => new ReaddirJobEmitter({ dir: input, recursive, outstreamProvider, streamRegistry }))
+            () => new ReaddirJobEmitter({ dir: input, recursive, outstreamProvider, streamRegistry }))
           watcherFns.push(
-                        () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }))
+            () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }))
         } else {
           emitterFns.push(
-                        () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }))
+            () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }))
           watcherFns.push(
-                        () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }))
+            () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }))
         }
 
         startEmitting()
@@ -243,14 +347,20 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
     }
   }
 
+  if (inputs.length === 0) {
+    emitterFns.push(
+      () => new InputlessJobEmitter({ outstreamProvider, streamRegistry }))
+    startEmitting()
+  }
+
   function startEmitting () {
-    if (emitterFns.length !== inputs.length) return
+    if (inputs.length !== 0 && emitterFns.length !== inputs.length) return
 
     let source = new MergedJobEmitter(...emitterFns.map(f => f()))
 
     if (watch) {
       source = new ConcattedJobEmitter(() => source,
-                                             () => new MergedJobEmitter(...watcherFns.map(f => f())))
+                                       () => new MergedJobEmitter(...watcherFns.map(f => f())))
     }
 
     source.on('job', job => emitter.emit('job', job))
@@ -258,70 +368,118 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
     source.on('end', () => emitter.emit('end'))
   }
 
-  return emitter
+  let stalefilter = reprocessStale ? x => x : dismissStaleJobs
+  return stalefilter(detectConflicts(emitter))
 }
 
-export default function run (outputctl, client, { steps, template, fields, watch, recursive, inputs, output }) {
-  if (inputs.length === 0) inputs = [ '-' ]
+export default function run (outputctl, client,
+                             { steps, template, fields, watch, recursive,
+                               inputs, output, del, reprocessStale }) {
+  let deferred = Q.defer()
 
   let params = steps ? { steps: JSON.parse(fs.readFileSync(steps)) } : { template_id: template }
   params.fields = fields
 
-  let outstat = myStatSync(process.stdout, output)
-  if (!outstat.isDirectory()) {
-    if (inputs.length > 1 || myStatSync(process.stdin, inputs[0]).isDirectory()) {
-      return outputctl.error('Output must be a directory when specifying multiple inputs')
+  let outstat
+
+  if (output != null) {
+    try {
+      outstat = myStatSync(process.stdout, output)
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e
+      outstat = { isDirectory: () => false }
+    }
+
+    if (!outstat.isDirectory() && inputs.length !== 0) {
+      if (inputs.length > 1 || myStatSync(process.stdin, inputs[0]).isDirectory()) {
+        const msg = 'Output must be a directory when specifying multiple inputs'
+        outputctl.error(msg)
+        return deferred.reject(new Error(msg))
+      }
     }
   }
 
-  let outstreamProvider = outstat.isDirectory() ? dirProvider(output) : fileProvider(output)
+  let outstreamProvider = output == null
+                        ? nullProvider()
+                        : outstat.isDirectory()
+                        ? dirProvider(output)
+                        : fileProvider(output)
   let streamRegistry = {}
 
-  let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry })
+  let emitter = makeJobEmitter(inputs, { recursive, watch, outstreamProvider, streamRegistry, reprocessStale })
 
+  let jobsPromise = new JobsPromise()
   emitter.on('job', job => {
-    outputctl.debug(`GOT JOB ${job.in.path} ${job.out.path}`)
+    outputctl.debug(`GOT JOB ${job.in && job.in.path} ${job.out && job.out.path}`)
+
     let superceded = false
-    job.out.on('finish', () => { superceded = true })
+    if (job.out != null) job.out.on('finish', () => { superceded = true })
 
     if (job.in != null) client.addStream('in', job.in)
 
-    client.createAssembly({ params }, (err, result) => {
-      if (err != null) return outputctl.error(err)
-
+    jobsPromise.add(Q.nfcall(client.createAssembly.bind(client), { params }).then(result => {
       if (superceded) return
 
-      client.getAssembly(result.assembly_id, function callback (err, result) {
-        if (err != null) return outputctl.error(formatAPIError(err))
-
+      return Q.nfcall(client.getAssembly.bind(client), result.assembly_id).then(function callback (result) {
         if (superceded) return
 
         if (result.ok !== 'ASSEMBLY_COMPLETED') {
-          client.getAssembly(result.assembly_id, callback)
-          return
+          return Q.delay(250).then(() => Q.nfcall(client.getAssembly.bind(client), result.assembly_id)).then(callback)
         }
 
         let resulturl = result.results[Object.keys(result.results)[0]][0].url
 
-        http.get(resulturl, res => {
-          if (res.statusCode !== 200) {
-            outputctl.error(`Server returned http status ${res.statusCode}`)
-            return
+        if (job.out != null) {
+          outputctl.debug('DOWNLOADING')
+          return Q.Promise((resolve, reject) => {
+            http.get(resulturl, res => {
+              if (res.statusCode !== 200) {
+                let msg = `Server returned http status ${res.statusCode}`
+                outputctl.error(msg)
+                return reject(new Error(msg))
+              }
+
+              if (superceded) return resolve()
+
+              res.pipe(job.out)
+              job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
+              resolve(Q.Promise(resolve => {
+                res.on('end', () => {
+                  resolve(completeJob())
+                })
+              }))
+            }).on('error', err => {
+              outputctl.error(err.message)
+              reject(err)
+            })
+          })
+        } else {
+          return completeJob()
+        }
+
+        function completeJob () {
+          outputctl.debug(`COMPLETED ${job.in && job.in.path} ${job.out && job.out.path}`)
+
+          if (del && job.in != null) {
+            return Q.nfcall(fs.unlink, job.in.path)
           }
-
-          if (superceded) return
-
-          res.pipe(job.out)
-          res.on('end', () => outputctl.debug(`COMPLETED ${job.in.path} ${job.out.path}`))
-          job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
-        }).on('error', err => {
-          outputctl.error(err.message)
-        })
+        }
       })
-    })
+    }))
+  })
+
+  jobsPromise.on('error', err => {
+    outputctl.error(err)
   })
 
   emitter.on('error', err => {
     outputctl.error(err)
+    deferred.reject(err)
   })
+
+  emitter.on('end', () => {
+    deferred.resolve(jobsPromise.promise())
+  })
+
+  return deferred.promise
 }

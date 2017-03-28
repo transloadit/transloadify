@@ -15,6 +15,7 @@ parser.command('action', 'modify', 'edit', 'alter', 'm')
 parser.command('action', 'replay', 'r')
 parser.command('action', 'list', 'l')
 parser.command('action', 'get', 'info', 'view', 'display', 'g')
+parser.command('action', 'sync', 's')
 
 parser.register('steps', null, true)
 parser.register('template', 't', true)
@@ -23,6 +24,8 @@ parser.register('watch', 'w', false)
 parser.register('recursive', 'r', false)
 parser.register('input', 'i', true)
 parser.register('output', 'o', true)
+parser.register('delete-after-processing', 'd', false)
+parser.register('reprocess-stale', null, false)
 parser.register('after', 'a', true)
 parser.register('before', 'b', true)
 parser.register('keywords', null, true)
@@ -66,7 +69,7 @@ function generalValidation (options) {
            // TODO reject invalid dates
     }
 
-    if (option.name === 'sort' && !['id', 'name', 'created', 'modified'].includes(option.value)) {
+    if (option.name === 'sort' && ['id', 'name', 'created', 'modified'].indexOf(option.value) === -1) {
       return {
         error: 'INVALID_OPTION',
         option: option.name,
@@ -74,7 +77,7 @@ function generalValidation (options) {
       }
     }
 
-    if (option.name === 'order' && !['asc', 'desc'].includes(option.value)) {
+    if (option.name === 'order' && ['asc', 'desc'].indexOf(option.value) === -1) {
       return {
         error: 'INVALID_OPTION',
         option: option.name,
@@ -82,7 +85,7 @@ function generalValidation (options) {
       }
     }
 
-    if (option.name === 'verbosity' && !['0', '1', '2'].includes(option.value)) {
+    if (option.name === 'verbosity' && ['0', '1', '2'].indexOf(option.value) === -1) {
       return {
         error: 'INVALID_OPTION',
         option: option.name,
@@ -236,7 +239,7 @@ function validate (opts, tgts, ...constraints) {
 }
 
 function anyOf (...args) {
-  return opt => args.includes(opt.name)
+  return opt => args.indexOf(opt.name) !== -1
 }
 
 function optget (opts, opt) {
@@ -281,7 +284,7 @@ const subcommands = {
     create (opts, tgts) {
       let err = validate(opts, tgts,
 
-                allowOptions(anyOf('steps', 'template', 'field', 'watch', 'recursive', 'input', 'output'),
+                allowOptions(anyOf('steps', 'template', 'field', 'watch', 'recursive', 'input', 'output', 'delete-after-processing', 'reprocess-stale'),
                              opt => `assemblies create doesn't accept the option --${opt.name}`),
 
                 exactlyOneOfOption(anyOf('steps', 'template'),
@@ -292,10 +295,16 @@ const subcommands = {
 
                 noTargets('too many arguments passed to assemblies create'))
 
-      if (err) return err
-
       let inputs = optgetall(opts, 'input')
-      if (inputs.length === 0) inputs = ['-']
+
+      if (inputs.length === 0 && optget(opts, 'watch')) {
+        err = {
+          error: 'MISSING_ARGUMENT',
+          message: 'assemblies create --watch requires at least one input'
+        }
+      }
+
+      if (err) return err
 
       return {
         steps: optget(opts, 'steps'),
@@ -303,7 +312,9 @@ const subcommands = {
         fields: getfields(opts),
         watch: optget(opts, 'watch'),
         recursive: optget(opts, 'recursive'),
-        output: optget(opts, 'output') || '-',
+        output: optget(opts, 'output') || null,
+        del: optget(opts, 'delete-after-processing'),
+        reprocessStale: optget(opts, 'reprocess-stale'),
         inputs
       }
     },
@@ -503,6 +514,20 @@ const subcommands = {
         sort: optget(opts, 'sort') || 'created',
         order: optget(opts, 'order') || 'desc',
         fields
+      }
+    },
+
+    sync (opts, tgts) {
+      let err = validate(opts, tgts,
+
+                allowOptions(anyOf('recursive'),
+                             opt => `templates sync doesn't accept the option --${opt.name}`))
+
+      if (err) return err
+
+      return {
+        recursive: optget(opts, 'recursive'),
+        files: tgts
       }
     }
   },

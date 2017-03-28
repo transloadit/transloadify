@@ -18,9 +18,11 @@
     "release": "npm version ${SEMANTIC:-patch} -m \"Release %s\" && npm run build && git push && git push --tags && npm publish",
     "test": "npm-run-all build mocha",
     "mocha": "NODE_ENV=test mocha --compilers js:babel-register --reporter spec test/",
-    "build": "babel src/ -d lib/",
+    "build": "./node_modules/babel-cli/bin/babel.js src/ -d lib/",
     "prestart": "npm run build",
-    "start": "node bin/transloadify.js"
+    "start": "npm run web:start",
+    "prepublish": "npm run build",
+    "postinstall": "install-completion bash _transloadify"
   },
   "lanyon": {
     "projectDir": "website",
@@ -39,9 +41,18 @@
   },
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
+  "bin": "./bin/cmd.js",
+  "main": "./lib/index.js",
+  "files": [
+    "lib",
+    "bin",
+    "_transloadify"
+  ],
   "dependencies": {
     "node-watch": "^0.4.1",
     "q": "1.4.1",
+    "recursive-readdir": "2.1.0",
+    "shell-completion": "0.0.5",
     "transloadit": "1.9.1"
   },
   "devDependencies": {
@@ -53,9 +64,12 @@
     "eslint-plugin-promise": "3.4.0",
     "eslint-plugin-standard": "2.0.1",
     "fakefile": "^0.0.8",
-    "lanyon": "0.0.64",
+    "lanyon": "0.0.62",
+    "image-size": "0.5.0",
     "mocha": "^3.2.0",
     "npm-run-all": "^3.1.2",
+    "request": "2.79.0",
+    "rimraf": "2.5.4",
     "source-map-support": "^0.4.6"
   },
   "babel": {
