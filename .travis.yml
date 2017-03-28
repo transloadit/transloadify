@@ -11,7 +11,7 @@ cache:
   yarn: true
   directories:
   - website/.lanyon
-install: npm install # <-- yarn still messes up nested bins: https://github.com/yarnpkg/yarn/issues/760
+install: npm install
 script: npm run lint && npm run test
 before_cache:
 - rm -f ./node_modules/.bin/which
@@ -23,3 +23,6 @@ deploy:
   on:
     branch: master
     condition: $TRAVIS_OS_NAME = linux
+notifications:
+  slack:
+    secure: Vx2sPpEgzU3LWCfcfRleeHIVKfhAxC9k0DO3hKSOTv4fjn68yS10AIQUjEpkg5CPmckAikNgKeLjHMdnFZbysjRT/aRqe3/YNnStmWtyFZj+C3hboKQ85POQbDU+D3GFaO0rn3lXMMXB4AOahpkaVnABSXcXlXKDYKfDmn+5Vh8=
