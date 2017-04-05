@@ -15,11 +15,11 @@ install: npm install
 script: npm run lint && npm run test
 before_cache:
 - rm -f ./node_modules/.bin/which
-before_deploy: .lanyon/bin/install
+
 deploy:
   skip_cleanup: true
   provider: script
-  script: website/.lanyon/bin/deploy
+  script: website/./node_modules/lanyon/scripts/ci-deploy.sh
   on:
     branch: master
     condition: $TRAVIS_OS_NAME = linux
