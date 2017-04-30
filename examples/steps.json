@@ -1,0 +1,9 @@
+{
+  "video_encode": {
+    "robot": "/video/encode",
+    "use": ":original",
+    "background": "aaaaaa",
+    "watermark_url": "https://github.com/ifedapoolarewaju/transloadify/raw/refine-readme/fixtures/watermark.png",
+    "result": true
+  }
+}
