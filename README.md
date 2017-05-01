@@ -4,9 +4,15 @@
 
 <!--more-->
 
-Transloadify is a command line interface to the
-[Transloadit](https://transloadit.com) API. It is a way for non-programmers to
-access the service, and serves as the shell script SDK. It can also be used as a
+Transloadify is a command line interface [Transloadit](https://transloadit.com)'s file uploading and encoding service.
+
+## Intro
+
+[Transloadit](https://transloadit.com) is a service that helps you handle file uploads, resize, crop and watermark your images, make GIFs, transcode your videos, extract thumbnails, generate audio waveforms, and so much more. In short, [Transloadit](https://transloadit.com) is the Swiss Army Knife for your files.
+
+This is a **Command Line Interface** to make it easy to talk to the [Transloadit](https://transloadit.com) REST API.
+
+It is a way for non-programmers to access the service, and serves as the shell script SDK. It can also be used as a
 cloud-based transcoding and media processing utility.
 
 ## Features
@@ -17,6 +23,12 @@ cloud-based transcoding and media processing utility.
 - Synchronize your Transloadit templates with local files (WIP)
 - File watching
 - Tab completion
+
+## Install
+
+```bash
+$ npm install -g transloadify
+```
 
 ## Usage
 
@@ -181,6 +193,11 @@ $ transloadify bills get 2016-11 --json
   - `get`, `info`, `view`, `display`, `g`
 - All output, from any command, can also be provided in JSON format using the
   `--json` flag
+
+## Example
+
+An example script written to add watermark to videos can be found here [`examples/`](https://github.com/transloadit/transloadify/tree/master/examples).
+
 
 ## Getting Started
 
