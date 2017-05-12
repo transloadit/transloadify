@@ -6,6 +6,7 @@ env:
   - secure: GxQwdMcMY9CVX1N1y+hIxsmuuu1fCsRy29ajl2bWUJvhJzXoA9XBxuPgupc9BdQR4BkE6PxFmwpwKzFcBl0reYNaDBCVAf2g/ByCOUdXwpZ+Er0iSfK20bYcEXXBe5D8BJnZIVqCavuUILk424AJvxVjpXZelE9noGVLEPeT6V4=
   - secure: JbIvIggLmYe3yO5TR+Cgpe/eIkGjifPvHIk3JKewkY8Sk/maSDC3CiNB3w5BByt2PHr9gA/d83JbyJ1F19N4tRXaA39RQq6GAb0ljFoujwgf0chY0ELCPkdxbiP7St8i3dqNSWECaQNbhgbzSzOV0U2vfgtv1lmT8yQChrAEnEU=
   - secure: SmQ+YNersmisfZhj1IRFLGdWnSs6Fas9BNl4J6DI4BRbv/EKU07lZqi5D7reDcEo3rinxXES9hksR+/oUC73/OHE9d19TEh0O20uaq9rciLtOrgQAHVfj/k38GtG8ZQE7DpKe/kesSreBagbebMk7AIYG0hf981qebt5qs8B8dI=
+  - secure: jNI8ffR36mNGDIF3EFusc2bNYOqpay39WtM9qFnYB996L8vKBSPqvb5Zpdw1h4MNjGPwn25MMjqtFbkWwNjpi2yMoIWMeR4EREzLzrH0W8BAEJ+o9comd1t/hlePnMVfPwKQHhQHzaJWn1DuHoOmXMtGfkeDFS2aw8nEIR7Us8k=
 cache:
   apt: true
   yarn: true
