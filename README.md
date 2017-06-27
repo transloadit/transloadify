@@ -39,7 +39,33 @@ these values.
 
 See `transloadify --help` for complete usage instructions.
 
-### Processing media
+## Example
+
+An example script written to add watermark to videos can be found here [`examples/`](https://github.com/transloadit/transloadify/tree/master/examples).
+
+## Getting Started
+
+Please see the [GETTING-STARTED.md](./GETTING-STARTED.md) file.
+
+## Changelog
+
+Please see the [CHANGELOG.md](./CHANGELOG.md) file.
+
+## Frequently Asked Questions
+
+Please see the [FAQ.md](./FAQ.md) file.
+
+## Authors
+
+- [Adrian Sinclair](https://transloadit.com/about/#adrian)
+
+## License
+
+[The MIT License](LICENSE)
+
+
+
+## Processing media
 
 Transloadify uses the [Transloadit API](https://transloadit.com/docs/).
 Transloadit allows you to process media in the cloud by creating _assemblies_.
@@ -96,7 +122,7 @@ shortened to:
 $ transloadify -tTEMPLATE_ID -fsize=100 -i images -o thumbs -wr
 ```
 
-### Assemblies
+## Assemblies
 
 The `transloadify assemblies` subcommand lets you manage assemblies. Using
 transloadify you can create, cancel, replay, list and fetch assembly statuses.
@@ -133,7 +159,7 @@ $ transloadify assemblies list --json --after "$AFFECTED_DATE" \
   | xargs transloadify assemblies replay --reparse-template
 ```
 
-### Templates
+## Templates
 
 `transloadify templates` is used to create and manage templates. `transloadify
 templates --help` gives a list of supported actions.
@@ -148,7 +174,7 @@ if no file is specified. If you just want to rename a template using the
 $ transloadify templates rename $TEMPLATE_ID --name my_template < /dev/null
 ```
 
-### Assembly notifications
+## Assembly notifications
 
 Support for listing and replaying assembly notifications is provided by
 `transloadify assembly-notifications list` and `transloadify
@@ -167,7 +193,7 @@ $ transloadify assemblies list --after 2016-11-08 \
   | xargs -n1 transloadify assembly-notifications list
 ```
 
-### Bills
+## Bills
 
 Monthly billing information can be fetched with `transloadify bills get
 YYYY-MM...`. By default only the total charge is output, but more detailed
@@ -177,7 +203,7 @@ information can be displayed in JSON format with the `--json` flag.
 $ transloadify bills get 2016-11 --json
 ```
 
-### Tips
+## Tips
 
 - Command names have aliases, the following are interchangeable
   - `assemblies`, `assembly`, `a`
@@ -194,27 +220,6 @@ $ transloadify bills get 2016-11 --json
 - All output, from any command, can also be provided in JSON format using the
   `--json` flag
 
-## Example
+## Documentation
 
-An example script written to add watermark to videos can be found here [`examples/`](https://github.com/transloadit/transloadify/tree/master/examples).
-
-
-## Getting Started
-
-Please see the [GETTING-STARTED.md](./GETTING-STARTED.md) file.
-
-## Changelog
-
-Please see the [CHANGELOG.md](./CHANGELOG.md) file.
-
-## Frequently Asked Questions
-
-Please see the [FAQ.md](./FAQ.md) file.
-
-## Authors
-
- - [Adrian Sinclair](https://transloadit.com/about/#adrian)
-
-## License
-
-[The MIT License](LICENSE)
+See <a href="https://github.com/transloadit/transloadify/blob/master/README.md">GitHub</a> for the full documentation.
