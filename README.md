@@ -198,7 +198,6 @@ $ transloadify bills get 2016-11 --json
 
 An example script written to add watermark to videos can be found here [`examples/`](https://github.com/transloadit/transloadify/tree/master/examples).
 
-
 ## Getting Started
 
 Please see the [GETTING-STARTED.md](./GETTING-STARTED.md) file.
@@ -213,7 +212,7 @@ Please see the [FAQ.md](./FAQ.md) file.
 
 ## Authors
 
- - [Adrian Sinclair](https://transloadit.com/about/#adrian)
+- [Adrian Sinclair](https://transloadit.com/about/#adrian)
 
 ## License
 
