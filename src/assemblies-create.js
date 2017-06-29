@@ -375,7 +375,6 @@ function makeJobEmitter (inputs, { recursive, outstreamProvider, streamRegistry,
 export default function run (outputctl, client,
                              { steps, template, fields, watch, recursive,
                                inputs, output, del, reprocessStale }) {
-
   // Quick fix for https://github.com/transloadit/transloadify/issues/13
   // stdin or stdout is only respected when the input or output flag is '-'
   if (!inputs.length && !process.stdin.isTTY) inputs = ['-']
