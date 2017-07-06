@@ -386,7 +386,7 @@ describe('End-to-end', function () {
     describe('get', function () {
       it('should get assemblies', testCase(client => {
         // get some valid assembly IDs to request
-        let assemblyRequests = Q.nfcall(client.listAssemblies.bind(client), { pagesize: 5 })
+        let assemblyRequests = Q.nfcall(client.listAssemblies.bind(client), { pagesize: 5, type: 'completed' })
           .then(response => response.items)
           .then(assemblies => {
             if (assemblies.length === 0) throw new Error('account has no assemblies to fetch')
