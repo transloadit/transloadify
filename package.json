@@ -1,6 +1,6 @@
 {
   "name": "transloadify",
-  "version": "0.2.2",
+  "version": "1.0.0",
   "description": "CLI client for transloadit",
   "scripts": {
     "fix": "eslint src test --fix",
