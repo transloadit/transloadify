@@ -53,7 +53,7 @@
     "q": "1.4.1",
     "recursive-readdir": "2.1.0",
     "shell-completion": "0.0.5",
-    "transloadit": "1.9.1"
+    "transloadit": "2.0.0"
   },
   "devDependencies": {
     "babel-cli": "^6.18.0",
