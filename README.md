@@ -156,7 +156,7 @@ assembly-notifications replay` respectively.
 
 #### Listing
 
-`transloadify assembly-notifcations list` can list, optionally
+`transloadify assembly-notifications list` can list, optionally
 filtered by whether they succeeded or failed, either all <dfn>Notifications</dfn>
 associated with an account, or for a given <dfn>Assembly</dfn>. If you would like to see
 <dfn>Notifications</dfn> for a list of <dfn>Assemblies</dfn>, it must be called for each one
