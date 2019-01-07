@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    
+      <title>Transloadify – Cloudencoding in a box</title>
+    
+
+    <meta name="keywords" content="cloud, encoding, shell">
+    <meta name="description" content="Transloadify">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,600,700' rel='stylesheet' type='text/css'>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/build/app.1eaada0becc0394f7566.css"  media="screen" charset="utf-8">
+  </head>
+  <body>
+    <header>
+      <div id="header-overlay"></div>
+      <a href="/">
+        <h1 id="logo">./transloadify</h1>
+      </a>
+      <div id="menu">
+        <i class="material-icons">menu</i>
+        <ul id="menu-items">
+        </ul>
+      </div>
+      <span id="more">
+        <i class="material-icons">expand_more</i>
+      </span>
+    </header>
+    <section id="content">
+      
+        <div class="Social">
+          <iframe src="http://ghbtns.com/github-btn.html?user=transloadit&repo=transloadify&type=watch&count=true" allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
+          <a href="https://travis-ci.org/transloadit/transloadify"><img src="https://travis-ci.org/transloadit/transloadify.svg" alt="Build Status"></a>
+        </div>
+      
+
+      <p>Transloadify is a command line interface <a href="https://transloadit.com">Transloadit</a>’s file uploading and encoding service.</p>
+
+<h2 id="intro">Intro</h2>
+
+<p><a href="https://transloadit.com">Transloadit</a> is a service that helps you handle file uploads, resize, crop and watermark your images, make GIFs, transcode your videos, extract thumbnails, generate audio waveforms, and so much more. In short, <a href="https://transloadit.com">Transloadit</a> is the Swiss Army Knife for your files.</p>
+
+<p>This is a <strong>Command Line Interface</strong> to make it easy to talk to the <a href="https://transloadit.com">Transloadit</a> REST API.</p>
+
+<p>It is a way for non-programmers to access the service, and serves as the shell script SDK. It can also be used as a
+cloud-based transcoding and media processing utility.</p>
+
+<h2 id="features">Features</h2>
+
+<ul>
+  <li>Create and manage assemblies, templates, notifications and bills</li>
+  <li>Process media in the cloud using any of Transloadit’s facilities, including
+full ffmpeg and ImageMagick support</li>
+  <li>Synchronize your Transloadit templates with local files (WIP)</li>
+  <li>File watching</li>
+  <li>Tab completion</li>
+</ul>
+
+<h2 id="install">Install</h2>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>npm install -g transloadify
+</code></pre>
+</div>
+
+<h2 id="usage">Usage</h2>
+
+<p>Transloadify needs Transloadit API authentication information. It looks for it
+in the environment variables <code class="highlighter-rouge">TRANSLOADIT_KEY</code> and <code class="highlighter-rouge">TRANSLOADIT_SECRET</code>. Check
+the <a href="https://transloadit.com/accounts/credentials">API credentials</a> page for
+these values.</p>
+
+<p>See <code class="highlighter-rouge">transloadify --help</code> for complete usage instructions.</p>
+
+<h3 id="processing-media">Processing media</h3>
+
+<p>Transloadify uses the <a href="https://transloadit.com/docs/">Transloadit API</a>.
+Transloadit allows you to process media in the cloud by creating <dfn>Assemblies</dfn>.
+An <dfn>Assembly</dfn> in an execution of processing instructions on an uploaded file.  The
+simplest way to create <dfn>Assemblies</dfn> using Transloadify is to put the processing
+instructions (called <dfn>Assembly Instructions</dfn>) in a JSON file and give it to
+Transloadify using the <code class="highlighter-rouge">--steps</code> option. Transloadify will then upload whatever
+is passed to it via standard in, and output the result file to standard out.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify --steps steps.json &lt; input.jpg &gt; output.jpg
+</code></pre>
+</div>
+
+<p>Transloadit supports <dfn>Templates</dfn> which are <dfn>Assembly Instructions</dfn> stored in the
+cloud. <dfn>Templates</dfn> can be created and managed through Transloadify using the
+<a href="#user-content-templates"><code class="highlighter-rouge">templates</code></a> commands. If you have a <dfn>Template</dfn> that you
+would like to use to process media, you can specify it with the <code class="highlighter-rouge">--template</code>
+option instead of specifying a <code class="highlighter-rouge">--steps</code>.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify --template TEMPLATE_ID &lt; input.jpg &gt; output.jpg
+</code></pre>
+</div>
+
+<p>If your <dfn>Template</dfn> expects certain custom fields to be set, those can be specified
+using the <code class="highlighter-rouge">--field</code> option.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify --template TEMPLATE_ID --field <span class="nv">size</span><span class="o">=</span>100 &lt; input.jpg &gt; output.jpg
+</code></pre>
+</div>
+
+<p>Rather than use STDIN and STDOUT, you can also pass files to Transloadify using
+the <code class="highlighter-rouge">--input</code> and <code class="highlighter-rouge">--output</code> flags. These flags are also more flexible than
+standard IO because they can take directories, to process media in batch,
+optionally traversing subdirectories with the <code class="highlighter-rouge">--recursive</code> option.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify --template TEMPLATE_ID --field <span class="nv">size</span><span class="o">=</span>100 <span class="se">\</span>
+    --input images --recursive --output thumbs
+</code></pre>
+</div>
+
+<p>Transloadify also has the option to watch inputs for changes, using the
+<code class="highlighter-rouge">--watch</code> option, and reprocessing them whenever a change is detected.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify --template TEMPLATE_ID --field <span class="nv">size</span><span class="o">=</span>100 <span class="se">\</span>
+    --input images --recursive --output thumbs --watch
+</code></pre>
+</div>
+
+<p>All of these flags support shortened versions, to avoid invocations getting too
+long. See <code class="highlighter-rouge">transloadify assemblies create --help</code> for details. The above can be
+shortened to:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify -tTEMPLATE_ID -fsize<span class="o">=</span>100 -i images -o thumbs -wr
+</code></pre>
+</div>
+
+<h3 id="assemblies">Assemblies</h3>
+
+<p>The <code class="highlighter-rouge">transloadify assemblies</code> subcommand lets you manage assemblies. Using
+transloadify you can create, cancel, replay, list and fetch <dfn>Assembly Statuses</dfn>.
+See <code class="highlighter-rouge">transloadify assemblies --help</code> for a list of available actions, and
+<code class="highlighter-rouge">transloadify assemblies ACTION --help</code> for specific action documentation.</p>
+
+<h4 id="creation">Creation</h4>
+
+<p>The usage described in <a href="#user-content-processing-media">Processing media</a>
+implicitly uses the <code class="highlighter-rouge">transloadify assemblies create</code> command, which has the same
+behavior as the bare <code class="highlighter-rouge">transloadify</code> command.</p>
+
+<h4 id="listing">Listing</h4>
+
+<p>You can use Transloadify to list assemblies associated with the account,
+optionally filtered by date and keywords. For instance:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify assemblies list --after 2016-11-08
+</code></pre>
+</div>
+
+<p>See <code class="highlighter-rouge">transloadify assemblies list --help</code> for a list of accepted options.</p>
+
+<p>One use-case is to recover failed assemblies once the issue has been resolved.
+If a <dfn>Template</dfn> definition contained an error that caused <dfn>Assemblies</dfn> to fail, you
+can salvage them by fixing the <dfn>Template</dfn> and using an invocation like this, using
+the <a href="https://stedolan.github.io/jq/"><code class="highlighter-rouge">jq</code></a> JSON utility.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify assemblies list --json --after <span class="s2">"</span><span class="nv">$AFFECTED_DATE</span><span class="s2">"</span> <span class="se">\</span>
+  | jq -r <span class="s1">'select(.error) | .id'</span> <span class="se">\</span>
+  | xargs transloadify assemblies get --json <span class="se">\</span>
+  | jq -r <span class="s1">'select(.template_id == "'</span><span class="nv">$AFFECTED_TEMPLATE</span><span class="s1">'") | .assembly_id'</span> <span class="se">\</span>
+  | xargs transloadify assemblies replay --reparse-template
+</code></pre>
+</div>
+
+<h3 id="templates">Templates</h3>
+
+<p><code class="highlighter-rouge">transloadify templates</code> is used to create and manage templates. <code class="highlighter-rouge">transloadify
+templates --help</code> gives a list of supported actions.</p>
+
+<h4 id="modification">Modification</h4>
+
+<p><code class="highlighter-rouge">transloadify templates modify</code> will read new <dfn>Template</dfn> contents from standard in
+if no file is specified. If you just want to rename a <dfn>Template</dfn> using the
+<code class="highlighter-rouge">--name</code> option, the command will ignore empty input:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify templates rename <span class="nv">$TEMPLATE_ID</span> --name my_template &lt; /dev/null
+</code></pre>
+</div>
+
+<h3 id="assembly-notifications">Assembly Notifications</h3>
+
+<p>Support for listing and replaying <dfn>Assembly Notifications</dfn> is provided by
+<code class="highlighter-rouge">transloadify assembly-notifications list</code> and <code class="highlighter-rouge">transloadify
+assembly-notifications replay</code> respectively.</p>
+
+<h4 id="listing-1">Listing</h4>
+
+<p><code class="highlighter-rouge">transloadify assembly-notifications list</code> can list, optionally
+filtered by whether they succeeded or failed, either all <dfn>Notifications</dfn>
+associated with an account, or for a given <dfn>Assembly</dfn>. If you would like to see
+<dfn>Notifications</dfn> for a list of <dfn>Assemblies</dfn>, it must be called for each one
+individually.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify assemblies list --after 2016-11-08 <span class="se">\</span>
+  | xargs -n1 transloadify assembly-notifications list
+</code></pre>
+</div>
+
+<h3 id="bills">Bills</h3>
+
+<p>Monthly billing information can be fetched with <code class="highlighter-rouge">transloadify bills get
+YYYY-MM...</code>. By default only the total charge is output, but more detailed
+information can be displayed in JSON format with the <code class="highlighter-rouge">--json</code> flag.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>transloadify bills get 2016-11 --json
+</code></pre>
+</div>
+
+<h3 id="tips">Tips</h3>
+
+<ul>
+  <li>Command names have aliases, the following are interchangeable
+    <ul>
+      <li><code class="highlighter-rouge">assemblies</code>, <code class="highlighter-rouge">assembly</code>, <code class="highlighter-rouge">a</code></li>
+      <li><code class="highlighter-rouge">templates</code>, <code class="highlighter-rouge">template</code>, <code class="highlighter-rouge">t</code></li>
+      <li><code class="highlighter-rouge">assembly-notifications</code>, <code class="highlighter-rouge">assembly-notification</code>, <code class="highlighter-rouge">notifications</code>,
+<code class="highlighter-rouge">notification</code>, <code class="highlighter-rouge">n</code></li>
+      <li><code class="highlighter-rouge">bills</code>, <code class="highlighter-rouge">bill</code>, <code class="highlighter-rouge">b</code></li>
+      <li><code class="highlighter-rouge">create</code>, <code class="highlighter-rouge">new</code>, <code class="highlighter-rouge">c</code></li>
+      <li><code class="highlighter-rouge">delete</code>, <code class="highlighter-rouge">cancel</code>, <code class="highlighter-rouge">d</code></li>
+      <li><code class="highlighter-rouge">modify</code>, <code class="highlighter-rouge">edit</code>, <code class="highlighter-rouge">alter</code>, <code class="highlighter-rouge">m</code></li>
+      <li><code class="highlighter-rouge">replay</code>, <code class="highlighter-rouge">r</code></li>
+      <li><code class="highlighter-rouge">list</code>, <code class="highlighter-rouge">l</code></li>
+      <li><code class="highlighter-rouge">get</code>, <code class="highlighter-rouge">info</code>, <code class="highlighter-rouge">view</code>, <code class="highlighter-rouge">display</code>, <code class="highlighter-rouge">g</code></li>
+    </ul>
+  </li>
+  <li>All output, from any command, can also be provided in JSON format using the <code class="highlighter-rouge">--json</code> flag</li>
+</ul>
+
+<h2 id="example">Example</h2>
+
+<p>An example script written to add watermark to videos can be found here <a href="https://github.com/transloadit/transloadify/tree/master/examples"><code class="highlighter-rouge">examples/</code></a>.</p>
+
+<h2 id="getting-started">Getting Started</h2>
+
+<p>Please see the <a href="./GETTING-STARTED.md">GETTING-STARTED.md</a> file.</p>
+
+<h2 id="changelog">Changelog</h2>
+
+<p>Please see the <a href="./CHANGELOG.md">CHANGELOG.md</a> file.</p>
+
+<h2 id="frequently-asked-questions">Frequently Asked Questions</h2>
+
+<p>Please see the <a href="./FAQ.md">FAQ.md</a> file.</p>
+
+<h2 id="authors">Authors</h2>
+
+<ul>
+  <li><a href="https://transloadit.com/about/#adrian">Adrian Sinclair</a></li>
+</ul>
+
+<h2 id="license">License</h2>
+
+<p><a href="LICENSE">The MIT License</a></p>
+
+
+
+      <div class="Social">
+        <iframe src="http://ghbtns.com/github-btn.html?user=transloadit&repo=transloadify&type=watch&count=true" allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
+      </div>
+
+      <p>
+        <small>
+          <hr />
+          Website design based on
+          the wonderful <a href="http://apex.run">apex.run</a>
+          with <a href="https://twitter.com/tjholowaychuk/status/744909762865696769">the author's consent</a>.
+        </small>
+      </p>
+    </section>
+  </body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/languages/bash.min.js"></script>
+  <script async src="/assets/build/app.1eaada0becc0394f7566.js"></script>
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-92352107-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+</html>
