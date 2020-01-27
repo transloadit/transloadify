@@ -138,7 +138,7 @@ also useful for more advanced assembly instructions, such as those that accept
 parameters to modify the desired encoding behavior.
 
 Templates can be created using the Transloadit 
-[web interface](https://transloadit.com/templates/new/), but Transloadify
+[web interface](https://transloadit.com/templates/add/), but Transloadify
 will also let you create them from the command line. Running `transloadify templates
 create <name> <file>` will create a template with the given name, using the
 assembly instructions in the given file. The name is just to help you keep your
@@ -169,7 +169,7 @@ watermarked video directly to YouTube, thereby skipping the download process ent
 
 In order for Transloadit to be able to upload video to your YouTube account, you
 will need to use the template credentials 
-[admin interface](https://transloadit.com/template_credentials/) and authorize
+[admin interface](https://transloadit.com/template-credentials/) and authorize
 Transloadit to upload to your account. Due to security considerations, only
 assembly instructions contained in templates can make use of template
 credentials, so make sure to use `--template` instead of `--steps`.
@@ -204,4 +204,4 @@ $ transloadify --watch --template 656cfd70ab4a11e6bbc7bd5c371617df -i originals/
 
 And there you go! Fully automated video processing and uploading to YouTube, all from the comfort of your own command line. With Transloadify, you can do a lot more than just this, of course. See [Transloadit's documentation](https://transloadit.com/docs/) for the many other features they have to offer. 
 
-We hope that this tutorial has succeeded in teaching you the basics of setting up your own video processing with Transloadify. If you have any more question about how to this tool, let us know on [Twitter](https://transloadit.com/twitter) or via [email](mailto:hello@transloadit.com).
+We hope that this tutorial has succeeded in teaching you the basics of setting up your own video processing with Transloadify. If you have any more question about how to this tool, let us know on [Twitter](https://twitter.com/transloadit) or via [email](mailto:hello@transloadit.com).
