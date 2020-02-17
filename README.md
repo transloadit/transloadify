@@ -4,7 +4,7 @@
 
 <!--more-->
 
-Transloadify is a command line interface [Transloadit](https://transloadit.com)'s file uploading and encoding service.
+Transloadify is a command line interface for [Transloadit](https://transloadit.com)'s file uploading and encoding service.
 
 ## Intro
 
@@ -17,7 +17,7 @@ cloud-based transcoding and media processing utility.
 
 ## Features
 
-- Create and manage assemblies, templates, notifications and bills
+- Create and manage assemblies, templates, notifications, and bills
 - Process media in the cloud using any of Transloadit's facilities, including
   full ffmpeg and ImageMagick support
 - Synchronize your Transloadit templates with local files (WIP)
@@ -43,7 +43,7 @@ See `transloadify --help` for complete usage instructions.
 
 Transloadify uses the [Transloadit API](https://transloadit.com/docs/).
 Transloadit allows you to process media in the cloud by creating <dfn>Assemblies</dfn>.
-An <dfn>Assembly</dfn> in an execution of processing instructions on an uploaded file.  The
+An <dfn>Assembly</dfn> is an execution of processing instructions on an uploaded file.  The
 simplest way to create <dfn>Assemblies</dfn> using Transloadify is to put the processing
 instructions (called <dfn>Assembly Instructions</dfn>) in a JSON file and give it to
 Transloadify using the `--steps` option. Transloadify will then upload whatever
@@ -99,7 +99,7 @@ $ transloadify -tTEMPLATE_ID -fsize=100 -i images -o thumbs -wr
 ### Assemblies
 
 The `transloadify assemblies` subcommand lets you manage assemblies. Using
-transloadify you can create, cancel, replay, list and fetch <dfn>Assembly Statuses</dfn>.
+transloadify you can create, cancel, replay, list, and fetch <dfn>Assembly Statuses</dfn>.
 See `transloadify assemblies --help` for a list of available actions, and
 `transloadify assemblies ACTION --help` for specific action documentation.
 
@@ -179,7 +179,7 @@ $ transloadify bills get 2016-11 --json
 
 ### Tips
 
-- Command names have aliases, the following are interchangeable
+- Command names have aliases; the following are interchangeable:
   - `assemblies`, `assembly`, `a`
   - `templates`, `template`, `t`
   - `assembly-notifications`, `assembly-notification`, `notifications`,
@@ -195,7 +195,7 @@ $ transloadify bills get 2016-11 --json
 
 ## Example
 
-An example script written to add watermark to videos can be found here [`examples/`](https://github.com/transloadit/transloadify/tree/master/examples).
+An example script written to add a watermark to videos can be found here [`examples/`](https://github.com/transloadit/transloadify/tree/master/examples).
 
 ## Getting Started
 
