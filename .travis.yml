@@ -11,11 +11,12 @@ env:
   - secure: OWayTfT5KypA4XQt/w3zYAvPZqthnv9TDFGj1ZL/1w2m2Ewfh74m00wlubMe2FMddc/WIcmbPRVFoev6hetz4Wslo3m83I+cYusUVknGpbjVGcT6f7dDx4k/eV04x2uS7I6VnvNeRaAQOVs2Yi1wfVpfbC8GTAboXWvEQDI9LLlr0JlC5iqExO1V3sDGRLbaEttsuUyOCuNVftHRDmyuG55zLBePyqFTBZMSNCEKCHoM78iyGaaS2sqina2JjLXnGgmhZmU6XWwMZ1SecCIXew93neJJm5ugE8tGv5/sepe/jGkUjemq5V4SG717Nc06UxxM/FjNnXTN48jQPnrB2PPNe7OkM2bFRL3nQf3JGy+ACi7RDQLkIJnMZQ12toofM9xiUhPopthQXLQuO6TAZLqDYSc0hnF/KhNxa/Gegh5QW0fGdfG+V7AqPxGjCopcK5yCVapbg8MgMHyNfr0iPe/kFsi1DNGFD0oOZ68dHlP8bs078+5IKan1hZ+c0Uzg5kmq1BLkG91FagIrTdVlQ8dYqfT9vCqNjdR7GNKI9MsmSoOuqRfRfeo8xgdOjgbVyy91iCGG3B+OLDt/UzcP2w7P6ubCduaNeCurU37y6mL04ZtlllFEjGRf4GeeD6mviA1Edcn2Bm7wDQCnfQDYPIdpc1vC7tgcmdaFqUTdWJ8=
   - secure: ozBJzvdTR2mKkpG47AQF/+EQOUjh9VYs7HJJkqX+KfXMmkRbHWNl8F00fe/R8SjZK1Az5QzLKxihQTli8j7MPY89upBwgmrYq34UCtHHR9yTPwX52EzkTDBgy2+MNycXBpkjLnIpmx06kw0AYLjw7Qr809n0cUPgcqTgjd/M3bg=
   - secure: NXRxA0b6YTzRG3ReEdWY/0ez+IHJf0glS0kJW9oPfqeuZbVrv248/URw1ZsXD290sBKEoXBPy6dbSVf/ZgbDXIFS1vp4NGnLaBj1Fs6G87spbGb+f26uodLmn0HOdr1CKrcJjtPGqL/U5CuiLChlJuT/FVFgLqq7e1rYw2zexxQ=
+  - secure: rXdIaWt422U8yZJ2iCAlEzLEKXX4O/syUFSt86+TzMro450Fzd3CC5ymqG5AdU7UDQ0dvhoXVgX4O7yMfNM2WkIZbQt7pubb2e3mEunzTChWhiDjzPG6YCNYvmYnvtsqJ6T8WXwdP8i2eso7EvMhZEqSPrEQu2JDaxIjYHAR0qM=
 cache:
   apt: true
   yarn: true
   directories:
-  - .lanyon
+  - ".lanyon"
 install: npm install
 script: npm run lint && npm run test
 before_cache:
@@ -26,7 +27,7 @@ deploy:
   script: node_modules/lanyon/scripts/ci-deploy.sh
   on:
     branch: master
-    condition: $TRAVIS_OS_NAME = linux
+    condition: "$TRAVIS_OS_NAME = linux"
 notifications:
   slack:
     secure: Vx2sPpEgzU3LWCfcfRleeHIVKfhAxC9k0DO3hKSOTv4fjn68yS10AIQUjEpkg5CPmckAikNgKeLjHMdnFZbysjRT/aRqe3/YNnStmWtyFZj+C3hboKQ85POQbDU+D3GFaO0rn3lXMMXB4AOahpkaVnABSXcXlXKDYKfDmn+5Vh8=
