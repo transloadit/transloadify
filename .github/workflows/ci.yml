@@ -38,7 +38,6 @@ jobs:
       - name: Website Build
         if  : github.ref != 'refs/heads/master'
         run : |
-          yarn inject
           yarn web:build:production
       - name: Website Deploy 🚀
         if  : github.ref != 'refs/heads/master'
