@@ -8,11 +8,11 @@ module.exports.overrideRuntime = function ({ runtime, toolkit }) {
 
   runtime.projectDir = `${__dirname}/website`
 
-  runtime.cacheDir = path.join(runtime.projectDir, '.lanyon')
-  runtime.recordsPath = path.join(runtime.cacheDir, 'records.json')
+  runtime.cacheDir        = path.join(runtime.projectDir, '.lanyon')
+  runtime.recordsPath     = path.join(runtime.cacheDir, 'records.json')
   runtime.assetsSourceDir = path.join(runtime.projectDir, 'assets')
-  runtime.assetsBuildDir = path.join(runtime.assetsSourceDir, 'build')
-  runtime.contentScandir = path.join(runtime.projectDir, runtime.contentScandir || '.')
+  runtime.assetsBuildDir  = path.join(runtime.assetsSourceDir, 'build')
+  runtime.contentScandir  = path.join(runtime.projectDir, runtime.contentScandir || '.')
   runtime.contentBuildDir = path.join(runtime.projectDir, '_site')
 
   return runtime
