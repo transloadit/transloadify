@@ -6443,10 +6443,10 @@ klaw@^1.0.0:
   optionalDependencies:
     graceful-fs "^4.1.9"
 
-lanyon@0.2.31:
-  version "0.2.31"
-  resolved "https://registry.yarnpkg.com/lanyon/-/lanyon-0.2.31.tgz#159fea33899170e1069ad4a653f1f4004df7c8a5"
-  integrity sha512-w+EX+4H+rv5AMlw2AeFlEE+wjgjvyXkgjL55V2md4b3pPR5IrCeG0sp4UksKamkUEwsbstVB++0lp9Q/geyGEg==
+lanyon@0.2.33:
+  version "0.2.33"
+  resolved "https://registry.yarnpkg.com/lanyon/-/lanyon-0.2.33.tgz#36f8c4474c612a02c8927b9cb0813caea6d9543f"
+  integrity sha512-+pJpbItgQdfTeiIzC7Zv6ECSZN750KFl1o63wGRAsbTz5onq0cWHlzKEsG0a2iA2w0pDVucLRyGxd+YTInAkVw==
   dependencies:
     "@babel/core" "7.10.2"
     "@babel/plugin-proposal-class-properties" "7.10.1"
