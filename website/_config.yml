@@ -1,4 +1,4 @@
 title: Transloadify
 
-gems:
+plugins:
   - jekyll-redirect-from
