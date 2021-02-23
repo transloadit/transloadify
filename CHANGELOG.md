@@ -5,7 +5,7 @@ Here's is a combined todo/done list. You can see what todos are planned for the 
 ## Ideas
 
 - [ ] Add a logo for display up on http://transloadify.io (@kvz)
-- [ ] A way to register at Transloadit straight from the CLI
+- [ ] A way to register at Transloadit straight from the CLI (for a good example, check out https://cli.github.com/ 's `gh auth login`)
 - [ ] Can we get this tested on appveyor so we can try to get Windows support?
 
 ## v0.2.2
