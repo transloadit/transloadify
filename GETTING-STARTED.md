@@ -67,7 +67,7 @@ and `TRANSLOADIT_AUTH_SECRET` environment variables to Transloadify.
 The [Transloadit documentation](https://transloadit.com/docs/) describes how to
 write assembly instructions for processing your media. Especially important here are
 the sections on [terminology](https://transloadit.com/docs/#terminology) and
-[assembly instructions](https://transloadit.com/docs/#assembly-instructions).
+[assembly instructions](https://transloadit.com/docs/topics/assembly-instructions/).
 
 For our purposes, we will be using the following instructions:
 
