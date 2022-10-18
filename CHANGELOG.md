@@ -12,7 +12,7 @@ Here's is a combined todo/done list. You can see what todos are planned for the 
 
 Released: TBA.
 
-[Diff](https://github.com/transloadit/transloadify/compare/v0.2.0...master).
+[Diff](https://github.com/transloadit/transloadify/compare/v0.2.0...main).
 
 - [ ] Document the Template on-disk feature in the README.md (@adrusi)
 - [ ] Fix remaining linting issues, then merge https://github.com/transloadit/transloadify/pull/7  (@adrusi)

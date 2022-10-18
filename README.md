@@ -194,7 +194,7 @@ $ transloadify bills get 2016-11 --json
 
 ## Example
 
-An example script written to add a watermark to videos can be found here [`examples/`](https://github.com/transloadit/transloadify/tree/master/examples).
+An example script written to add a watermark to videos can be found here [`examples/`](https://github.com/transloadit/transloadify/tree/main/examples).
 
 ## Getting Started
 
