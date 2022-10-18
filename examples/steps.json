@@ -3,7 +3,7 @@
     "robot": "/video/encode",
     "use": ":original",
     "background": "aaaaaa",
-    "watermark_url": "https://github.com/transloadit/transloadify/raw/master/examples/fixtures/watermark.png",
+    "watermark_url": "https://github.com/transloadit/transloadify/raw/main/examples/fixtures/watermark.png",
     "result": true
   }
 }

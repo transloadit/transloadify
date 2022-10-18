@@ -2,7 +2,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     types:
       - opened
@@ -36,11 +36,11 @@ jobs:
         run : |
           yarn test
       - name: Website Build
-        if  : github.ref == 'refs/heads/master'
+        if  : github.ref == 'refs/heads/main'
         run : |
           yarn web:build:production
       - name: Website Deploy 🚀
-        if  : github.ref == 'refs/heads/master'
+        if  : github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with: 
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
