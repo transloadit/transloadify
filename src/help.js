@@ -1,4 +1,4 @@
-export default function help (output, client, { helpMode: mode, helpAction: action }) {
+export default function help(output, client, { helpMode: mode, helpAction: action }) {
   if (!mode && action) return output.print(messages.default)
 
   let msg = messages
@@ -207,7 +207,7 @@ const messages = {
     list: assembliesList,
     get: assembliesGet,
     delete: assembliesDelete,
-    replay: assembliesReplay
+    replay: assembliesReplay,
   },
   templates: {
     default: templates,
@@ -216,15 +216,15 @@ const messages = {
     modify: templatesModify,
     delete: templatesDelete,
     list: templatesList,
-    sync: templatesSync
+    sync: templatesSync,
   },
   'assembly-notifications': {
     default: notifications,
     replay: notificationsReplay,
-    list: notificationsList
+    list: notificationsList,
   },
   bills: {
     default: bills,
-    get: billsGet
-  }
+    get: billsGet,
+  },
 }

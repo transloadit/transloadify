@@ -1,4 +1,3 @@
-
 <!--more-->
 
 # Frequently Asked Questions

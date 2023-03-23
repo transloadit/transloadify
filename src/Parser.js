@@ -1,31 +1,31 @@
 export default class Parser {
-  constructor () {
+  constructor() {
     this._opts = []
     this._longs = {}
     this._shorts = {}
     this._commands = {}
   }
 
-  register (long, short, hasArg) {
+  register(long, short, hasArg) {
     let record = { long, short, hasArg }
     this._opts.push(record)
     this._longs[long] = record
     if (short) this._shorts[short] = record
   }
 
-  command (field, name, ...aliases) {
+  command(field, name, ...aliases) {
     this._commands[field] || (this._commands[field] = [])
     aliases.push(name)
     this._commands[field].push({ name, aliases })
   }
 
-  parse (args) {
+  parse(args) {
     if (args == null) args = Array.from(process.argv.slice(2))
 
     return this._parse(args, {}, [], [])
   }
 
-  _parse (args, cmds, opts, tgts) {
+  _parse(args, cmds, opts, tgts) {
     if (args.length === 0) return { commands: cmds, options: opts, targets: tgts }
 
     let arg = args.shift()
@@ -44,7 +44,7 @@ export default class Parser {
     return this._parse(args, cmds, opts, tgts)
   }
 
-  _parseLong (arg, args, cmds, opts, tgts) {
+  _parseLong(arg, args, cmds, opts, tgts) {
     let name, value
     arg.replace(/^--([^=]*)(?:=([\s\S]*))?$/, ($0, $1, $2) => {
       name = $1
@@ -56,7 +56,7 @@ export default class Parser {
       return {
         error: 'INVALID_OPTION',
         option: name,
-        message: `invalid option supplied: '${arg}'`
+        message: `invalid option supplied: '${arg}'`,
       }
     }
 
@@ -66,7 +66,7 @@ export default class Parser {
       return {
         error: 'UNNECESSARY_ARGUMENT',
         option: name,
-        message: `unnecessary argument supplied: '${arg}'`
+        message: `unnecessary argument supplied: '${arg}'`,
       }
     }
 
@@ -80,12 +80,12 @@ export default class Parser {
       return this._parse(args, cmds, opts, tgts)
     }
 
-        // hasArg && value == null
+    // hasArg && value == null
     if (args.length === 0) {
       return {
         error: 'MISSING_ARGUMENT',
         option: name,
-        message: `no argument supplied: '${arg}'`
+        message: `no argument supplied: '${arg}'`,
       }
     }
 
@@ -93,7 +93,7 @@ export default class Parser {
     return this._parse(args, cmds, opts, tgts)
   }
 
-  _parseShort (arg, args, cmds, opts, tgts) {
+  _parseShort(arg, args, cmds, opts, tgts) {
     let chars = Array.from(arg.slice(1))
 
     do {
@@ -103,7 +103,7 @@ export default class Parser {
         return {
           error: 'INVALID_OPTION',
           option: opt,
-          message: `invalid option supplied: '${arg}' ('${opt}')`
+          message: `invalid option supplied: '${arg}' ('${opt}')`,
         }
       }
 
@@ -115,7 +115,7 @@ export default class Parser {
             return {
               error: 'MISSING_ARGUMENT',
               option: name,
-              message: `no argument supplied: '${arg}'`
+              message: `no argument supplied: '${arg}'`,
             }
           }
 
@@ -130,7 +130,7 @@ export default class Parser {
     return this._parse(args, cmds, opts, tgts)
   }
 
-  _isCommand (cmds, arg) {
+  _isCommand(cmds, arg) {
     for (let field in this._commands) {
       for (let command of this._commands[field]) {
         if (command.aliases.indexOf(arg) !== -1) {
@@ -143,7 +143,7 @@ export default class Parser {
     return false
   }
 
-  _parseCommand (arg, args, cmds, opts, tgts) {
+  _parseCommand(arg, args, cmds, opts, tgts) {
     for (let field in this._commands) {
       for (let command of this._commands[field]) {
         if (command.aliases.indexOf(arg) !== -1) {

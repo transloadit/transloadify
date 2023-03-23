@@ -1,11 +1,11 @@
 class MemoizedPagination {
-  constructor (pagesize, fetch) {
+  constructor(pagesize, fetch) {
     this.pagesize = pagesize
     this.fetch = fetch
     this.cache = []
   }
 
-  get (i, cb) {
+  get(i, cb) {
     if (i in this.cache) return cb(null, this.cache[i])
 
     let page = Math.floor(i / this.pagesize) + 1
@@ -23,14 +23,14 @@ class MemoizedPagination {
 }
 
 export default class ModifiedLookup {
-  constructor (client, pagesize = 50) {
+  constructor(client, pagesize = 50) {
     this.byOrdinal = new MemoizedPagination(pagesize, (page, pagesize, cb) => {
       let params = {
         sort: 'id',
         order: 'asc',
         fields: ['id', 'modified'],
         page,
-        pagesize
+        pagesize,
       }
       client.listTemplates(params, (err, result) => {
         if (err) return cb(err)
@@ -44,17 +44,17 @@ export default class ModifiedLookup {
     })
   }
 
-  idByOrd (ord, cb) {
+  idByOrd(ord, cb) {
     this.byOrdinal.get(ord, (err, result) => {
       if (err) return cb(err)
       cb(null, result.id)
     })
   }
 
-  byId (id, cb) {
+  byId(id, cb) {
     let findUpperBound, refine, complete
 
-    findUpperBound = bound => {
+    findUpperBound = (bound) => {
       this.idByOrd(bound, (err, idAtBound) => {
         if (err) return cb(err)
         if (idAtBound === id) return complete(bound)
@@ -73,7 +73,7 @@ export default class ModifiedLookup {
       })
     }
 
-    complete = ord => {
+    complete = (ord) => {
       this.byOrdinal.get(ord, (err, result) => {
         if (err) return cb(err)
         cb(null, new Date(result.modified))

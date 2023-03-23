@@ -1,4 +1,3 @@
-
 # Transloadify
 
 <!--more-->
@@ -42,7 +41,7 @@ See `transloadify --help` for complete usage instructions.
 
 Transloadify uses the [Transloadit API](https://transloadit.com/docs/).
 Transloadit allows you to process media in the cloud by creating <dfn>Assemblies</dfn>.
-An <dfn>Assembly</dfn> is an execution of processing instructions on an uploaded file.  The
+An <dfn>Assembly</dfn> is an execution of processing instructions on an uploaded file. The
 simplest way to create <dfn>Assemblies</dfn> using Transloadify is to put the processing
 instructions (called <dfn>Assembly Instructions</dfn>) in a JSON file and give it to
 Transloadify using the `--steps` option. Transloadify will then upload whatever

@@ -1,11 +1,11 @@
 import fs from 'fs'
 
-export function createReadStream (file) {
+export function createReadStream(file) {
   if (file === '-') return process.stdin
   else return fs.createReadStream(file)
 }
 
-export function stream2buf (stream, cb) {
+export function stream2buf(stream, cb) {
   let size = 0
   let bufs = []
 
@@ -32,23 +32,25 @@ export function stream2buf (stream, cb) {
   })
 }
 
-export function inSequence (promises, fulfilled, rejected) {
-  return promises.reduce((a, b) => {
-    return a.then((...args) => {
-      fulfilled(...args)
-      return b
+export function inSequence(promises, fulfilled, rejected) {
+  return promises
+    .reduce((a, b) => {
+      return a.then((...args) => {
+        fulfilled(...args)
+        return b
+      })
     })
-  }).then(fulfilled).fail(rejected)
+    .then(fulfilled)
+    .fail(rejected)
 }
 
-export function formatAPIError (err) {
+export function formatAPIError(err) {
   return `${err.error}: ${err.message}`
 }
 
-export function zip (...lists) {
-  let length = Math.max(...lists.map(list => list.length))
+export function zip(...lists) {
+  let length = Math.max(...lists.map((list) => list.length))
   let result = new Array(length)
-  for (let i = 0; i < result.length; i++) result[i] = lists.map(list => list[i])
+  for (let i = 0; i < result.length; i++) result[i] = lists.map((list) => list[i])
   return result
 }
-
