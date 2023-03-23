@@ -20,7 +20,7 @@ const authSecret = process.env.TRANSLOADIT_SECRET
 
 if (!authKey || !authSecret) {
   console.error('Please provide environment variables TRANSLOADIT_KEY and TRANSLOADIT_SECRET to run tests')
-  process.exit()
+  process.exit(1)
 }
 
 let testno = 0
