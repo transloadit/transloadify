@@ -34,6 +34,9 @@ jobs:
         run: |
           yarn lint
       - name: Test
+        env:
+          TRANSLOADIT_KEY: ${{ secrets.TRANSLOADIT_KEY }}
+          TRANSLOADIT_SECRET: ${{ secrets.TRANSLOADIT_SECRET }}
         run: |
           yarn test
       # - name: Website Build
