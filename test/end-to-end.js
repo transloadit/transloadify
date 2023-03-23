@@ -30,7 +30,7 @@ process.setMaxListeners(Infinity)
 function testCase (cb) {
   let cwd = process.cwd()
   return () => {
-    let dirname = path.join(tmpDir, `transloadify_test_${testno++}`)
+    let dirname = path.join(tmpDir, `transloadify_test-${testno++}`)
     let client = new TransloaditClient({ authKey, authSecret })
     return Q.nfcall(fs.mkdir, dirname)
       .then(() => {
@@ -64,7 +64,7 @@ describe('End-to-end', function () {
           // Make a file with the template contents
           return Q.nfcall(fs.writeFile, `${n}.json`, JSON.stringify({ testno: n }))
             // run the test subject
-            .then(() => templates.create(output, client, { name: `test_${n}`, file: `${n}.json` }))
+            .then(() => templates.create(output, client, { name: `test-${n}`, file: `${n}.json` }))
             // ignore the promise result, just look at the output the user would
             // see
             .then(() => output.get())
@@ -154,7 +154,7 @@ describe('End-to-end', function () {
       before(function () {
         let client = new TransloaditClient({ authKey, authSecret })
         return Q.nfcall(client.createTemplate.bind(client), {
-          name: 'originalName',
+          name: 'original-name',
           template: JSON.stringify({ stage: 0 })
         }).then(response => { templateId = response.id })
       })
@@ -174,7 +174,7 @@ describe('End-to-end', function () {
           expect(result).to.have.lengthOf(0)
           return Q.delay(2000).then(() => Q.nfcall(client.getTemplate.bind(client), templateId))
             .then(template => {
-              expect(template).to.have.property('name').that.equals('originalName')
+              expect(template).to.have.property('name').that.equals('original-name')
               expect(template).to.have.property('content').that.deep.equals({ stage: 1 })
             })
         })
@@ -187,7 +187,7 @@ describe('End-to-end', function () {
           let output = new OutputCtl()
           return templates.modify(output, client, {
             template: templateId,
-            name: 'newName',
+            name: 'new-name',
             file: 'template.json'
           }).then(() => output.get())
         })
@@ -196,7 +196,7 @@ describe('End-to-end', function () {
           expect(result).to.have.lengthOf(0)
           return Q.delay(2000).then(() => Q.nfcall(client.getTemplate.bind(client), templateId))
             .then(template => {
-              expect(template).to.have.property('name').that.equals('newName')
+              expect(template).to.have.property('name').that.equals('new-name')
               expect(template).to.have.property('content').that.deep.equals({ stage: 1 })
             })
         })
@@ -209,7 +209,7 @@ describe('End-to-end', function () {
           let output = new OutputCtl()
           return templates.modify(output, client, {
             template: templateId,
-            name: 'newerName',
+            name: 'newer-name',
             file: 'template.json'
           }).then(() => output.get())
         })
@@ -218,7 +218,7 @@ describe('End-to-end', function () {
           expect(result).to.have.lengthOf(0)
           return Q.delay(2000).then(() => Q.nfcall(client.getTemplate.bind(client), templateId))
             .then(template => {
-              expect(template).to.have.property('name').that.equals('newerName')
+              expect(template).to.have.property('name').that.equals('newer-name')
               expect(template).to.have.property('content').that.deep.equals({ stage: 2 })
             })
         })
@@ -234,7 +234,7 @@ describe('End-to-end', function () {
       it('should delete templates', testCase(client => {
         let templateIdsPromise = Q.all([1, 2, 3, 4, 5].map(n => {
           return Q.nfcall(client.createTemplate.bind(client), {
-            name: `delete_test_${n}`,
+            name: `delete-test-${n}`,
             template: JSON.stringify({ n })
           }).then(response => response.id)
         }))
@@ -298,7 +298,7 @@ describe('End-to-end', function () {
 
       it('should update local files when outdated', testCase(client => {
         let params = {
-          name: 'test_local_update',
+          name: 'test-local-update-1',
           template: JSON.stringify({ changed: true })
         }
         let templateIdPromise = Q.nfcall(client.createTemplate.bind(client), params)
@@ -340,7 +340,7 @@ describe('End-to-end', function () {
 
       it('should update remote template when outdated', testCase(client => {
         let params = {
-          name: 'test_local_update',
+          name: 'test-local-update-1',
           template: JSON.stringify({ changed: false })
         }
         let templateIdPromise = Q.nfcall(client.createTemplate.bind(client), params)
