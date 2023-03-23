@@ -83,7 +83,7 @@ export function modify(output, client, { template, name, file }) {
   return deferred.promise
 }
 
-exports['delete'] = function _delete(output, client, { templates }) {
+exports.delete = function _delete(output, client, { templates }) {
   return Q.all(
     templates.map((template) => {
       return Q.nfcall(client.deleteTemplate.bind(client), template).fail((err) => {

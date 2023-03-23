@@ -9,9 +9,9 @@ import { zip } from '../src/helpers'
 import imgSize from 'image-size'
 import request from 'request'
 import rreaddir from 'recursive-readdir'
+import assembliesCreate from '../src/assemblies-create'
 const templates = require('../src/templates')
 const assemblies = require('../src/assemblies')
-import assembliesCreate from '../src/assemblies-create'
 
 const tmpDir = '/tmp'
 

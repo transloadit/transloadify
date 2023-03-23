@@ -200,7 +200,7 @@ Months should be specified in YYYY-MM format.`
 
 const messages = {
   default: main,
-  register: register,
+  register,
   assemblies: {
     default: assemblies,
     create: assembliesCreate,

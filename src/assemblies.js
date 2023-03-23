@@ -55,7 +55,7 @@ export function get(output, client, { assemblies }) {
   return deferred.promise
 }
 
-exports['delete'] = function _delete(output, client, { assemblies }) {
+exports.delete = function _delete(output, client, { assemblies }) {
   for (let assembly of assemblies) {
     client.deleteAssembly(assembly, (err) => {
       if (err) output.error(formatAPIError(err))

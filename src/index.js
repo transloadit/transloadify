@@ -1,11 +1,11 @@
-try {
-  require('source-map-support').install()
-} catch (e) {}
-
 import cli from './cli'
 import TransloaditClient from 'transloadit'
 import OutputCtl from './OutputCtl'
 import help from './help'
+
+try {
+  require('source-map-support').install()
+} catch (e) {}
 
 let invocation = cli()
 
