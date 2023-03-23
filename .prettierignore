@@ -1,0 +1,8 @@
+lib/
+node_modules/
+website/.jekyll-cache
+website/.jekyll-metadata
+website/.lanyon
+website/_includes/_generated_assets/
+website/_site/
+website/assets/
