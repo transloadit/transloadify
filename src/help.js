@@ -1,4 +1,4 @@
-export default function help (output, client, { helpMode: mode, helpAction: action }) {
+export default function help(output, client, { helpMode: mode, helpAction: action }) {
   if (!mode && action) return output.print(messages.default)
 
   let msg = messages
@@ -200,14 +200,14 @@ Months should be specified in YYYY-MM format.`
 
 const messages = {
   default: main,
-  register: register,
+  register,
   assemblies: {
     default: assemblies,
     create: assembliesCreate,
     list: assembliesList,
     get: assembliesGet,
     delete: assembliesDelete,
-    replay: assembliesReplay
+    replay: assembliesReplay,
   },
   templates: {
     default: templates,
@@ -216,15 +216,15 @@ const messages = {
     modify: templatesModify,
     delete: templatesDelete,
     list: templatesList,
-    sync: templatesSync
+    sync: templatesSync,
   },
   'assembly-notifications': {
     default: notifications,
     replay: notificationsReplay,
-    list: notificationsList
+    list: notificationsList,
   },
   bills: {
     default: bills,
-    get: billsGet
-  }
+    get: billsGet,
+  },
 }

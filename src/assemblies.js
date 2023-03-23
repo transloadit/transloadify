@@ -4,12 +4,12 @@ import assembliesCreate from './assemblies-create'
 
 export const create = assembliesCreate
 
-export function list (output, client, { before, after, fields, keywords }) {
+export function list(output, client, { before, after, fields, keywords }) {
   let assemblies = client.streamAssemblies({
     fromdate: after,
     todate: before,
     fields,
-    keywords
+    keywords,
   })
 
   assemblies.on('readable', () => {
@@ -19,19 +19,19 @@ export function list (output, client, { before, after, fields, keywords }) {
     if (fields == null) {
       output.print(assembly.id, assembly)
     } else {
-      output.print(fields.map(field => assembly[field]).join(' '), assembly)
+      output.print(fields.map((field) => assembly[field]).join(' '), assembly)
     }
   })
 
-  assemblies.on('error', err => {
+  assemblies.on('error', (err) => {
     output.error(formatAPIError(err))
   })
 }
 
-export function get (output, client, { assemblies }) {
+export function get(output, client, { assemblies }) {
   let deferred = Q.defer()
 
-  let requests = assemblies.map(assembly => {
+  let requests = assemblies.map((assembly) => {
     let deferred = Q.defer()
 
     client.getAssembly(assembly, (err, result) => {
@@ -42,24 +42,28 @@ export function get (output, client, { assemblies }) {
     return deferred.promise
   })
 
-  inSequence(requests, result => {
-    output.print(result, result)
-  }, err => {
-    output.error(formatAPIError(err))
-  }).then(deferred.resolve.bind(deferred))
+  inSequence(
+    requests,
+    (result) => {
+      output.print(result, result)
+    },
+    (err) => {
+      output.error(formatAPIError(err))
+    }
+  ).then(deferred.resolve.bind(deferred))
 
   return deferred.promise
 }
 
-exports['delete'] = function _delete (output, client, { assemblies }) {
+exports.delete = function _delete(output, client, { assemblies }) {
   for (let assembly of assemblies) {
-    client.deleteAssembly(assembly, err => {
+    client.deleteAssembly(assembly, (err) => {
       if (err) output.error(formatAPIError(err))
     })
   }
 }
 
-export function replay (output, client, { fields, reparse, steps, notify_url, assemblies }) {
+export function replay(output, client, { fields, reparse, steps, notify_url, assemblies }) {
   if (steps) {
     stream2buf(createReadStream(steps), (err, buf) => {
       if (err) return output.error(err.message)
@@ -70,17 +74,20 @@ export function replay (output, client, { fields, reparse, steps, notify_url, as
     apiCall()
   }
 
-  function apiCall (steps) {
+  function apiCall(steps) {
     for (let assembly of assemblies) {
-      client.replayAssembly({
-        assembly_id: assembly,
-        reparse_template: reparse,
-        fields,
-        steps,
-        notify_url
-      }, (err, result) => {
-        if (err) return output.error(formatAPIError(err))
-      })
+      client.replayAssembly(
+        {
+          assembly_id: assembly,
+          reparse_template: reparse,
+          fields,
+          steps,
+          notify_url,
+        },
+        (err, result) => {
+          if (err) return output.error(formatAPIError(err))
+        }
+      )
     }
   }
 }

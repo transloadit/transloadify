@@ -1,18 +1,26 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="utf-8">
     {% if page.url == "/" %}
-      <title>{{page.title}}</title>
+      <title>{{ page.title }}</title>
     {% else %}
-      <title>{{page.title}} | {{site.title}}</title>
+      <title>
+        {{ page.title }}
+        |
+        {{ site.title }}
+      </title>
     {% endif %}
 
     <meta name="keywords" content="cloud, encoding, shell">
     <meta name="description" content="Transloadify">
-    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,600,700' rel='stylesheet' type='text/css'>
+    <link
+      href="https://fonts.googleapis.com/css?family=Open+Sans:400,300,600,700"
+      rel="stylesheet"
+      type="text/css"
+    >
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    {%include _generated_assets/app-{{jekyll.environment}}-head.html%}
+    {% include _generated_assets/app-{{jekyll.environment}}-head.html %}
   </head>
   <body>
     <header>
@@ -22,8 +30,7 @@
       </a>
       <div id="menu">
         <i class="material-icons">menu</i>
-        <ul id="menu-items">
-        </ul>
+        <ul id="menu-items"></ul>
       </div>
       <span id="more">
         <i class="material-icons">expand_more</i>
@@ -32,36 +39,62 @@
     <section id="content">
       {% if page.url == "/" %}
         <div class="Social">
-          <iframe src="http://ghbtns.com/github-btn.html?user=transloadit&repo=transloadify&type=watch&count=true" allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
+          <iframe
+            src="http://ghbtns.com/github-btn.html?user=transloadit&repo=transloadify&type=watch&count=true"
+            allowtransparency="true"
+            frameborder="0"
+            scrolling="0"
+            width="100"
+            height="20"
+          ></iframe>
         </div>
       {% endif %}
 
-      {{content}}
+      {{ content }}
 
       <div class="Social">
-        <iframe src="http://ghbtns.com/github-btn.html?user=transloadit&repo=transloadify&type=watch&count=true" allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
+        <iframe
+          src="http://ghbtns.com/github-btn.html?user=transloadit&repo=transloadify&type=watch&count=true"
+          allowtransparency="true"
+          frameborder="0"
+          scrolling="0"
+          width="100"
+          height="20"
+        ></iframe>
       </div>
 
       <p>
         <small>
-          <hr />
-          Website design based on
-          the wonderful <a href="http://apex.run">apex.run</a>
-          with <a href="https://twitter.com/tjholowaychuk/status/744909762865696769">the author's consent</a>.
+          <hr>
+          Website design based on the wonderful <a href="http://apex.run">apex.run</a> with
+          <a href="https://twitter.com/tjholowaychuk/status/744909762865696769"
+            >the author's consent</a
+          >.
         </small>
       </p>
     </section>
   </body>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/highlight.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/languages/bash.min.js"></script>
-  {%include _generated_assets/app-{{jekyll.environment}}-body.html%}
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/languages/bash.min.js"
+  ></script>
+  {% include _generated_assets/app-{{jekyll.environment}}-body.html %}
   <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ;(function (i, s, o, g, r, a, m) {
+      i['GoogleAnalyticsObject'] = r
+      ;(i[r] =
+        i[r] ||
+        function () {
+          ;(i[r].q = i[r].q || []).push(arguments)
+        }),
+        (i[r].l = 1 * new Date())
+      ;(a = s.createElement(o)), (m = s.getElementsByTagName(o)[0])
+      a.async = 1
+      a.src = g
+      m.parentNode.insertBefore(a, m)
+    })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga')
 
-    ga('create', 'UA-92352107-2', 'auto');
-    ga('send', 'pageview');
+    ga('create', 'UA-92352107-2', 'auto')
+    ga('send', 'pageview')
   </script>
 </html>

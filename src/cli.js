@@ -5,8 +5,14 @@ const parser = new Parser()
 parser.command('mode', 'register')
 parser.command('mode', 'assemblies', 'assembly', 'a')
 parser.command('mode', 'templates', 'template', 't')
-parser.command('mode', 'assembly-notifications', 'assembly-notification',
-               'notifications', 'notification', 'n')
+parser.command(
+  'mode',
+  'assembly-notifications',
+  'assembly-notification',
+  'notifications',
+  'notification',
+  'n'
+)
 parser.command('mode', 'bills', 'bill', 'b')
 
 parser.command('action', 'create', 'new', 'c')
@@ -43,7 +49,7 @@ parser.register('json', 'j', false)
 parser.register('version', null, false)
 parser.register('help', 'h', false)
 
-export default function cli (...args) {
+export default function cli(...args) {
   let result = parser.parse(...args)
   if (result.error != null) return result
 
@@ -55,25 +61,28 @@ export default function cli (...args) {
   return modeDispatch(commands, options, targets)
 }
 
-function generalValidation (options) {
+function generalValidation(options) {
   for (let option of options) {
     if (option.name === 'field' && !option.value.match(/^[^=]+=[\s\S]*$/)) {
       return {
         error: 'INVALID_OPTION',
         option: option.name,
-        message: `invalid argument for --field: '${option.value}'`
+        message: `invalid argument for --field: '${option.value}'`,
       }
     }
 
     if (option.name === 'after' || option.name === 'before') {
-           // TODO reject invalid dates
+      // TODO reject invalid dates
     }
 
-    if (option.name === 'sort' && ['id', 'name', 'created', 'modified'].indexOf(option.value) === -1) {
+    if (
+      option.name === 'sort' &&
+      ['id', 'name', 'created', 'modified'].indexOf(option.value) === -1
+    ) {
       return {
         error: 'INVALID_OPTION',
         option: option.name,
-        message: `invalid argument for --sort`
+        message: `invalid argument for --sort`,
       }
     }
 
@@ -81,7 +90,7 @@ function generalValidation (options) {
       return {
         error: 'INVALID_OPTION',
         option: option.name,
-        message: `invalid argument for --order`
+        message: `invalid argument for --order`,
       }
     }
 
@@ -89,33 +98,33 @@ function generalValidation (options) {
       return {
         error: 'INVALID_OPTION',
         option: option.name,
-        message: `invalid argument for --verbosity`
+        message: `invalid argument for --verbosity`,
       }
     }
   }
 }
 
-function modeDispatch ({ mode, action }, opts, tgts) {
-  if (opts.filter(opt => opt.name === 'help').length !== 0) {
+function modeDispatch({ mode, action }, opts, tgts) {
+  if (opts.filter((opt) => opt.name === 'help').length !== 0) {
     return {
       mode: 'help',
       logLevel: 1,
       jsonMode: false,
       helpMode: mode,
-      helpAction: action
+      helpAction: action,
     }
   }
 
   if (mode == null) {
     if (action != null) mode = 'assemblies'
     else if (opts.length === 0) mode = 'register'
-    else if (opts.filter(opt => opt.name === 'version').length !== 0) mode = 'version'
+    else if (opts.filter((opt) => opt.name === 'version').length !== 0) mode = 'version'
     else [mode, action] = ['assemblies', 'create']
   }
 
   let verbosity = getVerbosity(opts)
 
-  let noJsonFlag = opts.filter(opt => opt.name !== 'json')
+  let noJsonFlag = opts.filter((opt) => opt.name !== 'json')
   let jsonMode = opts.length !== noJsonFlag.length
   opts = noJsonFlag
 
@@ -124,7 +133,7 @@ function modeDispatch ({ mode, action }, opts, tgts) {
     if (!(typeof handler === 'object' || action in handler)) {
       return {
         error: 'INVALID_COMMAND',
-        message: `mode '${mode}' does not support the action '${action}'`
+        message: `mode '${mode}' does not support the action '${action}'`,
       }
     }
     handler = handler[action]
@@ -133,7 +142,7 @@ function modeDispatch ({ mode, action }, opts, tgts) {
   if (typeof handler !== 'function') {
     return {
       error: 'INVALID_COMMAND',
-      message: `mode '${mode}' requires an action (one of ${Object.keys(handler)})`
+      message: `mode '${mode}' requires an action (one of ${Object.keys(handler)})`,
     }
   }
 
@@ -151,7 +160,7 @@ function modeDispatch ({ mode, action }, opts, tgts) {
 
 // determine the specified verbosity, and remove any verbosity-related options
 // so that we don't have to worry about them.
-function getVerbosity (opts) {
+function getVerbosity(opts) {
   let result = 1
   let writeAt = 0
   for (let readFrom = 0; readFrom < opts.length; readFrom++) {
@@ -163,91 +172,91 @@ function getVerbosity (opts) {
   return result
 }
 
-function allowOptions (optClassFn, msgfn) {
+function allowOptions(optClassFn, msgfn) {
   return (opts, tgts) => {
-    let invalid = opts.filter(opt => !optClassFn(opt))
+    let invalid = opts.filter((opt) => !optClassFn(opt))
     if (invalid.length > 0) {
       return {
         error: 'INVALID_OPTION',
-        message: msgfn(invalid[0])
+        message: msgfn(invalid[0]),
       }
     }
   }
 }
 
-function nOfOption (optClassFn, low, high, msgfn) {
+function nOfOption(optClassFn, low, high, msgfn) {
   return (opts, tgts) => {
     let relevantOpts = opts.filter(optClassFn)
     if (!(low <= relevantOpts.length && relevantOpts.length <= high)) {
       return {
         error: 'INVALID_OPTION',
-        message: msgfn(relevantOpts[0])
+        message: msgfn(relevantOpts[0]),
       }
     }
   }
 }
 
-function exactlyOneOfOption (optClassFn, msgfn) {
+function exactlyOneOfOption(optClassFn, msgfn) {
   return nOfOption(optClassFn, 1, 1, msgfn)
 }
-function atMostOneOfOption (optClassFn, msgfn) {
+function atMostOneOfOption(optClassFn, msgfn) {
   return nOfOption(optClassFn, 0, 1, msgfn)
 }
 
-function noTargets (msg) {
+function noTargets(msg) {
   return (opts, tgts) => {
     if (tgts.length > 0) {
       return {
         error: 'INVALID_ARGUMENT',
-        message: msg
+        message: msg,
       }
     }
   }
 }
-function requireTargets (msg) {
+function requireTargets(msg) {
   return (opts, tgts) => {
     if (tgts.length === 0) {
       return {
         error: 'MISSING_ARGUMENT',
-        message: msg
+        message: msg,
       }
     }
   }
 }
-function nTargets (low, high, { few, many }) {
+function nTargets(low, high, { few, many }) {
   return (opts, tgts) => {
     if (tgts.length < low) {
       return {
         error: 'MISSING_ARGUMENT',
-        message: few
+        message: few,
       }
     }
     if (tgts.length > high) {
       return {
         error: 'INVALID_ARGUMENT',
-        message: many
+        message: many,
       }
     }
   }
 }
 
-function validate (opts, tgts, ...constraints) {
+function validate(opts, tgts, ...constraints) {
   for (let constraint of constraints) {
     let err = constraint(opts, tgts)
     if (err) return err
   }
 }
 
-function anyOf (...args) {
-  return opt => args.indexOf(opt.name) !== -1
+function anyOf(...args) {
+  return (opt) => args.indexOf(opt.name) !== -1
 }
 
-function optget (opts, opt) {
+function optget(opts, opt) {
   let all = optgetall(opts, opt)
   return all.length > 0 ? all[all.length - 1] : false
 }
 
-function optgetall (opts, name) {
+function optgetall(opts, name) {
   let result = []
   for (let opt of opts) {
     if (opt.name === name) {
@@ -257,7 +266,7 @@ function optgetall (opts, name) {
   return result
 }
 
-function getfields (opts) {
+function getfields(opts) {
   let fields = {}
   for (let field of optgetall(opts, 'field')) {
     let segments = field.split('=')
@@ -267,13 +276,15 @@ function getfields (opts) {
 }
 
 const subcommands = {
-  register (opts, tgts) {
-    let err = validate(opts, tgts,
+  register(opts, tgts) {
+    let err = validate(
+      opts,
+      tgts,
 
-            allowOptions(anyOf('register'),
-                         opt => `register doesn't accept any options`),
+      allowOptions(anyOf('register'), (opt) => `register doesn't accept any options`),
 
-            noTargets('too many arguments passed to register'))
+      noTargets('too many arguments passed to register')
+    )
 
     if (err) return err
 
@@ -281,26 +292,45 @@ const subcommands = {
   },
 
   assemblies: {
-    create (opts, tgts) {
-      let err = validate(opts, tgts,
+    create(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf('steps', 'template', 'field', 'watch', 'recursive', 'input', 'output', 'delete-after-processing', 'reprocess-stale'),
-                             opt => `assemblies create doesn't accept the option --${opt.name}`),
+        allowOptions(
+          anyOf(
+            'steps',
+            'template',
+            'field',
+            'watch',
+            'recursive',
+            'input',
+            'output',
+            'delete-after-processing',
+            'reprocess-stale'
+          ),
+          (opt) => `assemblies create doesn't accept the option --${opt.name}`
+        ),
 
-                exactlyOneOfOption(anyOf('steps', 'template'),
-                                   opt => `assemblies create requires exactly one of either --steps and --template`),
+        exactlyOneOfOption(
+          anyOf('steps', 'template'),
+          (opt) => `assemblies create requires exactly one of either --steps and --template`
+        ),
 
-                atMostOneOfOption(anyOf('output'),
-                                  opt => `assemblies create accepts at most one --output`),
+        atMostOneOfOption(
+          anyOf('output'),
+          (opt) => `assemblies create accepts at most one --output`
+        ),
 
-                noTargets('too many arguments passed to assemblies create'))
+        noTargets('too many arguments passed to assemblies create')
+      )
 
       let inputs = optgetall(opts, 'input')
 
       if (inputs.length === 0 && optget(opts, 'watch')) {
         err = {
           error: 'MISSING_ARGUMENT',
-          message: 'assemblies create --watch requires at least one input'
+          message: 'assemblies create --watch requires at least one input',
         }
       }
 
@@ -315,26 +345,37 @@ const subcommands = {
         output: optget(opts, 'output') || null,
         del: optget(opts, 'delete-after-processing'),
         reprocessStale: optget(opts, 'reprocess-stale'),
-        inputs
+        inputs,
       }
     },
 
-    list (opts, tgts) {
-      let err = validate(opts, tgts,
+    list(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf('before', 'after', 'keywords', 'fields'),
-                             opt => `assemblies list doesn't accept the option --${opt.name}`),
+        allowOptions(
+          anyOf('before', 'after', 'keywords', 'fields'),
+          (opt) => `assemblies list doesn't accept the option --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('before'),
-                                 opt => `assemblies list accepts at most one of --${opt.name}`),
+        atMostOneOfOption(
+          anyOf('before'),
+          (opt) => `assemblies list accepts at most one of --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('after'),
-                                 opt => `assemblies list accepts at most one of --${opt.name}`),
+        atMostOneOfOption(
+          anyOf('after'),
+          (opt) => `assemblies list accepts at most one of --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('fields'),
-                                 opt => `assemblies list accepts at most one of --${opt.name}`),
+        atMostOneOfOption(
+          anyOf('fields'),
+          (opt) => `assemblies list accepts at most one of --${opt.name}`
+        ),
 
-                noTargets('too many arguments passed to assemblies list'))
+        noTargets('too many arguments passed to assemblies list')
+      )
 
       if (err) return err
 
@@ -351,53 +392,66 @@ const subcommands = {
         before: optget(opts, 'before') || undefined,
         after: optget(opts, 'after') || undefined,
         fields,
-        keywords
+        keywords,
       }
     },
 
-    get (opts, tgts) {
-      let err = validate(opts, tgts,
+    get(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf(),
-                             opt => `assemblies get doesn't accept the option --${opt.name}`),
+        allowOptions(anyOf(), (opt) => `assemblies get doesn't accept the option --${opt.name}`),
 
-                requireTargets('no assemblies specified'))
+        requireTargets('no assemblies specified')
+      )
 
       if (err) return err
 
       return {
-        assemblies: tgts
+        assemblies: tgts,
       }
     },
 
-    delete (opts, tgts) {
-      let err = validate(opts, tgts,
+    delete(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf(),
-                             opt => `assemblies delete doesn't accept the option --${opt.name}`),
+        allowOptions(anyOf(), (opt) => `assemblies delete doesn't accept the option --${opt.name}`),
 
-                requireTargets('no assemblies specified'))
+        requireTargets('no assemblies specified')
+      )
 
       if (err) return err
 
       return {
-        assemblies: tgts
+        assemblies: tgts,
       }
     },
 
-    replay (opts, tgts) {
-      let err = validate(opts, tgts,
+    replay(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf('reparse-template', 'field', 'steps', 'notify-url'),
-                             opt => `assemblies replay doesn't accept the option --${opt.name}`),
+        allowOptions(
+          anyOf('reparse-template', 'field', 'steps', 'notify-url'),
+          (opt) => `assemblies replay doesn't accept the option --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('steps'),
-                                  opt => `too many --steps provided to assemblies replay`),
+        atMostOneOfOption(
+          anyOf('steps'),
+          (opt) => `too many --steps provided to assemblies replay`
+        ),
 
-                atMostOneOfOption(anyOf('notify-url'),
-                                  opt => `too many --notify-urls provided to assemblies replay`),
+        atMostOneOfOption(
+          anyOf('notify-url'),
+          (opt) => `too many --notify-urls provided to assemblies replay`
+        ),
 
-                requireTargets('no assemblies specified'))
+        requireTargets('no assemblies specified')
+      )
 
       if (err) return err
 
@@ -406,101 +460,129 @@ const subcommands = {
         reparse: optget(opts, 'reparse-template'),
         steps: optget(opts, 'steps'),
         notiy_url: optget(opts, 'notify-url') || undefined,
-        assemblies: tgts
+        assemblies: tgts,
       }
-    }
+    },
   },
 
   templates: {
-    create (opts, tgts) {
-      let err = validate(opts, tgts,
+    create(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf(),
-                             opt => `templates create doesn't accept the option --${opt.name}`),
+        allowOptions(anyOf(), (opt) => `templates create doesn't accept the option --${opt.name}`),
 
-                nTargets(1, 2,
-                  { few: 'too few arguments passed to templates create',
-                    many: 'too many arguments passed to templates create' }))
+        nTargets(1, 2, {
+          few: 'too few arguments passed to templates create',
+          many: 'too many arguments passed to templates create',
+        })
+      )
 
       if (err) return err
 
       return {
         name: tgts[0],
-        file: tgts.length === 2 ? tgts[1] : '-'
+        file: tgts.length === 2 ? tgts[1] : '-',
       }
     },
 
-    get (opts, tgts) {
-      let err = validate(opts, tgts,
+    get(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf(),
-                             opt => `templates create doesn't accept the option --${opt.name}`),
+        allowOptions(anyOf(), (opt) => `templates create doesn't accept the option --${opt.name}`),
 
-                requireTargets('no template specified'))
+        requireTargets('no template specified')
+      )
 
       if (err) return err
 
       return {
-        templates: tgts
+        templates: tgts,
       }
     },
 
-    modify (opts, tgts) {
-      let err = validate(opts, tgts,
+    modify(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf('name'),
-                             opt => `templates modify doesn't accept the option --${opt.name}`),
+        allowOptions(
+          anyOf('name'),
+          (opt) => `templates modify doesn't accept the option --${opt.name}`
+        ),
 
-                nTargets(1, 2,
-                  { few: 'too few arguments passed to templates modify',
-                    many: 'too many arguments passed to templates modify' }))
+        nTargets(1, 2, {
+          few: 'too few arguments passed to templates modify',
+          many: 'too many arguments passed to templates modify',
+        })
+      )
 
       if (err) return err
 
       return {
         template: tgts[0],
         name: optget(opts, 'name') || undefined,
-        file: tgts.length === 2 ? tgts[1] : '-'
+        file: tgts.length === 2 ? tgts[1] : '-',
       }
     },
 
-    delete (opts, tgts) {
-      let err = validate(opts, tgts,
+    delete(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf(),
-                             opt => `templates delete doesn't accept the option --${opt.name}`),
+        allowOptions(anyOf(), (opt) => `templates delete doesn't accept the option --${opt.name}`),
 
-                requireTargets('no template specified'))
+        requireTargets('no template specified')
+      )
 
       if (err) return err
 
       return {
-        templates: tgts
+        templates: tgts,
       }
     },
 
-    list (opts, tgts) {
-      let err = validate(opts, tgts,
+    list(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf('after', 'before', 'sort', 'order', 'fields'),
-                             opt => `templates list doesn't accept the option --${opt.name}`),
+        allowOptions(
+          anyOf('after', 'before', 'sort', 'order', 'fields'),
+          (opt) => `templates list doesn't accept the option --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('before'),
-                                  opt => `templates list accepts at most one of --${opt.name}`),
+        atMostOneOfOption(
+          anyOf('before'),
+          (opt) => `templates list accepts at most one of --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('after'),
-                                  opt => `templates list accepts at most one of --${opt.name}`),
+        atMostOneOfOption(
+          anyOf('after'),
+          (opt) => `templates list accepts at most one of --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('sort'),
-                                  opt => `templates list accepts at most one of --${opt.name}`),
+        atMostOneOfOption(
+          anyOf('sort'),
+          (opt) => `templates list accepts at most one of --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('order'),
-                                  opt => `templates list accepts at most one of --${opt.name}`),
+        atMostOneOfOption(
+          anyOf('order'),
+          (opt) => `templates list accepts at most one of --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('fields'),
-                                  opt => `templates list accepts at most one of --${opt.name}`),
+        atMostOneOfOption(
+          anyOf('fields'),
+          (opt) => `templates list accepts at most one of --${opt.name}`
+        ),
 
-                noTargets('too many arguments passed to templates list'))
+        noTargets('too many arguments passed to templates list')
+      )
 
       if (err) return err
 
@@ -513,73 +595,99 @@ const subcommands = {
         after: optget(opts, 'after') || undefined,
         sort: optget(opts, 'sort') || 'created',
         order: optget(opts, 'order') || 'desc',
-        fields
+        fields,
       }
     },
 
-    sync (opts, tgts) {
-      let err = validate(opts, tgts,
+    sync(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf('recursive'),
-                             opt => `templates sync doesn't accept the option --${opt.name}`))
+        allowOptions(
+          anyOf('recursive'),
+          (opt) => `templates sync doesn't accept the option --${opt.name}`
+        )
+      )
 
       if (err) return err
 
       return {
         recursive: optget(opts, 'recursive'),
-        files: tgts
+        files: tgts,
       }
-    }
+    },
   },
 
   'assembly-notifications': {
-    replay (opts, tgts) {
-      let err = validate(opts, tgts,
+    replay(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf('notify-url'),
-                             opt => `assembly-notifications replay doesn't accept the option --${opt.name}`),
+        allowOptions(
+          anyOf('notify-url'),
+          (opt) => `assembly-notifications replay doesn't accept the option --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('notify-url'),
-                                  opt => `assembly-notifications replay accepts at most one of --${opt.name}`),
+        atMostOneOfOption(
+          anyOf('notify-url'),
+          (opt) => `assembly-notifications replay accepts at most one of --${opt.name}`
+        ),
 
-                requireTargets('no assemblies specified'))
+        requireTargets('no assemblies specified')
+      )
 
       if (err) return err
 
       return {
         notify_url: optget(opts, 'notify-url') || undefined,
-        assemblies: tgts
+        assemblies: tgts,
       }
     },
 
-    list (opts, tgts) {
-      let err = validate(opts, tgts,
+    list(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf('failed', 'successful'),
-                             opt => `assembly-notifications list doesn't accept the option --${opt.name}`),
+        allowOptions(
+          anyOf('failed', 'successful'),
+          (opt) => `assembly-notifications list doesn't accept the option --${opt.name}`
+        ),
 
-                atMostOneOfOption(anyOf('failed', 'successful'),
-                                  opt => `assembly-notifications accepts at most one of --failed and --successful`),
+        atMostOneOfOption(
+          anyOf('failed', 'successful'),
+          (opt) => `assembly-notifications accepts at most one of --failed and --successful`
+        ),
 
-                nTargets(0, 1,
-                  { few: undefined, // can't have <0 targets
-                    many: 'too many assembly ids provided to assembly-notifications list' }))
+        nTargets(0, 1, {
+          few: undefined, // can't have <0 targets
+          many: 'too many assembly ids provided to assembly-notifications list',
+        })
+      )
 
       if (err) return err
 
       return {
-        type: optget(opts, 'failed') ? 'failed' : optget(opts, 'successful') ? 'successful' : undefined,
-        assembly_id: tgts[0]
+        type: optget(opts, 'failed')
+          ? 'failed'
+          : optget(opts, 'successful')
+          ? 'successful'
+          : undefined,
+        assembly_id: tgts[0],
       }
-    }
+    },
   },
 
   bills: {
-    get (opts, tgts) {
-      let err = validate(opts, tgts,
+    get(opts, tgts) {
+      let err = validate(
+        opts,
+        tgts,
 
-                allowOptions(anyOf(),
-                             opt => `bills get doesn't accept any options`))
+        allowOptions(anyOf(), (opt) => `bills get doesn't accept any options`)
+      )
 
       if (err) return err
 
@@ -589,7 +697,7 @@ const subcommands = {
         if (!tgt.match(pat)) {
           return {
             error: 'INVALID_ARGUMENT',
-            message: `invalid date format '${tgt}' (YYYY-MM)`
+            message: `invalid date format '${tgt}' (YYYY-MM)`,
           }
         }
         months.push(tgt)
@@ -601,32 +709,36 @@ const subcommands = {
       }
 
       return { months }
-    }
+    },
   },
 
-  help (opts, tgts) {
-    let err = validate(opts, tgts,
+  help(opts, tgts) {
+    let err = validate(
+      opts,
+      tgts,
 
-            allowOptions(anyOf('help'),
-                         opt => `--help doesn't accept any options`),
+      allowOptions(anyOf('help'), (opt) => `--help doesn't accept any options`),
 
-            noTargets('too many argument passed to --help'))
+      noTargets('too many argument passed to --help')
+    )
 
     if (err) return err
 
     return {}
   },
 
-  version (opts, tgts) {
-    let err = validate(opts, tgts,
+  version(opts, tgts) {
+    let err = validate(
+      opts,
+      tgts,
 
-            allowOptions(anyOf('version'),
-                         opt => `--version doesn't accept any options`),
+      allowOptions(anyOf('version'), (opt) => `--version doesn't accept any options`),
 
-            noTargets('too many argument passed to --version'))
+      noTargets('too many argument passed to --version')
+    )
 
     if (err) return err
 
     return {}
-  }
+  },
 }

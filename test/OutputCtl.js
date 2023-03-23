@@ -1,29 +1,29 @@
 export default class OutputCtl {
-  constructor () {
+  constructor() {
     this.output = []
   }
 
-  error (msg) {
+  error(msg) {
     this.output.push({ type: 'error', msg })
   }
 
-  warn (msg) {
+  warn(msg) {
     this.output.push({ type: 'warn', msg })
   }
 
-  info (msg) {
+  info(msg) {
     this.output.push({ type: 'info', msg })
   }
 
-  debug (msg) {
+  debug(msg) {
     this.output.push({ type: 'debug', msg })
   }
 
-  print (msg, json) {
+  print(msg, json) {
     this.output.push({ type: 'print', msg, json })
   }
 
-  get (debug = false) {
-    return this.output.filter(line => debug || line.type !== 'debug')
+  get(debug = false) {
+    return this.output.filter((line) => debug || line.type !== 'debug')
   }
 }

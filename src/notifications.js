@@ -1,4 +1,4 @@
-export function replay (output, client, { notify_url, assemblies }) {
+export function replay(output, client, { notify_url, assemblies }) {
   for (let id of assemblies) {
     client.replayAssemblyNotification({ notify_url, assembly_id: id }, (err, result) => {
       if (err) return output.error(err)
@@ -6,7 +6,7 @@ export function replay (output, client, { notify_url, assemblies }) {
   }
 }
 
-export function list (output, client, { type, assembly_id }) {
+export function list(output, client, { type, assembly_id }) {
   let notifications = client.streamAssemblyNotifications({ type, assembly_id })
 
   notifications.on('readable', () => {
