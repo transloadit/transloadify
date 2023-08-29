@@ -17,9 +17,15 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: 18.x
-      - name: Lint
+      - name: Install
         run: |
+          corepack yarn install
+          - name: Lint
+          run: |
           corepack yarn lint
+      - name: Build
+        run: |
+          corepack yarn build
       - name: Test
         env:
           TRANSLOADIT_KEY: ${{ secrets.TRANSLOADIT_KEY }}
