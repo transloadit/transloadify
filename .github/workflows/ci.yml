@@ -19,10 +19,7 @@ jobs:
           node-version: 18.x
       - name: Install
         run: |
-          corepack yarn install
-          - name: Lint
-          run: |
-          corepack yarn lint
+          corepack yarn
       - name: Build
         run: |
           corepack yarn build
