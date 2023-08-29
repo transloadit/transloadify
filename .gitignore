@@ -1,4 +1,5 @@
 .DS_Store
+.yarn
 env.sh
 examples/output
 lib/
