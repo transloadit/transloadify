@@ -1,16 +1,6 @@
 .DS_Store
-.lanyon
-assets/build
 env.sh
 examples/output
 lib/
 node_modules/
 npm-debug.log
-website/_site/
-website/.jekyll-metadata
-website/.lanyon
-website/.lanyon/bin
-website/*.md
-website/assets/build/
-website/index.md
-website/.jekyll-cache/

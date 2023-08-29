@@ -32,22 +32,10 @@ jobs:
           frozen-lockfile: true
       - name: Lint
         run: |
-          yarn lint
+          corepack yarn lint
       - name: Test
         env:
           TRANSLOADIT_KEY: ${{ secrets.TRANSLOADIT_KEY }}
           TRANSLOADIT_SECRET: ${{ secrets.TRANSLOADIT_SECRET }}
         run: |
-          yarn test
-      # - name: Website Build
-      #   if: github.ref == 'refs/heads/main'
-      #   run: |
-      #     yarn web:build:production
-      # - name: Website Deploy 🚀
-      #   if: github.ref == 'refs/heads/main'
-      #   uses: JamesIves/github-pages-deploy-action@3.7.1
-      #   with:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     BRANCH: gh-pages # The branch the action should deploy to.
-      #     FOLDER: website/_site # The folder the action should deploy.
-      #     CLEAN: true # Automatically remove deleted files from the deploy branch
+          corepack yarn test

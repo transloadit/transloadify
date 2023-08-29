@@ -2,6 +2,11 @@
   "name": "transloadify",
   "version": "1.0.0",
   "description": "CLI client for transloadit",
+  "packageManager": "yarn@3.6.0+sha224.19e47520fa56c6146388fdeb438d9dcf6630c3f277a2e1180995c3bb",
+  "engines": {
+    "node": ">= 16",
+    "yarn": "3.6.0"
+  },
   "scripts": {
     "build": "./node_modules/babel-cli/bin/babel.js src/ -d lib/",
     "fix:formatting": "prettier --write .",
@@ -19,14 +24,7 @@
     "release:patch": "env SEMANTIC=patch npm run release",
     "release": "npm version ${SEMANTIC:-patch} -m \"Release %s\" && npm run build && git push && git push --tags && npm publish",
     "start": "npm run web:start",
-    "test": "npm-run-all build mocha",
-    "web:build:production": "LANYON_ENV=production lanyon build",
-    "web:build": "lanyon build",
-    "web:deploy": "lanyon deploy",
-    "web:encrypt": "lanyon encrypt",
-    "web:install": "lanyon install",
-    "web:serve:production": "LANYON_ENV=production lanyon serve",
-    "web:start": "lanyon start"
+    "test": "npm-run-all build mocha"
   },
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
@@ -58,7 +56,6 @@
     "eslint-plugin-standard": "^5.0.0",
     "fakefile": "^0.0.8",
     "image-size": "0.5.0",
-    "lanyon": "^0.3.33",
     "mocha": "^3.2.0",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.8.6",
