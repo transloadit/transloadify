@@ -32,7 +32,7 @@ $ npm install -g transloadify
 
 Transloadify needs Transloadit API authentication information. It looks for it
 in the environment variables `TRANSLOADIT_KEY` and `TRANSLOADIT_SECRET`. Check
-the [API credentials](https://transloadit.com/accounts/credentials) page for
+the [API credentials](https://transloadit.com/c/template-credentials/) page for
 these values.
 
 See `transloadify --help` for complete usage instructions.
