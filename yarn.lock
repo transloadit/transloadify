@@ -5552,16 +5552,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tough-cookie@npm:~2.3.0":
-  version: 2.3.2
-  resolution: "tough-cookie@npm:2.3.2"
-  dependencies:
-    punycode: ^1.4.1
-  checksum: fecd760bc37135c56187ea65813f5bad84e66f3b39a1750731807844ada098ef787826b41d400b62975f6e0251114e4269e1eb7ec3637e9b85b8ad69be200a60
-  languageName: node
-  linkType: hard
-
-"tough-cookie@npm:~2.3.3":
+"tough-cookie@npm:~2.3.0, tough-cookie@npm:~2.3.3":
   version: 2.3.4
   resolution: "tough-cookie@npm:2.3.4"
   dependencies:
