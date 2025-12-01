@@ -1,5 +1,5 @@
-import type { ParseResult } from './Parser.js'
-import Parser, { isParseError } from './Parser.js'
+import type { ParseResult } from './Parser.ts'
+import Parser, { isParseError } from './Parser.ts'
 
 interface ParsedOption {
   name: string
@@ -78,15 +78,17 @@ parser.register('version', null, false)
 parser.register('help', 'h', false)
 
 export default function cli(...args: (string[] | null | undefined)[]): CLIOutput {
-  const result = parser.parse(args[0] as string[] | null | undefined)
+  const firstArg = args[0]
+  const result = parser.parse(firstArg ?? undefined)
   if (isParseError(result)) return result
 
-  const { commands, options, targets } = result as ParseResult
+  const parseResult = result as ParseResult
+  const { commands, options, targets } = parseResult
 
-  const err = generalValidation(options as ParsedOption[])
+  const err = generalValidation(options)
   if (err != null) return err
 
-  return modeDispatch(commands, options as ParsedOption[], targets)
+  return modeDispatch(commands, options, targets)
 }
 
 function generalValidation(options: ParsedOption[]): CLIError | undefined {
@@ -193,10 +195,11 @@ function modeDispatch(
   const result = handler(filteredOpts, tgts)
 
   if (!result.error) {
-    ;(result as CLIResult).logLevel = verbosity
-    ;(result as CLIResult).jsonMode = jsonMode
-    ;(result as CLIResult).mode = mode
-    ;(result as CLIResult).action = action
+    const cliResult = result as CLIResult
+    cliResult.logLevel = verbosity
+    cliResult.jsonMode = jsonMode
+    cliResult.mode = mode
+    cliResult.action = action
   }
 
   return result
@@ -206,7 +209,8 @@ function getVerbosity(opts: ParsedOption[]): number {
   let result = 1
   let writeAt = 0
   for (let readFrom = 0; readFrom < opts.length; readFrom++) {
-    const opt = opts[readFrom]!
+    const opt = opts[readFrom]
+    if (!opt) continue
     if (opt.name === 'verbose') result = 2
     else if (opt.name === 'quiet') result = 0
     else opts[writeAt++] = opt
@@ -221,10 +225,11 @@ function allowOptions(
 ): ConstraintFn {
   return (opts, _tgts) => {
     const invalid = opts.filter((opt) => !optClassFn(opt))
-    if (invalid.length > 0 && invalid[0]) {
+    const firstInvalid = invalid[0]
+    if (invalid.length > 0 && firstInvalid) {
       return {
         error: 'INVALID_OPTION',
-        message: msgfn(invalid[0]),
+        message: msgfn(firstInvalid),
       }
     }
     return undefined
@@ -324,7 +329,8 @@ function anyOf(...args: string[]): OptionPredicate {
 
 function optget(opts: ParsedOption[], opt: string): string | boolean {
   const all = optgetall(opts, opt)
-  return all.length > 0 ? all[all.length - 1]! : false
+  const last = all[all.length - 1]
+  return all.length > 0 && last !== undefined ? last : false
 }
 
 function optgetall(opts: ParsedOption[], name: string): (string | boolean)[] {

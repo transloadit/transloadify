@@ -1,4 +1,4 @@
-import type { OutputCtlOptions } from '../src/OutputCtl.js'
+import type { OutputCtlOptions } from '../src/OutputCtl.ts'
 
 interface OutputEntry {
   type: 'error' | 'warn' | 'info' | 'debug' | 'print'

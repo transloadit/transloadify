@@ -2,12 +2,13 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import rreaddir from 'recursive-readdir'
-import type { Transloadit } from 'transloadit'
-import type { APIError } from './helpers.js'
-import { createReadStream, formatAPIError, stream2buf } from './helpers.js'
-import type { IOutputCtl } from './OutputCtl.js'
-import ModifiedLookup from './template-last-modified.js'
-import type { TemplateFile, TemplateFileData, TransloaditAPIError } from './types.js'
+import type { TemplateContent, Transloadit } from 'transloadit'
+import { z } from 'zod'
+import { createReadStream, formatAPIError, stream2buf } from './helpers.ts'
+import type { IOutputCtl } from './OutputCtl.ts'
+import ModifiedLookup from './template-last-modified.ts'
+import type { TemplateFile } from './types.ts'
+import { ensureError, isTransloaditAPIError, TemplateFileDataSchema } from './types.ts'
 
 const rreaddirAsync = promisify(rreaddir)
 
@@ -43,6 +44,8 @@ export interface TemplateSyncOptions {
   recursive?: boolean
 }
 
+const StepsSchema = z.record(z.string(), z.unknown())
+
 export async function create(
   output: IOutputCtl,
   client: Transloadit,
@@ -57,15 +60,20 @@ export async function create(
       })
     })
 
-    const templateContent = JSON.parse(buf.toString()) as Record<string, unknown>
+    const parsed: unknown = JSON.parse(buf.toString())
+    const validated = StepsSchema.safeParse(parsed)
+    if (!validated.success) {
+      throw new Error('Invalid template steps format')
+    }
+
     const result = await client.createTemplate({
       name,
-      template: { steps: templateContent as any },
+      template: { steps: validated.data } as TemplateContent,
     })
     output.print(result.id, result)
     return result
   } catch (err) {
-    const error = err as Error
+    const error = ensureError(err)
     output.error(error.message)
     throw err
   }
@@ -84,7 +92,7 @@ export async function get(
       output.print(result, result)
     }
   } catch (err) {
-    output.error(formatAPIError(err as APIError))
+    output.error(formatAPIError(err))
     throw err
   }
 }
@@ -107,18 +115,35 @@ export async function modify(
     let newName = name
 
     if (buf.length > 0) {
-      json = JSON.parse(buf.toString()) as Record<string, unknown>
+      const parsed: unknown = JSON.parse(buf.toString())
+      const validated = StepsSchema.safeParse(parsed)
+      if (!validated.success) {
+        throw new Error('Invalid template steps format')
+      }
+      json = validated.data
     }
 
     if (!name || buf.length === 0) {
       const tpl = await client.getTemplate(template)
       if (!name) newName = tpl.name
-      if (buf.length === 0) json = tpl.content.steps as Record<string, unknown>
+      if (buf.length === 0) {
+        const stepsContent = tpl.content.steps
+        if (stepsContent && typeof stepsContent === 'object') {
+          json = stepsContent as Record<string, unknown>
+        }
+      }
     }
 
-    await client.editTemplate(template, { name: newName, template: { steps: json as any } })
+    if (json === null) {
+      throw new Error('No steps to update template with')
+    }
+
+    await client.editTemplate(template, {
+      name: newName,
+      template: { steps: json } as TemplateContent,
+    })
   } catch (err) {
-    output.error(formatAPIError(err as APIError))
+    output.error(formatAPIError(err))
     throw err
   }
 }
@@ -133,13 +158,17 @@ async function _delete(
       try {
         await client.deleteTemplate(template)
       } catch (err) {
-        output.error(formatAPIError(err as APIError))
+        output.error(formatAPIError(err))
         throw err
       }
     }),
   )
 }
 export { _delete as delete }
+
+const TemplateIdSchema = z.object({
+  id: z.string(),
+})
 
 export function list(
   output: IOutputCtl,
@@ -154,18 +183,22 @@ export function list(
   })
 
   stream.on('readable', () => {
-    const template = stream.read() as Record<string, unknown> | null
+    const template: unknown = stream.read()
     if (template == null) return
 
+    const parsed = TemplateIdSchema.safeParse(template)
+    if (!parsed.success) return
+
     if (fields == null) {
-      output.print(template.id as string, template)
+      output.print(parsed.data.id, template)
     } else {
-      output.print(fields.map((field) => template[field]).join(' '), template)
+      const templateRecord = template as Record<string, unknown>
+      output.print(fields.map((field) => templateRecord[field]).join(' '), template)
     }
   })
 
   stream.on('error', (err: unknown) => {
-    output.error(formatAPIError(err as APIError))
+    output.error(formatAPIError(err))
   })
 }
 
@@ -211,8 +244,10 @@ export async function sync(
 
     try {
       const data = await fsp.readFile(file, 'utf8')
-      const json = JSON.parse(data) as TemplateFileData
-      return 'transloadit_template_id' in json ? { file, data: json } : null
+      const parsed: unknown = JSON.parse(data)
+      const validated = TemplateFileDataSchema.safeParse(parsed)
+      if (!validated.success) return null
+      return 'transloadit_template_id' in validated.data ? { file, data: validated.data } : null
     } catch (e) {
       if (e instanceof SyntaxError) return null
       throw e
@@ -237,20 +272,25 @@ export async function sync(
         const fileModified = stats.mtime
 
         let templateModified: Date
+        const templateId = template.data.transloadit_template_id
         try {
-          await client.getTemplate(template.data.transloadit_template_id)
+          await client.getTemplate(templateId)
           templateModified = await new Promise<Date>((resolve, reject) =>
-            modified.byId(template.data.transloadit_template_id!, (err, res) =>
-              err ? reject(err) : resolve(res!),
-            ),
+            modified.byId(templateId, (err, res) => {
+              if (err) {
+                reject(err)
+              } else if (res) {
+                resolve(res)
+              } else {
+                reject(new Error('No date returned'))
+              }
+            }),
           )
         } catch (err) {
-          const apiErr = err as TransloaditAPIError
-          if (
-            apiErr.code === 'SERVER_404' ||
-            (apiErr.response && apiErr.response.statusCode === 404)
-          ) {
-            throw new Error(`Template file references nonexistent template: ${template.file}`)
+          if (isTransloaditAPIError(err)) {
+            if (err.code === 'SERVER_404' || (err.response && err.response.statusCode === 404)) {
+              throw new Error(`Template file references nonexistent template: ${template.file}`)
+            }
           }
           throw err
         }
@@ -267,7 +307,7 @@ export async function sync(
   async function upload(template: TemplateFile): Promise<void> {
     const params = {
       name: path.basename(template.file, '.json'),
-      template: { steps: template.data.steps as any },
+      template: { steps: template.data.steps } as TemplateContent,
     }
 
     if (!template.data.transloadit_template_id) {
@@ -281,7 +321,12 @@ export async function sync(
   }
 
   async function download(template: TemplateFile): Promise<void> {
-    const result = await client.getTemplate(template.data.transloadit_template_id!)
+    const templateId = template.data.transloadit_template_id
+    if (!templateId) {
+      throw new Error('Cannot download template without id')
+    }
+
+    const result = await client.getTemplate(templateId)
 
     template.data.steps = result.content as Record<string, unknown>
     const file = path.join(path.dirname(template.file), `${result.name}.json`)

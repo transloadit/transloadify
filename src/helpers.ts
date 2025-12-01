@@ -1,5 +1,7 @@
 import fs from 'node:fs'
 import type { Readable } from 'node:stream'
+import type { APIError } from './types.ts'
+import { isAPIError } from './types.ts'
 
 export function createReadStream(file: string): Readable {
   if (file === '-') return process.stdin
@@ -33,14 +35,18 @@ export function stream2buf(stream: Readable, cb: (err: Error | null, buf?: Buffe
   })
 }
 
-export interface APIError {
-  error: string
-  message: string
+export function formatAPIError(err: unknown): string {
+  if (isAPIError(err)) {
+    return `${err.error}: ${err.message}`
+  }
+  if (err instanceof Error) {
+    return err.message
+  }
+  return String(err)
 }
 
-export function formatAPIError(err: APIError): string {
-  return `${err.error}: ${err.message}`
-}
+// Re-export APIError type for convenience
+export type { APIError }
 
 export function zip<A, B>(listA: A[], listB: B[]): [A, B][]
 export function zip<T>(...lists: T[][]): T[][]

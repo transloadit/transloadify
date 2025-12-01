@@ -1,8 +1,9 @@
 import type { Transloadit } from 'transloadit'
-import assembliesCreate from './assemblies-create.js'
-import type { APIError } from './helpers.js'
-import { createReadStream, formatAPIError, stream2buf } from './helpers.js'
-import type { IOutputCtl } from './OutputCtl.js'
+import { z } from 'zod'
+import assembliesCreate from './assemblies-create.ts'
+import { createReadStream, formatAPIError, stream2buf } from './helpers.ts'
+import type { IOutputCtl } from './OutputCtl.ts'
+import { ensureError } from './types.ts'
 
 export const create = assembliesCreate
 
@@ -30,6 +31,10 @@ export interface AssemblyReplayOptions {
   assemblies: string[]
 }
 
+const AssemblySchema = z.object({
+  id: z.string(),
+})
+
 export function list(
   output: IOutputCtl,
   client: Transloadit,
@@ -42,20 +47,24 @@ export function list(
   })
 
   assemblies.on('readable', () => {
-    const assembly = assemblies.read() as Record<string, unknown> | null
+    const assembly: unknown = assemblies.read()
     if (assembly == null) return
 
+    const parsed = AssemblySchema.safeParse(assembly)
+    if (!parsed.success) return
+
     if (fields == null) {
-      output.print(assembly.id as string, assembly)
+      output.print(parsed.data.id, assembly)
     } else {
-      output.print(fields.map((field) => assembly[field]).join(' '), assembly)
+      const assemblyRecord = assembly as Record<string, unknown>
+      output.print(fields.map((field) => assemblyRecord[field]).join(' '), assembly)
     }
   })
 
   return new Promise<void>((resolve) => {
     assemblies.on('end', resolve)
     assemblies.on('error', (err: unknown) => {
-      output.error(formatAPIError(err as APIError))
+      output.error(formatAPIError(err))
       resolve()
     })
   })
@@ -72,8 +81,8 @@ export async function get(
       const result = await client.getAssembly(assembly)
       output.print(result, result)
     } catch (err) {
-      output.error(formatAPIError(err as APIError))
-      throw err
+      output.error(formatAPIError(err))
+      throw ensureError(err)
     }
   }
 }
@@ -87,13 +96,15 @@ async function _delete(
     try {
       await client.cancelAssembly(assembly)
     } catch (err) {
-      output.error(formatAPIError(err as APIError))
+      output.error(formatAPIError(err))
     }
   })
   await Promise.all(promises)
 }
 
 export { _delete as delete }
+
+const StepsSchema = z.record(z.string(), z.unknown())
 
 export async function replay(
   output: IOutputCtl,
@@ -109,10 +120,15 @@ export async function replay(
           else reject(new Error('No buffer received'))
         })
       })
-      await apiCall(JSON.parse(buf.toString()) as Record<string, unknown>)
+      const parsed: unknown = JSON.parse(buf.toString())
+      const validated = StepsSchema.safeParse(parsed)
+      if (!validated.success) {
+        throw new Error('Invalid steps format')
+      }
+      await apiCall(validated.data)
     } catch (err) {
-      const error = err as Error
-      output.error(error.message || err)
+      const error = ensureError(err)
+      output.error(error.message)
     }
   } else {
     await apiCall()
@@ -127,7 +143,7 @@ export async function replay(
           notify_url,
         })
       } catch (err) {
-        output.error(formatAPIError(err as APIError))
+        output.error(formatAPIError(err))
       }
     })
     await Promise.all(promises)

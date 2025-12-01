@@ -1,5 +1,6 @@
 import type { Transloadit } from 'transloadit'
-import type { IOutputCtl } from './OutputCtl.js'
+import type { IOutputCtl } from './OutputCtl.ts'
+import { ensureError } from './types.ts'
 
 export interface NotificationsReplayOptions {
   notify_url?: string
@@ -23,7 +24,7 @@ export async function replay(
     })
     await Promise.all(promises)
   } catch (err) {
-    output.error(err)
+    output.error(ensureError(err).message)
   }
 }
 

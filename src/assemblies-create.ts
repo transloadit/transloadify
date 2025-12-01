@@ -14,8 +14,9 @@ import type {
   CreateAssemblyParams,
   Transloadit,
 } from 'transloadit'
-import JobsPromise from './JobsPromise.js'
-import type { IOutputCtl } from './OutputCtl.js'
+import JobsPromise from './JobsPromise.ts'
+import type { IOutputCtl } from './OutputCtl.ts'
+import { isErrnoException } from './types.ts'
 
 const require = createRequire(import.meta.url)
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -29,17 +30,9 @@ const nodeWatch: (
   on(event: string, listener: (...args: unknown[]) => void): void
 } = require('node-watch')
 
-// Extend stdin to have path property for mime-type detection
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace NodeJS {
-    interface ReadStream {
-      path: string
-    }
-  }
-}
 // workaround for determining mime-type of stdin
-;(process.stdin as NodeJS.ReadStream).path = '/dev/stdin'
+const stdinWithPath = process.stdin as unknown as { path: string }
+stdinWithPath.path = '/dev/stdin'
 
 interface OutStream extends Writable {
   path?: string
@@ -102,13 +95,13 @@ async function ensureDir(dir: string): Promise<void> {
   try {
     await fsp.mkdir(dir)
   } catch (err) {
-    const e = err as NodeJS.ErrnoException
-    if (e.code === 'EEXIST') {
+    if (!isErrnoException(err)) throw err
+    if (err.code === 'EEXIST') {
       const stats = await fsp.stat(dir)
       if (!stats.isDirectory()) throw err
       return
     }
-    if (e.code !== 'ENOENT') throw err
+    if (err.code !== 'ENOENT') throw err
 
     await ensureDir(path.dirname(dir))
     await fsp.mkdir(dir)
@@ -198,14 +191,20 @@ class ReaddirJobEmitter extends MyEventEmitter {
       }
 
       fs.readdir(dir, (err, files) => {
-        if (err != null) return this.emit('error', err)
+        if (err != null) {
+          this.emit('error', err)
+          return
+        }
 
         awaitCount += files.length
 
         for (const filename of files) {
           const file = path.normalize(path.join(dir, filename))
           fs.stat(file, (err, stats) => {
-            if (err != null) return this.emit('error', err)
+            if (err != null) {
+              this.emit('error', err)
+              return
+            }
 
             if (stats.isDirectory()) {
               if (recursive) {
@@ -299,7 +298,10 @@ class WatchJobEmitter extends MyEventEmitter {
     super()
 
     fs.stat(file, (err, stats) => {
-      if (err) return this.emit('error', err)
+      if (err) {
+        this.emit('error', err)
+        return
+      }
       const topdir = stats.isDirectory() ? file : undefined
 
       const watcher = nodeWatch(file, { recursive })
@@ -309,7 +311,10 @@ class WatchJobEmitter extends MyEventEmitter {
       watcher.on('change', (_evt: string, filename: string) => {
         const normalizedFile = path.normalize(filename)
         fs.stat(normalizedFile, (err, stats) => {
-          if (err) return this.emit('error', err)
+          if (err) {
+            this.emit('error', err)
+            return
+          }
           if (stats.isDirectory()) return
           const existing = streamRegistry[normalizedFile]
           if (existing) existing.end()
@@ -358,7 +363,12 @@ class ConcattedJobEmitter extends MyEventEmitter {
       emitter.on('end', () => this.emit('end'))
     } else {
       emitter.on('end', () => {
-        const restEmitter = new ConcattedJobEmitter(emitterFns[0]!, ...emitterFns.slice(1))
+        const firstFn = emitterFns[0]
+        if (!firstFn) {
+          this.emit('end')
+          return
+        }
+        const restEmitter = new ConcattedJobEmitter(firstFn, ...emitterFns.slice(1))
         restEmitter.on('error', (err: Error) => this.emit('error', err))
         restEmitter.on('job', (job: Job) => this.emit('job', job))
         restEmitter.on('end', () => this.emit('end'))
@@ -402,7 +412,10 @@ function dismissStaleJobs(jobEmitter: EventEmitter): MyEventEmitter {
   jobEmitter.on('end', () => jobsPromise.promise().then(() => emitter.emit('end')))
   jobEmitter.on('error', (err: Error) => emitter.emit('error', err))
   jobEmitter.on('job', (job: Job) => {
-    if (job.in == null || job.out == null) return emitter.emit('job', job)
+    if (job.in == null || job.out == null) {
+      emitter.emit('job', job)
+      return
+    }
 
     const inPath = (job.in as fs.ReadStream).path as string
     jobsPromise.add(
@@ -448,7 +461,10 @@ function makeJobEmitter(
       startEmitting()
     } else {
       fs.stat(input, (err, stats) => {
-        if (err != null) return emitter.emit('error', err)
+        if (err != null) {
+          emitter.emit('error', err)
+          return
+        }
         if (stats.isDirectory()) {
           emitterFns.push(
             () =>
@@ -546,8 +562,8 @@ export default function run(
       try {
         outstat = myStatSync(process.stdout, resolvedOutput)
       } catch (e) {
-        const err = e as NodeJS.ErrnoException
-        if (err.code !== 'ENOENT') throw e
+        if (!isErrnoException(e)) throw e
+        if (e.code !== 'ENOENT') throw e
         outstat = { isDirectory: () => false }
       }
 
@@ -644,8 +660,11 @@ export default function run(
 
               if (superceded) return resolve()
 
-              res.pipe(job.out!)
-              job.out?.on('finish', () => res.unpipe())
+              if (!job.out) {
+                return reject(new Error('Job output stream is undefined'))
+              }
+              res.pipe(job.out)
+              job.out.on('finish', () => res.unpipe())
               res.on('end', () => resolve())
             }).on('error', (err) => {
               outputctl.error(err.message)

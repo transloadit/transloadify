@@ -1,7 +1,7 @@
 import { promisify } from 'node:util'
 import { Transloadit as TransloaditClient } from 'transloadit'
 import { assert, describe, it } from 'vitest'
-import ModifiedLookup from '../../src/template-last-modified.js'
+import ModifiedLookup from '../../src/template-last-modified.ts'
 import 'dotenv/config'
 
 const authKey = process.env.TRANSLOADIT_KEY

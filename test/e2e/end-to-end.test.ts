@@ -1,5 +1,4 @@
 import { exec } from 'node:child_process'
-import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
@@ -7,17 +6,17 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { imageSize } from 'image-size'
 import rreaddir from 'recursive-readdir'
-import request from 'request'
 import { rimraf } from 'rimraf'
+import type { TemplateContent } from 'transloadit'
 import { Transloadit as TransloaditClient } from 'transloadit'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import * as assemblies from '../../src/assemblies.js'
-import assembliesCreate from '../../src/assemblies-create.js'
-import * as bills from '../../src/bills.js'
-import { zip } from '../../src/helpers.js'
-import * as notifications from '../../src/notifications.js'
-import * as templates from '../../src/templates.js'
-import OutputCtl from '../OutputCtl.js'
+import * as assemblies from '../../src/assemblies.ts'
+import assembliesCreate from '../../src/assemblies-create.ts'
+import * as bills from '../../src/bills.ts'
+import { zip } from '../../src/helpers.ts'
+import * as notifications from '../../src/notifications.ts'
+import * as templates from '../../src/templates.ts'
+import OutputCtl from '../OutputCtl.ts'
 import 'dotenv/config'
 
 const execAsync = promisify(exec)
@@ -172,7 +171,7 @@ describe('End-to-end', () => {
           name: 'original-name',
           template: {
             steps: { dummy: { robot: '/html/convert', url: 'https://example.com' } },
-          } as any,
+          } as TemplateContent,
         })
         templateId = response.id
       })
@@ -255,7 +254,7 @@ describe('End-to-end', () => {
                 name: `delete-test-${n}`,
                 template: {
                   steps: { dummy: { robot: '/html/convert', url: `https://example.com/${n}` } },
-                } as any,
+                } as TemplateContent,
               })
               return response.id
             }),
@@ -332,7 +331,7 @@ describe('End-to-end', () => {
             name: 'test-local-update-1',
             template: {
               steps: { dummy: { robot: '/html/convert', url: 'https://example.com/changed' } },
-            } as any,
+            } as TemplateContent,
           }
           const response = await client.createTemplate(params)
           const id = response.id
@@ -370,7 +369,7 @@ describe('End-to-end', () => {
             name: 'test-local-update-1',
             template: {
               steps: { dummy: { robot: '/html/convert', url: 'https://example.com/unchanged' } },
-            } as any,
+            } as TemplateContent,
           }
           const response = await client.createTemplate(params)
           const id = response.id
@@ -518,13 +517,14 @@ describe('End-to-end', () => {
       describe('create', () => {
         const genericImg = 'https://placehold.co/100.jpg'
 
-        function imgPromise(fname = 'in.jpg'): Promise<string> {
-          return new Promise((resolve, reject) => {
-            const req = request(genericImg)
-            req.pipe(fs.createWriteStream(fname))
-            req.on('error', reject)
-            req.on('end', () => resolve(fname))
-          })
+        async function imgPromise(fname = 'in.jpg'): Promise<string> {
+          const response = await fetch(genericImg)
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status}`)
+          }
+          const buffer = Buffer.from(await response.arrayBuffer())
+          await fsp.writeFile(fname, buffer)
+          return fname
         }
 
         const genericSteps = {

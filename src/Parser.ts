@@ -62,8 +62,11 @@ export default class Parser {
     if (!this._commands[field]) {
       this._commands[field] = []
     }
-    aliases.push(name)
-    this._commands[field]?.push({ name, aliases })
+    const cmds = this._commands[field]
+    if (cmds) {
+      aliases.push(name)
+      cmds.push({ name, aliases })
+    }
   }
 
   parse(argv?: string[] | null): ParseOutput {
@@ -81,10 +84,15 @@ export default class Parser {
   ): ParseOutput {
     if (args.length === 0) return { commands: cmds, options: opts, targets: tgts }
 
-    const arg = args.shift()!
+    const arg = args.shift()
+    if (arg === undefined) return { commands: cmds, options: opts, targets: tgts }
 
     if (arg === '--') {
-      while (args.length > 0) tgts.push(args.shift()!)
+      let next = args.shift()
+      while (next !== undefined) {
+        tgts.push(next)
+        next = args.shift()
+      }
       return this._parse(args, cmds, opts, tgts)
     }
 
@@ -121,7 +129,9 @@ export default class Parser {
       }
     }
 
-    const { hasArg } = this._longs[name]!
+    const longRecord = this._longs[name]
+    if (!longRecord) throw new Error('unexpected: long record not found')
+    const { hasArg } = longRecord
 
     if (!hasArg && value != null) {
       return {
@@ -150,7 +160,15 @@ export default class Parser {
       }
     }
 
-    opts.push({ name, value: args.shift()! })
+    const nextArg = args.shift()
+    if (nextArg === undefined) {
+      return {
+        error: 'MISSING_ARGUMENT',
+        option: name,
+        message: `no argument supplied: '${arg}'`,
+      }
+    }
+    opts.push({ name, value: nextArg })
     return this._parse(args, cmds, opts, tgts)
   }
 
@@ -163,8 +181,9 @@ export default class Parser {
   ): ParseOutput {
     const chars = Array.from(arg.slice(1))
 
-    do {
-      const opt = chars.shift()!
+    while (chars.length > 0) {
+      const opt = chars.shift()
+      if (opt === undefined) break
 
       if (!Object.hasOwn(this._shorts, opt)) {
         return {
@@ -174,33 +193,46 @@ export default class Parser {
         }
       }
 
-      const record = this._shorts[opt]!
+      const record = this._shorts[opt]
+      if (!record) throw new Error('unexpected: short record not found')
       const { long: name, hasArg } = record
-      if (!hasArg) opts.push({ name })
-      else {
-        if (chars.length === 0) {
-          if (args.length === 0) {
-            return {
-              error: 'MISSING_ARGUMENT',
-              option: name,
-              message: `no argument supplied: '${arg}'`,
-            }
-          }
-
-          opts.push({ name, value: args.shift()! })
-        } else {
-          opts.push({ name, value: chars.join('') })
-        }
-        break
+      if (!hasArg) {
+        opts.push({ name })
+        continue
       }
-    } while (chars.length > 0)
+
+      if (chars.length === 0) {
+        if (args.length === 0) {
+          return {
+            error: 'MISSING_ARGUMENT',
+            option: name,
+            message: `no argument supplied: '${arg}'`,
+          }
+        }
+
+        const nextArg = args.shift()
+        if (nextArg === undefined) {
+          return {
+            error: 'MISSING_ARGUMENT',
+            option: name,
+            message: `no argument supplied: '${arg}'`,
+          }
+        }
+        opts.push({ name, value: nextArg })
+      } else {
+        opts.push({ name, value: chars.join('') })
+      }
+      break
+    }
 
     return this._parse(args, cmds, opts, tgts)
   }
 
   private _isCommand(cmds: ParsedCommands, arg: string): boolean {
     for (const field in this._commands) {
-      for (const command of this._commands[field]!) {
+      const commands = this._commands[field]
+      if (!commands) continue
+      for (const command of commands) {
         if (command.aliases.indexOf(arg) !== -1) {
           if (field in cmds) return false
           return true
@@ -219,7 +251,9 @@ export default class Parser {
     tgts: string[],
   ): ParseOutput {
     for (const field in this._commands) {
-      for (const command of this._commands[field]!) {
+      const commands = this._commands[field]
+      if (!commands) continue
+      for (const command of commands) {
         if (command.aliases.indexOf(arg) !== -1) {
           cmds[field] = command.name
           return this._parse(args, cmds, opts, tgts)

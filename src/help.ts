@@ -1,5 +1,5 @@
 import type { Transloadit } from 'transloadit'
-import type { IOutputCtl } from './OutputCtl.js'
+import type { IOutputCtl } from './OutputCtl.ts'
 
 export interface HelpOptions {
   helpMode?: string
@@ -16,18 +16,27 @@ export default function help(
   _client: Transloadit | undefined,
   { helpMode: mode, helpAction: action }: HelpOptions,
 ): void {
-  if (!mode && action) return output.print(messages.default, null)
+  if (!mode && action) {
+    output.print(messages.default, null)
+    return
+  }
 
   let msg: string | MessagesMap = messages
   if (mode && typeof msg === 'object' && mode in msg) {
-    msg = msg[mode] as string | MessagesMap
+    const modeMsg = msg[mode]
+    if (typeof modeMsg === 'string' || typeof modeMsg === 'object') {
+      msg = modeMsg
+    }
   }
   if (action && typeof msg === 'object' && action in msg) {
-    msg = msg[action] as string | MessagesMap
+    const actionMsg = msg[action]
+    if (typeof actionMsg === 'string' || typeof actionMsg === 'object') {
+      msg = actionMsg
+    }
   }
   if (typeof msg === 'object') msg = msg.default
 
-  output.print((msg as string).slice(1), null)
+  output.print(msg.slice(1), null)
 }
 
 const register = `

@@ -24,7 +24,7 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noExplicitAny": "warn",
+        "noExplicitAny": "error",
         "noImplicitAnyLet": "error",
         "noConfusingVoidType": "error",
         "noAssignInExpressions": "error",
@@ -38,15 +38,15 @@
       },
       "correctness": {
         "noInvalidUseBeforeDeclaration": "error",
-        "noVoidTypeReturn": "warn"
+        "noVoidTypeReturn": "error"
       },
       "complexity": {
         "useLiteralKeys": "error",
         "noForEach": "error"
       },
       "style": {
-        "noNonNullAssertion": "warn",
-        "noNamespace": "warn",
+        "noNonNullAssertion": "error",
+        "noNamespace": "error",
         "noParameterAssign": "error",
         "noUnusedTemplateLiteral": "error",
         "useAsConstAssertion": "error",

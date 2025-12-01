@@ -1,5 +1,6 @@
 import type { Transloadit } from 'transloadit'
-import type { IOutputCtl } from './OutputCtl.js'
+import { z } from 'zod'
+import type { IOutputCtl } from './OutputCtl.ts'
 
 // Re-export transloadit types
 export type {
@@ -10,6 +11,52 @@ export type {
   TemplateResponse,
   Transloadit,
 } from 'transloadit'
+
+// Zod schemas for runtime validation
+export const APIErrorSchema = z.object({
+  error: z.string(),
+  message: z.string(),
+})
+export type APIError = z.infer<typeof APIErrorSchema>
+
+export const TransloaditAPIErrorSchema = z.object({
+  error: z.string().optional(),
+  message: z.string(),
+  code: z.string().optional(),
+  transloaditErrorCode: z.string().optional(),
+  response: z
+    .object({
+      body: z
+        .object({
+          error: z.string().optional(),
+        })
+        .optional(),
+      statusCode: z.number().optional(),
+    })
+    .optional(),
+})
+export type TransloaditAPIError = z.infer<typeof TransloaditAPIErrorSchema>
+
+// Template file data
+export const TemplateFileDataSchema = z
+  .object({
+    transloadit_template_id: z.string().optional(),
+    steps: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough()
+export type TemplateFileData = z.infer<typeof TemplateFileDataSchema>
+
+export interface TemplateFile {
+  file: string
+  data: TemplateFileData
+}
+
+// Template list item (from API)
+export interface TemplateListItem {
+  id: string
+  modified: string
+  name?: string
+}
 
 // CLI Invocation types
 export interface BaseInvocation {
@@ -91,35 +138,43 @@ export type CommandHandler<T extends BaseInvocation = BaseInvocation> = (
   invocation: T,
 ) => void | Promise<void>
 
-// API Error type
-export interface TransloaditAPIError extends Error {
-  error?: string
-  message: string
-  code?: string
-  transloaditErrorCode?: string
-  response?: {
-    body?: {
-      error?: string
-    }
-    statusCode?: number
+// Type guard for Error
+export function isError(value: unknown): value is Error {
+  return value instanceof Error
+}
+
+// Helper to ensure error is Error type
+export function ensureError(value: unknown): Error {
+  if (value instanceof Error) {
+    return value
   }
+  return new Error(`Non-error was thrown: ${String(value)}`)
 }
 
-// Template file data
-export interface TemplateFileData {
-  transloadit_template_id?: string
-  steps?: Record<string, unknown>
-  [key: string]: unknown
+// Type guard for APIError
+export function isAPIError(value: unknown): value is APIError {
+  return APIErrorSchema.safeParse(value).success
 }
 
-export interface TemplateFile {
-  file: string
-  data: TemplateFileData
+// Type guard for TransloaditAPIError
+export function isTransloaditAPIError(value: unknown): value is TransloaditAPIError {
+  return TransloaditAPIErrorSchema.safeParse(value).success
 }
 
-// Template list item (from API)
-export interface TemplateListItem {
-  id: string
-  modified: string
-  name?: string
+// Type guard for NodeJS.ErrnoException
+export function isErrnoException(value: unknown): value is NodeJS.ErrnoException {
+  return value instanceof Error && 'code' in value
+}
+
+// Safe array access helper
+export function safeGet<T>(arr: T[], index: number): T | undefined {
+  return arr[index]
+}
+
+// Assert defined helper
+export function assertDefined<T>(value: T | undefined | null, message: string): T {
+  if (value === undefined || value === null) {
+    throw new Error(message)
+  }
+  return value
 }
