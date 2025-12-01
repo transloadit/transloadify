@@ -1,5 +1,9 @@
 .DS_Store
-.yarn
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
 env.sh
 examples/output
 lib/
