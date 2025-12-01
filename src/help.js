@@ -1,4 +1,4 @@
-export default function help(output, client, { helpMode: mode, helpAction: action }) {
+export default function help(output, _client, { helpMode: mode, helpAction: action }) {
   if (!mode && action) return output.print(messages.default)
 
   let msg = messages

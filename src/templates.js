@@ -6,7 +6,7 @@ import { createReadStream, formatAPIError, inSequence, stream2buf } from './help
 import ModifiedLookup from './template-last-modified.js'
 
 export function create(output, client, { name, file }) {
-  let deferred = Q.defer()
+  const deferred = Q.defer()
 
   stream2buf(createReadStream(file), (err, buf) => {
     if (err) {
@@ -30,9 +30,9 @@ export function create(output, client, { name, file }) {
 }
 
 export function get(output, client, { templates }) {
-  let deferred = Q.defer()
+  const deferred = Q.defer()
 
-  let requests = templates.map((template) => {
+  const requests = templates.map((template) => {
     return Q.resolve(client.getTemplate(template))
   })
 
@@ -51,7 +51,7 @@ export function get(output, client, { templates }) {
 }
 
 export function modify(output, client, { template, name, file }) {
-  let deferred = Q.defer()
+  const deferred = Q.defer()
 
   stream2buf(createReadStream(file), (err, buf) => {
     if (err) {
@@ -59,7 +59,7 @@ export function modify(output, client, { template, name, file }) {
       return Q.reject(err)
     }
 
-    let promise =
+    const promise =
       name && buf.length !== 0
         ? Q.fcall(() => ({ name, json: buf.toString() }))
         : Q.resolve(client.getTemplate(template)).then((template) => ({
@@ -98,7 +98,7 @@ function _delete(output, client, { templates }) {
 export { _delete as delete }
 
 export function list(output, client, { before, after, order, sort, fields }) {
-  let stream = client.streamTemplates({
+  const stream = client.streamTemplates({
     todate: before,
     fromdate: after,
     order,
@@ -107,7 +107,7 @@ export function list(output, client, { before, after, order, sort, fields }) {
   })
 
   stream.on('readable', () => {
-    let template = stream.read()
+    const template = stream.read()
     if (template == null) return
 
     if (fields == null) {
@@ -126,7 +126,7 @@ export function sync(output, client, { files, recursive }) {
   const flatten = Function.prototype.apply.bind(Array.prototype.concat, [])
 
   // Promise [String] -- all files in the directory tree
-  let relevantFiles = Q.all(
+  const relevantFiles = Q.all(
     files.map((file) =>
       Q.Promise((resolve, reject) => {
         fs.stat(file, (err, stats) => {
@@ -161,7 +161,7 @@ export function sync(output, client, { files, recursive }) {
   ).then(flatten)
 
   // Promise [{ file: String, data: JSON }] -- all templates
-  let templates = relevantFiles.then((files) =>
+  const templates = relevantFiles.then((files) =>
     Q.all(files.map(templateFileOrNull)).then((maybeFiles) =>
       maybeFiles.filter((maybeFile) => maybeFile !== null),
     ),
@@ -179,8 +179,8 @@ export function sync(output, client, { files, recursive }) {
       })
   }
 
-  let modified = new ModifiedLookup(client)
-  let complete = templates.then((templates) =>
+  const modified = new ModifiedLookup(client)
+  const complete = templates.then((templates) =>
     Q.all(
       templates.map((template) => {
         if (!('steps' in template.data)) {
@@ -193,9 +193,11 @@ export function sync(output, client, { files, recursive }) {
 
         if (!template.data.transloadit_template_id) return upload(template)
 
-        let fileModified = Q.nfcall(fs.stat, template.file).then((stats) => stats.mtime)
+        const fileModified = Q.nfcall(fs.stat, template.file).then((stats) => stats.mtime)
 
-        let templateModified = Q.resolve(client.getTemplate(template.data.transloadit_template_id))
+        const templateModified = Q.resolve(
+          client.getTemplate(template.data.transloadit_template_id),
+        )
           .then(() => Q.nfcall(modified.byId.bind(modified), template.data.transloadit_template_id))
           .fail((err) => {
             // Check for 404. SDK v4 throws HTTPError.
@@ -218,7 +220,7 @@ export function sync(output, client, { files, recursive }) {
 
   function upload(template) {
     return new Promise((resolve, reject) => {
-      let params = {
+      const params = {
         name: path.basename(template.file, '.json'),
         template: JSON.stringify(template.data.steps),
       }
@@ -251,7 +253,7 @@ export function sync(output, client, { files, recursive }) {
         .getTemplate(template.data.transloadit_template_id)
         .then((result) => {
           template.data.steps = result.content
-          let file = path.join(path.dirname(template.file), result.name + '.json')
+          const file = path.join(path.dirname(template.file), `${result.name}.json`)
 
           fs.writeFile(template.file, JSON.stringify(template.data), (err) => {
             if (err) return reject(err)

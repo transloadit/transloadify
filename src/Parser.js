@@ -9,19 +9,22 @@ export default class Parser {
   }
 
   register(long, short, hasArg) {
-    let record = { long, short, hasArg }
+    const record = { long, short, hasArg }
     this._opts.push(record)
     this._longs[long] = record
     if (short) this._shorts[short] = record
   }
 
   command(field, name, ...aliases) {
-    this._commands[field] || (this._commands[field] = [])
+    if (!this._commands[field]) {
+      this._commands[field] = []
+    }
     aliases.push(name)
     this._commands[field].push({ name, aliases })
   }
 
-  parse(args) {
+  parse(argv) {
+    let args = argv
     if (args == null) args = Array.from(process.argv.slice(2))
 
     return this._parse(args, {}, [], [])
@@ -30,7 +33,7 @@ export default class Parser {
   _parse(args, cmds, opts, tgts) {
     if (args.length === 0) return { commands: cmds, options: opts, targets: tgts }
 
-    let arg = args.shift()
+    const arg = args.shift()
 
     if (arg === '--') {
       while (args.length > 0) tgts.push(args.shift())
@@ -47,14 +50,15 @@ export default class Parser {
   }
 
   _parseLong(arg, args, cmds, opts, tgts) {
-    let name, value
-    arg.replace(/^--([^=]*)(?:=([\s\S]*))?$/, ($0, $1, $2) => {
+    let name
+    let value
+    arg.replace(/^--([^=]*)(?:=([\s\S]*))?$/, (_$0, $1, $2) => {
       name = $1
       value = $2
     })
     if (name == null) throw new Error('failed parsing long argument')
 
-    if (!this._longs.hasOwnProperty(name)) {
+    if (!Object.hasOwn(this._longs, name)) {
       return {
         error: 'INVALID_OPTION',
         option: name,
@@ -62,7 +66,7 @@ export default class Parser {
       }
     }
 
-    let { hasArg } = this._longs[name]
+    const { hasArg } = this._longs[name]
 
     if (!hasArg && value != null) {
       return {
@@ -96,12 +100,12 @@ export default class Parser {
   }
 
   _parseShort(arg, args, cmds, opts, tgts) {
-    let chars = Array.from(arg.slice(1))
+    const chars = Array.from(arg.slice(1))
 
     do {
-      let opt = chars.shift()
+      const opt = chars.shift()
 
-      if (!this._shorts.hasOwnProperty(opt)) {
+      if (!Object.hasOwn(this._shorts, opt)) {
         return {
           error: 'INVALID_OPTION',
           option: opt,
@@ -109,7 +113,7 @@ export default class Parser {
         }
       }
 
-      let { long: name, hasArg } = this._shorts[opt]
+      const { long: name, hasArg } = this._shorts[opt]
       if (!hasArg) opts.push({ name })
       else {
         if (chars.length === 0) {
@@ -133,8 +137,8 @@ export default class Parser {
   }
 
   _isCommand(cmds, arg) {
-    for (let field in this._commands) {
-      for (let command of this._commands[field]) {
+    for (const field in this._commands) {
+      for (const command of this._commands[field]) {
         if (command.aliases.indexOf(arg) !== -1) {
           if (field in cmds) return false
           return true
@@ -146,8 +150,8 @@ export default class Parser {
   }
 
   _parseCommand(arg, args, cmds, opts, tgts) {
-    for (let field in this._commands) {
-      for (let command of this._commands[field]) {
+    for (const field in this._commands) {
+      for (const command of this._commands[field]) {
         if (command.aliases.indexOf(arg) !== -1) {
           cmds[field] = command.name
           return this._parse(args, cmds, opts, tgts)

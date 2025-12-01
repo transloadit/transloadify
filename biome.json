@@ -16,7 +16,52 @@
     "useEditorconfig": true,
     "includes": ["**", "!**/lib/", "!**/node_modules/"]
   },
-  "linter": { "enabled": true, "rules": { "recommended": false } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noImplicitAnyLet": "error",
+        "noConfusingVoidType": "error",
+        "noAssignInExpressions": "error",
+        "noArrayIndexKey": "error",
+        "noShadowRestrictedNames": "error",
+        "noExportsInTest": "error",
+        "noDuplicateTestHooks": "error",
+        "useIterableCallbackReturn": "error",
+        "noTemplateCurlyInString": "off",
+        "useAwait": "error"
+      },
+      "correctness": {
+        "noInvalidUseBeforeDeclaration": "error"
+      },
+      "complexity": {
+        "useLiteralKeys": "error",
+        "noForEach": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "noParameterAssign": "error",
+        "noUnusedTemplateLiteral": "error",
+        "useAsConstAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useEnumInitializers": "error",
+        "useSingleVarDeclarator": "error",
+        "useNumberNamespace": "error",
+        "noInferrableTypes": "error",
+        "noUselessElse": "error",
+        "noNamespace": "error",
+        "useImportType": {
+          "level": "error",
+          "options": {
+            "style": "separatedType"
+          }
+        },
+        "useNodejsImportProtocol": "error"
+      }
+    }
+  },
   "javascript": {
     "formatter": {
       "jsxQuoteStyle": "double",
@@ -30,11 +75,9 @@
       "bracketSpacing": true
     }
   },
-  "html": {
-    "formatter": {
-      "indentScriptAndStyle": false,
-      "selfCloseVoidElements": "always"
-    }
+  "assist": {
+    "enabled": true,
+    "actions": { "source": { "organizeImports": "on" } }
   },
   "overrides": [
     {
@@ -46,9 +89,5 @@
       "javascript": { "formatter": { "quoteStyle": "double" } },
       "formatter": { "lineWidth": 80 }
     }
-  ],
-  "assist": {
-    "enabled": true,
-    "actions": { "source": { "organizeImports": "on" } }
-  }
+  ]
 }

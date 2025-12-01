@@ -2,17 +2,17 @@ import fs from 'node:fs'
 
 export function createReadStream(file) {
   if (file === '-') return process.stdin
-  else return fs.createReadStream(file)
+  return fs.createReadStream(file)
 }
 
 export function stream2buf(stream, cb) {
   let size = 0
-  let bufs = []
+  const bufs = []
 
   stream.on('error', cb)
 
   stream.on('readable', () => {
-    let chunk = stream.read()
+    const chunk = stream.read()
     if (chunk === null) return
 
     size += chunk.length
@@ -20,10 +20,10 @@ export function stream2buf(stream, cb) {
   })
 
   stream.on('end', () => {
-    let buf = new Buffer(size)
+    const buf = new Buffer(size)
     let offset = 0
 
-    for (let b of bufs) {
+    for (const b of bufs) {
       b.copy(buf, offset)
       offset += b.length
     }
@@ -49,8 +49,8 @@ export function formatAPIError(err) {
 }
 
 export function zip(...lists) {
-  let length = Math.max(...lists.map((list) => list.length))
-  let result = new Array(length)
+  const length = Math.max(...lists.map((list) => list.length))
+  const result = new Array(length)
   for (let i = 0; i < result.length; i++) result[i] = lists.map((list) => list[i])
   return result
 }

@@ -8,9 +8,9 @@ import * as notifications from './notifications.js'
 import OutputCtl from './OutputCtl.js'
 import * as templates from './templates.js'
 
-let invocation = cli()
+const invocation = cli()
 
-let output = new OutputCtl(invocation)
+const output = new OutputCtl(invocation)
 
 if (invocation.error) {
   output.error(invocation.message)

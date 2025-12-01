@@ -29,21 +29,21 @@ if (!authKey || !authSecret) {
   process.exit(1)
 }
 
-let testno = 0
+const _testno = 0
 
-process.setMaxListeners(Infinity)
+process.setMaxListeners(Number.POSITIVE_INFINITY)
 
 function testCase(cb) {
-  let cwd = process.cwd()
+  const cwd = process.cwd()
   return () => {
-    let dirname = path.join(
+    const dirname = path.join(
       tmpDir,
       `transloadify_test-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
     )
-    let client = new TransloaditClient({ authKey, authSecret })
+    const client = new TransloaditClient({ authKey, authSecret })
     return Q.nfcall(fs.mkdir, dirname)
       .then(() => {
-        for (let evt of ['exit', 'SIGINT', 'uncaughtException']) {
+        for (const evt of ['exit', 'SIGINT', 'uncaughtException']) {
           process.on(evt, () => {
             try {
               rimraf.sync(dirname)
@@ -63,14 +63,14 @@ function testCase(cb) {
   }
 }
 
-describe('End-to-end', function () {
-  describe('templates', function () {
-    describe('create', function () {
+describe('End-to-end', () => {
+  describe('templates', () => {
+    describe('create', () => {
       it(
         'should create templates',
         testCase((client) => {
-          let executions = [1, 2, 3, 4, 5].map((n) => {
-            let output = new OutputCtl()
+          const executions = [1, 2, 3, 4, 5].map((n) => {
+            const output = new OutputCtl()
             // Make a file with the template contents
             return (
               Q.nfcall(fs.writeFile, `${n}.json`, JSON.stringify({ testno: n }))
@@ -104,12 +104,12 @@ describe('End-to-end', function () {
       )
     })
 
-    describe('get', function () {
+    describe('get', () => {
       it(
         'should get templates',
         testCase((client) => {
           // get some valid template IDs to request
-          let templateRequests = client
+          const templateRequests = client
             .listTemplates({ pagesize: 5 })
             .then((response) => response.items)
             .then((templates) => {
@@ -117,7 +117,7 @@ describe('End-to-end', function () {
               return templates
             })
 
-          let sdkResults = templateRequests.then((ts) => {
+          const sdkResults = templateRequests.then((ts) => {
             return Q.all(
               ts.map((template) => {
                 return client.getTemplate(template.id)
@@ -125,10 +125,10 @@ describe('End-to-end', function () {
             )
           })
 
-          let transloadifyResults = templateRequests.then((ts) => {
+          const transloadifyResults = templateRequests.then((ts) => {
             return Q.all(
               ts.map((template) => {
-                let output = new OutputCtl()
+                const output = new OutputCtl()
                 return templates
                   .get(output, client, { templates: [template.id] })
                   .then(() => output.get())
@@ -142,6 +142,7 @@ describe('End-to-end', function () {
                 expect(actual).to.have.lengthOf(1)
                 expect(actual).to.have.nested.property('[0].type').that.equals('print')
                 expect(actual).to.have.nested.property('[0].json').that.deep.equals(expectation)
+                return null
               }),
             )
           })
@@ -151,7 +152,7 @@ describe('End-to-end', function () {
       it(
         'should return templates in the order specified',
         testCase((client) => {
-          let templateRequests = client
+          const templateRequests = client
             .listTemplates({ pagesize: 5 })
             .then((response) => response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1))
             .then((templates) => {
@@ -159,12 +160,12 @@ describe('End-to-end', function () {
               return templates
             })
 
-          let idsPromise = templateRequests.then((templates) =>
+          const idsPromise = templateRequests.then((templates) =>
             templates.map((template) => template.id),
           )
 
-          let resultsPromise = idsPromise.then((ids) => {
-            let output = new OutputCtl()
+          const resultsPromise = idsPromise.then((ids) => {
+            const output = new OutputCtl()
             return templates.get(output, client, { templates: ids }).then(() => output.get())
           })
 
@@ -174,6 +175,7 @@ describe('End-to-end', function () {
               zip(results, ids).map(([result, id]) => {
                 expect(result).to.have.property('type').that.equals('print')
                 expect(result).to.have.nested.property('json.id').that.equals(id)
+                return null
               }),
             )
           })
@@ -181,11 +183,11 @@ describe('End-to-end', function () {
       )
     })
 
-    describe('modify', function () {
+    describe('modify', () => {
       let templateId
 
-      beforeAll(function () {
-        let client = new TransloaditClient({ authKey, authSecret })
+      beforeAll(() => {
+        const client = new TransloaditClient({ authKey, authSecret })
         return client
           .createTemplate({
             name: 'original-name',
@@ -199,10 +201,10 @@ describe('End-to-end', function () {
       it(
         'should modify but not rename the template',
         testCase((client) => {
-          let filePromise = Q.nfcall(fs.writeFile, 'template.json', JSON.stringify({ stage: 1 }))
+          const filePromise = Q.nfcall(fs.writeFile, 'template.json', JSON.stringify({ stage: 1 }))
 
-          let resultPromise = filePromise.then(() => {
-            let output = new OutputCtl()
+          const resultPromise = filePromise.then(() => {
+            const output = new OutputCtl()
             return templates
               .modify(output, client, {
                 template: templateId,
@@ -226,10 +228,10 @@ describe('End-to-end', function () {
       it(
         'should not modify but rename the template',
         testCase((client) => {
-          let filePromise = Q.nfcall(fs.writeFile, 'template.json', '')
+          const filePromise = Q.nfcall(fs.writeFile, 'template.json', '')
 
-          let resultPromise = filePromise.then(() => {
-            let output = new OutputCtl()
+          const resultPromise = filePromise.then(() => {
+            const output = new OutputCtl()
             return templates
               .modify(output, client, {
                 template: templateId,
@@ -254,10 +256,10 @@ describe('End-to-end', function () {
       it(
         'should modify and rename the template',
         testCase((client) => {
-          let filePromise = Q.nfcall(fs.writeFile, 'template.json', JSON.stringify({ stage: 2 }))
+          const filePromise = Q.nfcall(fs.writeFile, 'template.json', JSON.stringify({ stage: 2 }))
 
-          let resultPromise = filePromise.then(() => {
-            let output = new OutputCtl()
+          const resultPromise = filePromise.then(() => {
+            const output = new OutputCtl()
             return templates
               .modify(output, client, {
                 template: templateId,
@@ -279,17 +281,17 @@ describe('End-to-end', function () {
         }),
       )
 
-      afterAll(function () {
-        let client = new TransloaditClient({ authKey, authSecret })
+      afterAll(() => {
+        const client = new TransloaditClient({ authKey, authSecret })
         return client.deleteTemplate(templateId)
       })
     })
 
-    describe('delete', function () {
+    describe('delete', () => {
       it(
         'should delete templates',
         testCase((client) => {
-          let templateIdsPromise = Q.all(
+          const templateIdsPromise = Q.all(
             [1, 2, 3, 4, 5].map((n) => {
               return client
                 .createTemplate({
@@ -300,8 +302,8 @@ describe('End-to-end', function () {
             }),
           )
 
-          let resultPromise = templateIdsPromise.then((ids) => {
-            let output = new OutputCtl()
+          const resultPromise = templateIdsPromise.then((ids) => {
+            const output = new OutputCtl()
             return templates.delete(output, client, { templates: ids }).then(() => output.get())
           })
 
@@ -316,9 +318,7 @@ describe('End-to-end', function () {
                   })
                   .catch((err) => {
                     const errorCode =
-                      err.code ||
-                      err.transloaditErrorCode ||
-                      (err.response && err.response.body && err.response.body.error)
+                      err.code || err.transloaditErrorCode || err.response?.body?.error
                     if (errorCode !== 'TEMPLATE_NOT_FOUND') {
                       console.error('Delete failed with unexpected error:', err, 'Code:', errorCode)
                       throw err
@@ -331,24 +331,24 @@ describe('End-to-end', function () {
       )
     })
 
-    describe('sync', function () {
+    describe('sync', () => {
       it(
         'should handle directories recursively',
         testCase((client) => {
-          let templateIdsPromise = client
+          const templateIdsPromise = client
             .listTemplates({
               pagesize: 5,
             })
             .then((response) => response.items.map((item) => ({ id: item.id, name: item.name })))
 
-          let filesPromise = templateIdsPromise.then((ids) => {
+          const filesPromise = templateIdsPromise.then((ids) => {
             let dirname = 'd'
             let promise = Q.fcall(() => {})
 
             return Q.all(
               ids.map(({ id, name }) => {
-                return (promise = promise.then(() => {
-                  let fname = path.join(dirname, `${name}.json`)
+                promise = promise.then(() => {
+                  const fname = path.join(dirname, `${name}.json`)
                   return Q.nfcall(fs.mkdir, dirname)
                     .then(() =>
                       Q.nfcall(fs.writeFile, fname, `{"transloadit_template_id":"${id}"}`),
@@ -357,13 +357,14 @@ describe('End-to-end', function () {
                       dirname = path.join(dirname, 'd')
                     })
                     .then(() => fname)
-                }))
+                })
+                return promise
               }),
             )
           })
 
-          let resultPromise = filesPromise.then((files) => {
-            let output = new OutputCtl()
+          const resultPromise = filesPromise.then((_files) => {
+            const output = new OutputCtl()
             return templates
               .sync(output, client, { recursive: true, files: ['d'] })
               .then(() => output.get())
@@ -373,7 +374,7 @@ describe('End-to-end', function () {
             [resultPromise, templateIdsPromise, filesPromise],
             (result, ids, files) => {
               expect(result).to.have.lengthOf(0)
-              let fileContentsPromise = Q.all(
+              const fileContentsPromise = Q.all(
                 files.map((file) => Q.nfcall(fs.readFile, file).then(JSON.parse)),
               )
               return fileContentsPromise.then((contents) => {
@@ -381,6 +382,7 @@ describe('End-to-end', function () {
                   zip(contents, ids).map(([content, id]) => {
                     expect(content).to.have.property('transloadit_template_id').that.equals(id.id)
                     expect(content).to.have.property('steps')
+                    return null
                   }),
                 )
               })
@@ -392,14 +394,14 @@ describe('End-to-end', function () {
       it(
         'should update local files when outdated',
         testCase((client) => {
-          let params = {
+          const params = {
             name: 'test-local-update-1',
             template: JSON.stringify({ changed: true }),
           }
-          let templateIdPromise = client.createTemplate(params).then((response) => response.id)
+          const templateIdPromise = client.createTemplate(params).then((response) => response.id)
 
-          let filePromise = templateIdPromise.then((id) => {
-            let fname = `${params.name}.json`
+          const filePromise = templateIdPromise.then((id) => {
+            const fname = `${params.name}.json`
             return Q.nfcall(
               fs.writeFile,
               fname,
@@ -412,8 +414,8 @@ describe('End-to-end', function () {
               .then(() => fname)
           })
 
-          let resultPromise = filePromise.then((fname) => {
-            let output = new OutputCtl()
+          const resultPromise = filePromise.then((fname) => {
+            const output = new OutputCtl()
             return templates.sync(output, client, { files: [fname] }).then(() => output.get())
           })
 
@@ -438,14 +440,14 @@ describe('End-to-end', function () {
       it(
         'should update remote template when outdated',
         testCase((client) => {
-          let params = {
+          const params = {
             name: 'test-local-update-1',
             template: JSON.stringify({ changed: false }),
           }
-          let templateIdPromise = client.createTemplate(params).then((response) => response.id)
+          const templateIdPromise = client.createTemplate(params).then((response) => response.id)
 
-          let filePromise = templateIdPromise.then((id) => {
-            let fname = `${params.name}.json`
+          const filePromise = templateIdPromise.then((id) => {
+            const fname = `${params.name}.json`
             return Q.nfcall(
               fs.writeFile,
               fname,
@@ -458,8 +460,8 @@ describe('End-to-end', function () {
               .then(() => fname)
           })
 
-          let resultPromise = filePromise.then((fname) => {
-            let output = new OutputCtl()
+          const resultPromise = filePromise.then((fname) => {
+            const output = new OutputCtl()
             return templates.sync(output, client, { files: [fname] }).then(() => output.get())
           })
 
@@ -483,13 +485,13 @@ describe('End-to-end', function () {
     })
   })
 
-  describe('assemblies', function () {
-    describe('get', function () {
+  describe('assemblies', () => {
+    describe('get', () => {
       it(
         'should get assemblies',
         testCase((client) => {
           // get some valid assembly IDs to request
-          let assemblyRequests = client
+          const assemblyRequests = client
             .listAssemblies({
               pagesize: 5,
               type: 'completed',
@@ -500,7 +502,7 @@ describe('End-to-end', function () {
               return assemblies
             })
 
-          let sdkResults = assemblyRequests.then((as) => {
+          const sdkResults = assemblyRequests.then((as) => {
             return Q.all(
               as.map((assembly) => {
                 return client.getAssembly(assembly.id)
@@ -508,10 +510,10 @@ describe('End-to-end', function () {
             )
           })
 
-          let transloadifyResults = assemblyRequests.then((as) => {
+          const transloadifyResults = assemblyRequests.then((as) => {
             return Q.all(
               as.map((assembly) => {
-                let output = new OutputCtl()
+                const output = new OutputCtl()
                 return assemblies
                   .get(output, client, { assemblies: [assembly.id] })
                   .then(() => output.get())
@@ -525,6 +527,7 @@ describe('End-to-end', function () {
                 expect(actual).to.have.lengthOf(1)
                 expect(actual).to.have.nested.property('[0].type').that.equals('print')
                 expect(actual).to.have.nested.property('[0].json').that.deep.equals(expectation)
+                return null
               }),
             )
           })
@@ -534,7 +537,7 @@ describe('End-to-end', function () {
       it(
         'should return assemblies in the order specified',
         testCase((client) => {
-          let assemblyRequests = client
+          const assemblyRequests = client
             .listAssemblies({ pagesize: 5 })
             .then((response) => response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1))
             .then((assemblies) => {
@@ -542,12 +545,12 @@ describe('End-to-end', function () {
               return assemblies
             })
 
-          let idsPromise = assemblyRequests.then((assemblies) =>
+          const idsPromise = assemblyRequests.then((assemblies) =>
             assemblies.map((assembly) => assembly.id),
           )
 
-          let resultsPromise = idsPromise.then((ids) => {
-            let output = new OutputCtl()
+          const resultsPromise = idsPromise.then((ids) => {
+            const output = new OutputCtl()
             return assemblies.get(output, client, { assemblies: ids }).then(() => output.get())
           })
 
@@ -563,18 +566,19 @@ describe('End-to-end', function () {
               zip(results, ids).map(([result, id]) => {
                 expect(result).to.have.property('type').that.equals('print')
                 expect(result).to.have.nested.property('json.assembly_id').that.equals(id)
+                return null
               }),
             )
           })
         }),
       )
-      describe('list', function () {
+      describe('list', () => {
         it(
           'should list assemblies',
           testCase((client) => {
-            let output = new OutputCtl()
+            const output = new OutputCtl()
             return assemblies.list(output, client, { pagesize: 1 }).then(() => {
-              let logs = output.get()
+              const logs = output.get()
               // Should have at least some output if there are assemblies, or none if empty.
               // We can't guarantee assemblies exist, but we can check if it ran without error.
               // Actually, previous tests likely created assemblies.
@@ -585,19 +589,19 @@ describe('End-to-end', function () {
         )
       })
 
-      describe('delete', function () {
+      describe('delete', () => {
         it(
           'should delete assemblies',
           testCase((client) => {
             // Create an assembly to delete
-            let createPromise = client.createAssembly({
+            const createPromise = client.createAssembly({
               params: {
                 steps: { import: { robot: '/http/import', url: 'https://placehold.co/100.jpg' } },
               },
             })
 
             return createPromise.then((assembly) => {
-              let output = new OutputCtl()
+              const output = new OutputCtl()
               return assemblies
                 .delete(output, client, { assemblies: [assembly.assembly_id] })
                 .then(() => {
@@ -616,23 +620,23 @@ describe('End-to-end', function () {
         )
       })
 
-      describe('replay', function () {
+      describe('replay', () => {
         it(
           'should replay assemblies',
           testCase((client) => {
             // Create an assembly to replay
-            let createPromise = client.createAssembly({
+            const createPromise = client.createAssembly({
               params: {
                 steps: { import: { robot: '/http/import', url: 'https://placehold.co/100.jpg' } },
               },
             })
 
             return createPromise.then((assembly) => {
-              let output = new OutputCtl()
+              const output = new OutputCtl()
               return assemblies
                 .replay(output, client, { assemblies: [assembly.assembly_id], steps: null })
                 .then(() => {
-                  let logs = output.get()
+                  const logs = output.get()
                   expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
                 })
             })
@@ -640,11 +644,11 @@ describe('End-to-end', function () {
         )
       })
 
-      describe('create', function () {
+      describe('create', () => {
         const genericImg = 'https://placehold.co/100.jpg'
         function imgPromise(fname = 'in.jpg') {
           return Q.Promise((resolve, reject) => {
-            let req = request(genericImg)
+            const req = request(genericImg)
             req.pipe(fs.createWriteStream(fname))
             req.on('error', reject)
             req.on('end', () => resolve(fname))
@@ -660,7 +664,7 @@ describe('End-to-end', function () {
             height: 130,
           },
         }
-        function stepsPromise(fname = 'steps.json', steps = genericSteps) {
+        function stepsPromise(_fname = 'steps.json', steps = genericSteps) {
           return Q.nfcall(fs.writeFile, 'steps.json', JSON.stringify(steps)).then(
             () => 'steps.json',
           )
@@ -669,11 +673,11 @@ describe('End-to-end', function () {
         it(
           'should transcode a file',
           testCase((client) => {
-            let inFilePromise = imgPromise()
-            let stepsFilePromise = stepsPromise()
+            const inFilePromise = imgPromise()
+            const stepsFilePromise = stepsPromise()
 
-            let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
-              let output = new OutputCtl()
+            const resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
+              const output = new OutputCtl()
               return assembliesCreate(output, client, {
                 steps,
                 inputs: [infile],
@@ -704,14 +708,14 @@ describe('End-to-end', function () {
         it(
           'should handle multiple inputs',
           testCase((client) => {
-            let inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
-            let stepsFilePromise = stepsPromise()
-            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            const inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
+            const stepsFilePromise = stepsPromise()
+            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
 
-            let resultPromise = Q.spread(
+            const resultPromise = Q.spread(
               [inFilesPromise, stepsFilePromise, outdirPromise],
               (infiles, steps) => {
-                let output = new OutputCtl()
+                const output = new OutputCtl()
                 return assembliesCreate(output, client, {
                   steps,
                   inputs: infiles,
@@ -720,7 +724,7 @@ describe('End-to-end', function () {
               },
             )
 
-            return resultPromise.then((result) => {
+            return resultPromise.then((_result) => {
               return Q.nfcall(fs.readdir, 'out').then((outs) => {
                 expect(outs).to.have.property(0).that.equals('in1.jpg')
                 expect(outs).to.have.property(1).that.equals('in2.jpg')
@@ -736,14 +740,14 @@ describe('End-to-end', function () {
           testCase((client) => {
             return Q.nfcall(fs.mkdir, 'sub').then(() => {
               process.chdir('sub')
-              let inFilePromise = imgPromise('../in.jpg')
-              let outdirPromise = Q.nfcall(fs.mkdir, 'out')
-              let stepsFilePromise = stepsPromise()
+              const inFilePromise = imgPromise('../in.jpg')
+              const outdirPromise = Q.nfcall(fs.mkdir, 'out')
+              const stepsFilePromise = stepsPromise()
 
-              let resultPromise = Q.spread(
+              const resultPromise = Q.spread(
                 [inFilePromise, stepsFilePromise, outdirPromise],
                 (infile, steps) => {
-                  let output = new OutputCtl()
+                  const output = new OutputCtl()
                   return assembliesCreate(output, client, {
                     steps,
                     inputs: [infile],
@@ -752,13 +756,13 @@ describe('End-to-end', function () {
                 },
               )
 
-              return resultPromise.then((result) => {
-                let outcheck = Q.nfcall(fs.readdir, 'out').then((outs) => {
+              return resultPromise.then((_result) => {
+                const outcheck = Q.nfcall(fs.readdir, 'out').then((outs) => {
                   expect(outs).to.have.property(0).that.equals('in.jpg')
                   expect(outs).to.have.lengthOf(1)
                 })
 
-                let pwdcheck = Q.nfcall(fs.readdir, '.').then((ls) => {
+                const pwdcheck = Q.nfcall(fs.readdir, '.').then((ls) => {
                   expect(ls).to.not.contain('in.jpg')
                 })
 
@@ -771,17 +775,17 @@ describe('End-to-end', function () {
         it(
           'should structure output directory correctly',
           testCase((client) => {
-            let indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
-            let inFilesPromise = indirPromise.then(() => {
+            const indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
+            const inFilesPromise = indirPromise.then(() => {
               return Q.all(['1.jpg', 'in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
             })
-            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
-            let stepsFilePromise = stepsPromise()
+            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            const stepsFilePromise = stepsPromise()
 
-            let resultPromise = Q.spread(
+            const resultPromise = Q.spread(
               [stepsFilePromise, inFilesPromise, outdirPromise],
               (steps) => {
-                let output = new OutputCtl()
+                const output = new OutputCtl()
                 return assembliesCreate(output, client, {
                   recursive: true,
                   steps,
@@ -791,7 +795,7 @@ describe('End-to-end', function () {
               },
             )
 
-            return resultPromise.then((result) => {
+            return resultPromise.then((_result) => {
               return Q.nfcall(rreaddir, 'out').then((outs) => {
                 expect(outs).to.include('out/1.jpg')
                 expect(outs).to.include('out/2.jpg')
@@ -805,17 +809,17 @@ describe('End-to-end', function () {
         it(
           'should not be recursive by default',
           testCase((client) => {
-            let indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
-            let inFilesPromise = indirPromise.then(() => {
+            const indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
+            const inFilesPromise = indirPromise.then(() => {
               return Q.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
             })
-            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
-            let stepsFilePromise = stepsPromise()
+            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            const stepsFilePromise = stepsPromise()
 
-            let resultPromise = Q.spread(
+            const resultPromise = Q.spread(
               [stepsFilePromise, inFilesPromise, outdirPromise],
               (steps) => {
-                let output = new OutputCtl()
+                const output = new OutputCtl()
                 return assembliesCreate(output, client, {
                   steps,
                   inputs: ['in'],
@@ -824,7 +828,7 @@ describe('End-to-end', function () {
               },
             )
 
-            return resultPromise.then((result) => {
+            return resultPromise.then((_result) => {
               return Q.nfcall(rreaddir, 'out').then((outs) => {
                 expect(outs).to.include('out/2.jpg')
                 expect(outs).to.not.include('out/sub/3.jpg')
@@ -837,17 +841,17 @@ describe('End-to-end', function () {
         it(
           'should be able to handle directories recursively',
           testCase((client) => {
-            let indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
-            let inFilesPromise = indirPromise.then(() => {
+            const indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
+            const inFilesPromise = indirPromise.then(() => {
               return Q.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
             })
-            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
-            let stepsFilePromise = stepsPromise()
+            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            const stepsFilePromise = stepsPromise()
 
-            let resultPromise = Q.spread(
+            const resultPromise = Q.spread(
               [stepsFilePromise, inFilesPromise, outdirPromise],
               (steps) => {
-                let output = new OutputCtl()
+                const output = new OutputCtl()
                 return assembliesCreate(output, client, {
                   recursive: true,
                   steps,
@@ -857,7 +861,7 @@ describe('End-to-end', function () {
               },
             )
 
-            return resultPromise.then((result) => {
+            return resultPromise.then((_result) => {
               return Q.nfcall(rreaddir, 'out').then((outs) => {
                 expect(outs).to.include('out/2.jpg')
                 expect(outs).to.include('out/sub/3.jpg')
@@ -870,17 +874,17 @@ describe('End-to-end', function () {
         it.skip(
           'should detect outdir conflicts',
           testCase((client) => {
-            let indirPromise = Q.nfcall(fs.mkdir, 'in')
-            let inFilesPromise = indirPromise.then(() => {
+            const indirPromise = Q.nfcall(fs.mkdir, 'in')
+            const inFilesPromise = indirPromise.then(() => {
               return Q.all(['1.jpg', 'in/1.jpg'].map(imgPromise))
             })
-            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
-            let stepsFilePromise = stepsPromise()
+            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            const stepsFilePromise = stepsPromise()
 
-            let errMsgDeferred = Q.defer()
+            const errMsgDeferred = Q.defer()
 
             Q.spread([stepsFilePromise, inFilesPromise, outdirPromise], (steps) => {
-              let output = new OutputCtl()
+              const output = new OutputCtl()
               return assembliesCreate(output, client, {
                 steps,
                 inputs: ['1.jpg', 'in'],
@@ -908,11 +912,11 @@ describe('End-to-end', function () {
         it(
           'should not download the result if no output is specified',
           testCase((client) => {
-            let inFilePromise = imgPromise()
-            let stepsFilePromise = stepsPromise()
+            const inFilePromise = imgPromise()
+            const stepsFilePromise = stepsPromise()
 
-            let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
-              let output = new OutputCtl()
+            const resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
+              const output = new OutputCtl()
               return assembliesCreate(output, client, {
                 steps,
                 inputs: [infile],
@@ -929,8 +933,8 @@ describe('End-to-end', function () {
         it(
           'should accept invocations with no inputs',
           testCase((client) => {
-            let inFilePromise = imgPromise()
-            let stepsFilePromise = stepsPromise('steps.json', {
+            const inFilePromise = imgPromise()
+            const stepsFilePromise = stepsPromise('steps.json', {
               import: {
                 robot: '/http/import',
                 url: genericImg,
@@ -944,8 +948,8 @@ describe('End-to-end', function () {
               },
             })
 
-            let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
-              let output = new OutputCtl()
+            const resultPromise = Q.spread([inFilePromise, stepsFilePromise], (_infile, steps) => {
+              const output = new OutputCtl()
               return assembliesCreate(output, client, {
                 steps,
                 inputs: [],
@@ -953,18 +957,18 @@ describe('End-to-end', function () {
               }).then(() => output.get(true))
             })
 
-            return resultPromise.then((result) => Q.nfcall(fs.access, 'out.jpg'))
+            return resultPromise.then((_result) => Q.nfcall(fs.access, 'out.jpg'))
           }),
         )
 
         it(
           'should allow deleting inputs after processing',
           testCase((client) => {
-            let inFilePromise = imgPromise()
-            let stepsFilePromise = stepsPromise()
+            const inFilePromise = imgPromise()
+            const stepsFilePromise = stepsPromise()
 
-            let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
-              let output = new OutputCtl()
+            const resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
+              const output = new OutputCtl()
               return assembliesCreate(output, client, {
                 steps,
                 inputs: [infile],
@@ -991,14 +995,14 @@ describe('End-to-end', function () {
         it(
           'should not reprocess inputs that are older than their output',
           testCase((client) => {
-            let inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
-            let stepsFilePromise = stepsPromise()
-            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            const inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
+            const stepsFilePromise = stepsPromise()
+            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
 
             let resultPromise = Q.spread(
               [inFilesPromise, stepsFilePromise, outdirPromise],
               (infiles, steps) => {
-                let output = new OutputCtl()
+                const output = new OutputCtl()
                 return assembliesCreate(output, client, {
                   steps,
                   inputs: [infiles[0]],
@@ -1010,7 +1014,7 @@ describe('End-to-end', function () {
             resultPromise = Q.spread(
               [inFilesPromise, stepsFilePromise, resultPromise],
               (infiles, steps) => {
-                let output = new OutputCtl()
+                const output = new OutputCtl()
                 return assembliesCreate(output, client, {
                   steps,
                   inputs: infiles,
@@ -1031,14 +1035,14 @@ describe('End-to-end', function () {
     })
   })
 
-  describe('assembly-notifications', function () {
-    describe('list', function () {
+  describe('assembly-notifications', () => {
+    describe('list', () => {
       it.skip(
         'should list notifications',
         testCase((client) => {
-          let output = new OutputCtl()
+          const output = new OutputCtl()
           return notifications.list(output, client, { pagesize: 1 }).then(() => {
-            let logs = output.get()
+            const logs = output.get()
             expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
           })
         }),
@@ -1046,16 +1050,16 @@ describe('End-to-end', function () {
     })
   })
 
-  describe('bills', function () {
-    describe('get', function () {
+  describe('bills', () => {
+    describe('get', () => {
       it(
         'should get bills',
         testCase((client) => {
-          let output = new OutputCtl()
-          let date = new Date()
-          let month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+          const output = new OutputCtl()
+          const date = new Date()
+          const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
           return bills.get(output, client, { months: [month] }).then(() => {
-            let logs = output.get()
+            const logs = output.get()
             expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
             expect(logs.filter((l) => l.type === 'print')).to.have.length.above(0)
           })

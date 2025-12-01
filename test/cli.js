@@ -2,27 +2,27 @@ import { assert, describe, it } from 'vitest'
 import cli from '../src/cli.js'
 import Parser from '../src/Parser.js'
 
-describe('Parser', function () {
-  describe('constructor', function () {
-    it('should set private fields', function () {
-      let parser = new Parser()
+describe('Parser', () => {
+  describe('constructor', () => {
+    it('should set private fields', () => {
+      const parser = new Parser()
       assert.deepEqual(parser._opts, [])
       assert.deepEqual(Object.keys(parser._longs), [])
       assert.deepEqual(Object.keys(parser._shorts), [])
     })
   })
 
-  describe('register', function () {
-    it('should add the declared option to its records', function () {
-      let tests = [
+  describe('register', () => {
+    it('should add the declared option to its records', () => {
+      const tests = [
         { long: 'foo', short: 'f', hasArg: false },
         { long: 'bar', short: null, hasArg: true },
       ]
-      let parser = new Parser()
+      const parser = new Parser()
 
-      for (let test of tests) {
+      for (const test of tests) {
         parser.register(test.long, test.short, test.hasArg)
-        let record = parser._opts[parser._opts.length - 1]
+        const record = parser._opts[parser._opts.length - 1]
         assert.deepEqual(record, test)
         assert.equal(record, parser._longs[test.long])
         if (test.short) assert.equal(record, parser._shorts[test.short])
@@ -30,16 +30,16 @@ describe('Parser', function () {
     })
   })
 
-  describe('parse', function () {
-    it('should handle typical cli edge-cases', function () {
-      let parser = new Parser()
+  describe('parse', () => {
+    it('should handle typical cli edge-cases', () => {
+      const parser = new Parser()
       parser.register('recursive', 'r', false)
       parser.register('file', 'f', true)
       parser.command('mode', 'assemblies', 'a')
       parser.command('mode', 'templates')
       parser.command('action', 'create')
 
-      let tests = [
+      const tests = [
         { args: '--recursive', opts: [{ recursive: null }], tgts: [] },
         { args: '-r', opts: [{ recursive: null }], tgts: [] },
         { args: '--recursive file.txt', opts: [{ recursive: null }], tgts: ['file.txt'] },
@@ -177,8 +177,8 @@ describe('Parser', function () {
         },
       ]
 
-      for (let test of tests) {
-        let result = parser.parse(test.args.split(/\s+/))
+      for (const test of tests) {
+        const result = parser.parse(test.args.split(/\s+/))
 
         if (typeof test.fail !== 'undefined') {
           assert.propertyVal(result, 'error', test.fail)
@@ -187,7 +187,7 @@ describe('Parser', function () {
 
         assert.notProperty(result, 'error')
 
-        let opts = result.options.map((opt) => ({ [opt.name]: opt.value || null }))
+        const opts = result.options.map((opt) => ({ [opt.name]: opt.value || null }))
 
         if (test.cmds) assert.deepEqual(test.cmds, result.commands)
 
@@ -199,9 +199,9 @@ describe('Parser', function () {
   })
 })
 
-describe('Cli', function () {
-  it('should validate and interpret arguments appropriately', function () {
-    let tests = [
+describe('Cli', () => {
+  it('should validate and interpret arguments appropriately', () => {
+    const tests = [
       { args: '', rslt: { mode: 'register' } },
       { args: 'register', rslt: { mode: 'register' } },
       { args: 'register target', rslt: { error: 'INVALID_ARGUMENT' } },
@@ -360,12 +360,12 @@ describe('Cli', function () {
       { args: 'bills get invalid', rslt: { error: 'INVALID_ARGUMENT' } },
     ]
 
-    for (let test of tests) {
-      let args = test.args.split(/\s+/)
-      let result = cli(args.filter((arg) => arg.trim() !== '').length === 0 ? [] : args)
+    for (const test of tests) {
+      const args = test.args.split(/\s+/)
+      const result = cli(args.filter((arg) => arg.trim() !== '').length === 0 ? [] : args)
       if (args[0] === '--edit-template') console.log(result)
-      for (let key in test.rslt) {
-        if (!test.rslt.hasOwnProperty(key)) continue
+      for (const key in test.rslt) {
+        if (!Object.hasOwn(test.rslt, key)) continue
         assert.deepEqual(
           test.rslt[key],
           result[key],

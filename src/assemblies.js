@@ -1,11 +1,11 @@
 import Q from 'q'
 import assembliesCreate from './assemblies-create.js'
-import { createReadStream, formatAPIError, inSequence, stream2buf } from './helpers.js'
+import { createReadStream, formatAPIError, stream2buf } from './helpers.js'
 
 export const create = assembliesCreate
 
 export function list(output, client, { before, after, fields, keywords }) {
-  let assemblies = client.streamAssemblies({
+  const assemblies = client.streamAssemblies({
     fromdate: after,
     todate: before,
     fields,
@@ -13,7 +13,7 @@ export function list(output, client, { before, after, fields, keywords }) {
   })
 
   assemblies.on('readable', () => {
-    let assembly = assemblies.read()
+    const assembly = assemblies.read()
     if (assembly == null) return
 
     if (fields == null) {
@@ -23,7 +23,7 @@ export function list(output, client, { before, after, fields, keywords }) {
     }
   })
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     assemblies.on('end', resolve)
     assemblies.on('error', (err) => {
       output.error(formatAPIError(err))
@@ -34,11 +34,11 @@ export function list(output, client, { before, after, fields, keywords }) {
 }
 
 export function get(output, client, { assemblies }) {
-  let deferred = Q.defer()
+  const deferred = Q.defer()
 
   let promise = Q.resolve()
 
-  assemblies.forEach((assembly) => {
+  for (const assembly of assemblies) {
     promise = promise.then(() => {
       return Q.delay(1000)
         .then(() => Q.resolve(client.getAssembly(assembly)))
@@ -46,7 +46,7 @@ export function get(output, client, { assemblies }) {
           output.print(result, result)
         })
     })
-  })
+  }
 
   promise.then(deferred.resolve.bind(deferred)).catch((err) => {
     output.error(formatAPIError(err))
@@ -70,7 +70,7 @@ export { _delete as delete }
 
 export function replay(output, client, { fields, reparse, steps, notify_url, assemblies }) {
   if (steps) {
-    let deferred = Q.defer()
+    const deferred = Q.defer()
     stream2buf(createReadStream(steps), (err, buf) => {
       if (err) {
         output.error(err.message)
@@ -80,9 +80,8 @@ export function replay(output, client, { fields, reparse, steps, notify_url, ass
       deferred.resolve(apiCall(JSON.parse(buf.toString())))
     })
     return deferred.promise
-  } else {
-    return apiCall()
   }
+  return apiCall()
 
   function apiCall(steps) {
     return Q.all(

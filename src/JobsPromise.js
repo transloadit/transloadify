@@ -17,8 +17,10 @@ export default class JobsPromise extends EventEmitter {
   }
 
   promise() {
-    let promises = []
-    this.promises.forEach((promise) => promises.push(promise))
+    const promises = []
+    for (const promise of this.promises) {
+      promises.push(promise)
+    }
     return Q.all(promises)
   }
 }

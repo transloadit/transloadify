@@ -10,7 +10,7 @@ export function replay(output, client, { notify_url, assemblies }) {
   )
 }
 
-export function list(output, client, { type, assembly_id }) {
+export function list(output, _client, { type: _type, assembly_id: _assembly_id }) {
   // return client
   //   .listAssemblyNotifications({ type, assembly_id })
   //   .then((result) => {
