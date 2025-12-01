@@ -3,11 +3,11 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import http from 'node:http'
 import https from 'node:https'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import process from 'node:process'
 import type { Readable, Writable } from 'node:stream'
 import tty from 'node:tty'
+import { promisify } from 'node:util'
 import type {
   AssemblyStatus,
   CreateAssemblyOptions,
@@ -18,17 +18,24 @@ import JobsPromise from './JobsPromise.ts'
 import type { IOutputCtl } from './OutputCtl.ts'
 import { isErrnoException } from './types.ts'
 
-const require = createRequire(import.meta.url)
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-const nodeWatch: (
-  path: string,
-  options?: { recursive?: boolean },
-) => {
+interface NodeWatcher {
   on(event: 'error', listener: (err: Error) => void): void
   on(event: 'close', listener: () => void): void
   on(event: 'change', listener: (evt: string, filename: string) => void): void
   on(event: string, listener: (...args: unknown[]) => void): void
-} = require('node-watch')
+}
+
+type NodeWatchFn = (path: string, options?: { recursive?: boolean }) => NodeWatcher
+
+let nodeWatch: NodeWatchFn | undefined
+
+async function getNodeWatch(): Promise<NodeWatchFn> {
+  if (!nodeWatch) {
+    const mod = (await import('node-watch')) as unknown as { default: NodeWatchFn }
+    nodeWatch = mod.default
+  }
+  return nodeWatch
+}
 
 // workaround for determining mime-type of stdin
 const stdinWithPath = process.stdin as unknown as { path: string }
@@ -83,12 +90,17 @@ interface StatLike {
   isDirectory(): boolean
 }
 
-function myStatSync(
+const fstatAsync = promisify(fs.fstat)
+
+async function myStat(
   stdioStream: NodeJS.ReadStream | NodeJS.WriteStream,
   filepath: string,
-): fs.Stats {
-  if (filepath === '-') return fs.fstatSync((stdioStream as NodeJS.ReadStream & { fd: number }).fd)
-  return fs.statSync(filepath)
+): Promise<fs.Stats> {
+  if (filepath === '-') {
+    const stream = stdioStream as NodeJS.ReadStream & { fd: number }
+    return await fstatAsync(stream.fd)
+  }
+  return await fsp.stat(filepath)
 }
 
 async function ensureDir(dir: string): Promise<void> {
@@ -185,55 +197,73 @@ class ReaddirJobEmitter extends MyEventEmitter {
     super()
 
     process.nextTick(() => {
-      let awaitCount = 0
-      const complete = (): void => {
-        if (--awaitCount === 0) this.emit('end')
-      }
-
-      fs.readdir(dir, (err, files) => {
-        if (err != null) {
+      this.processDirectory({ dir, streamRegistry, recursive, outstreamProvider, topdir }).catch(
+        (err) => {
           this.emit('error', err)
-          return
-        }
-
-        awaitCount += files.length
-
-        for (const filename of files) {
-          const file = path.normalize(path.join(dir, filename))
-          fs.stat(file, (err, stats) => {
-            if (err != null) {
-              this.emit('error', err)
-              return
-            }
-
-            if (stats.isDirectory()) {
-              if (recursive) {
-                const subdirEmitter = new ReaddirJobEmitter({
-                  dir: file,
-                  streamRegistry,
-                  recursive,
-                  outstreamProvider,
-                  topdir,
-                })
-                subdirEmitter.on('job', (job: Job) => this.emit('job', job))
-                subdirEmitter.on('error', (error: Error) => this.emit('error', error))
-                subdirEmitter.on('end', complete)
-              } else {
-                complete()
-              }
-            } else {
-              const existing = streamRegistry[file]
-              if (existing) existing.end()
-              outstreamProvider(file, topdir).then((outstream) => {
-                streamRegistry[file] = outstream ?? undefined
-                this.emit('job', { in: fs.createReadStream(file), out: outstream })
-                complete()
-              })
-            }
-          })
-        }
-      })
+        },
+      )
     })
+  }
+
+  private async processDirectory({
+    dir,
+    streamRegistry,
+    recursive,
+    outstreamProvider,
+    topdir,
+  }: ReaddirJobEmitterOptions & { topdir: string }): Promise<void> {
+    const files = await fsp.readdir(dir)
+
+    const pendingOperations: Promise<void>[] = []
+
+    for (const filename of files) {
+      const file = path.normalize(path.join(dir, filename))
+      pendingOperations.push(
+        this.processFile({ file, streamRegistry, recursive, outstreamProvider, topdir }),
+      )
+    }
+
+    await Promise.all(pendingOperations)
+    this.emit('end')
+  }
+
+  private async processFile({
+    file,
+    streamRegistry,
+    recursive = false,
+    outstreamProvider,
+    topdir,
+  }: {
+    file: string
+    streamRegistry: StreamRegistry
+    recursive?: boolean
+    outstreamProvider: OutstreamProvider
+    topdir: string
+  }): Promise<void> {
+    const stats = await fsp.stat(file)
+
+    if (stats.isDirectory()) {
+      if (recursive) {
+        await new Promise<void>((resolve, reject) => {
+          const subdirEmitter = new ReaddirJobEmitter({
+            dir: file,
+            streamRegistry,
+            recursive,
+            outstreamProvider,
+            topdir,
+          })
+          subdirEmitter.on('job', (job: Job) => this.emit('job', job))
+          subdirEmitter.on('error', (error: Error) => reject(error))
+          subdirEmitter.on('end', () => resolve())
+        })
+      }
+    } else {
+      const existing = streamRegistry[file]
+      if (existing) existing.end()
+      const outstream = await outstreamProvider(file, topdir)
+      streamRegistry[file] = outstream ?? undefined
+      this.emit('job', { in: fs.createReadStream(file), out: outstream })
+    }
   }
 }
 
@@ -297,36 +327,50 @@ class WatchJobEmitter extends MyEventEmitter {
   constructor({ file, streamRegistry, recursive, outstreamProvider }: WatchJobEmitterOptions) {
     super()
 
-    fs.stat(file, (err, stats) => {
-      if (err) {
+    this.init({ file, streamRegistry, recursive, outstreamProvider }).catch((err) => {
+      this.emit('error', err)
+    })
+  }
+
+  private async init({
+    file,
+    streamRegistry,
+    recursive,
+    outstreamProvider,
+  }: WatchJobEmitterOptions): Promise<void> {
+    const stats = await fsp.stat(file)
+    const topdir = stats.isDirectory() ? file : undefined
+
+    const watchFn = await getNodeWatch()
+    const watcher = watchFn(file, { recursive })
+
+    watcher.on('error', (err: Error) => this.emit('error', err))
+    watcher.on('close', () => this.emit('end'))
+    watcher.on('change', (_evt: string, filename: string) => {
+      const normalizedFile = path.normalize(filename)
+      this.handleChange(normalizedFile, topdir, streamRegistry, outstreamProvider).catch((err) => {
         this.emit('error', err)
-        return
-      }
-      const topdir = stats.isDirectory() ? file : undefined
-
-      const watcher = nodeWatch(file, { recursive })
-
-      watcher.on('error', (err: Error) => this.emit('error', err))
-      watcher.on('close', () => this.emit('end'))
-      watcher.on('change', (_evt: string, filename: string) => {
-        const normalizedFile = path.normalize(filename)
-        fs.stat(normalizedFile, (err, stats) => {
-          if (err) {
-            this.emit('error', err)
-            return
-          }
-          if (stats.isDirectory()) return
-          const existing = streamRegistry[normalizedFile]
-          if (existing) existing.end()
-          outstreamProvider(normalizedFile, topdir).then((outstream) => {
-            streamRegistry[normalizedFile] = outstream ?? undefined
-
-            const instream = fs.createReadStream(normalizedFile)
-            this.emit('job', { in: instream, out: outstream })
-          })
-        })
       })
     })
+  }
+
+  private async handleChange(
+    normalizedFile: string,
+    topdir: string | undefined,
+    streamRegistry: StreamRegistry,
+    outstreamProvider: OutstreamProvider,
+  ): Promise<void> {
+    const stats = await fsp.stat(normalizedFile)
+    if (stats.isDirectory()) return
+
+    const existing = streamRegistry[normalizedFile]
+    if (existing) existing.end()
+
+    const outstream = await outstreamProvider(normalizedFile, topdir)
+    streamRegistry[normalizedFile] = outstream ?? undefined
+
+    const instream = fs.createReadStream(normalizedFile)
+    this.emit('job', { in: instream, out: outstream })
   }
 }
 
@@ -451,20 +495,15 @@ function makeJobEmitter(
   const emitterFns: (() => MyEventEmitter)[] = []
   const watcherFns: (() => MyEventEmitter)[] = []
 
-  for (const input of inputs) {
-    if (input === '-') {
-      emitterFns.push(
-        () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }),
-      )
-      watcherFns.push(() => new NullJobEmitter())
-
-      startEmitting()
-    } else {
-      fs.stat(input, (err, stats) => {
-        if (err != null) {
-          emitter.emit('error', err)
-          return
-        }
+  async function processInputs(): Promise<void> {
+    for (const input of inputs) {
+      if (input === '-') {
+        emitterFns.push(
+          () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }),
+        )
+        watcherFns.push(() => new NullJobEmitter())
+      } else {
+        const stats = await fsp.stat(input)
         if (stats.isDirectory()) {
           emitterFns.push(
             () =>
@@ -483,20 +522,17 @@ function makeJobEmitter(
               new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }),
           )
         }
-
-        startEmitting()
-      })
+      }
     }
-  }
 
-  if (inputs.length === 0) {
-    emitterFns.push(() => new InputlessJobEmitter({ outstreamProvider, streamRegistry }))
+    if (inputs.length === 0) {
+      emitterFns.push(() => new InputlessJobEmitter({ outstreamProvider, streamRegistry }))
+    }
+
     startEmitting()
   }
 
   function startEmitting(): void {
-    if (inputs.length !== 0 && emitterFns.length !== inputs.length) return
-
     let source: MyEventEmitter = new MergedJobEmitter(...emitterFns.map((f) => f()))
 
     if (watchOption) {
@@ -510,6 +546,10 @@ function makeJobEmitter(
     source.on('error', (err: Error) => emitter.emit('error', err))
     source.on('end', () => emitter.emit('end'))
   }
+
+  processInputs().catch((err) => {
+    emitter.emit('error', err)
+  })
 
   const stalefilter = reprocessStale ? (x: EventEmitter) => x as MyEventEmitter : dismissStaleJobs
   return stalefilter(detectConflicts(emitter))
@@ -527,7 +567,7 @@ export interface AssembliesCreateOptions {
   reprocessStale?: boolean
 }
 
-export default function run(
+export default async function run(
   outputctl: IOutputCtl,
   client: Transloadit,
   {
@@ -546,38 +586,43 @@ export default function run(
   let resolvedOutput = output
   if (resolvedOutput == null && !process.stdout.isTTY) resolvedOutput = '-'
 
+  // Read steps file async before entering the Promise constructor
+  let stepsData: CreateAssemblyParams['steps'] | undefined
+  if (steps) {
+    const stepsContent = await fsp.readFile(steps, 'utf8')
+    stepsData = JSON.parse(stepsContent) as CreateAssemblyParams['steps']
+  }
+
+  // Determine output stat async before entering the Promise constructor
+  let outstat: StatLike | undefined
+  if (resolvedOutput != null) {
+    try {
+      outstat = await myStat(process.stdout, resolvedOutput)
+    } catch (e) {
+      if (!isErrnoException(e)) throw e
+      if (e.code !== 'ENOENT') throw e
+      outstat = { isDirectory: () => false }
+    }
+
+    if (!outstat.isDirectory() && inputs.length !== 0) {
+      const firstInput = inputs[0]
+      if (firstInput) {
+        const firstInputStat = await myStat(process.stdin, firstInput)
+        if (inputs.length > 1 || firstInputStat.isDirectory()) {
+          const msg = 'Output must be a directory when specifying multiple inputs'
+          outputctl.error(msg)
+          throw new Error(msg)
+        }
+      }
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const params: CreateAssemblyParams = (
-      steps
-        ? { steps: JSON.parse(fs.readFileSync(steps).toString()) as CreateAssemblyParams['steps'] }
-        : { template_id: template }
+      stepsData ? { steps: stepsData } : { template_id: template }
     ) as CreateAssemblyParams
     if (fields) {
       params.fields = fields
-    }
-
-    let outstat: StatLike | undefined
-
-    if (resolvedOutput != null) {
-      try {
-        outstat = myStatSync(process.stdout, resolvedOutput)
-      } catch (e) {
-        if (!isErrnoException(e)) throw e
-        if (e.code !== 'ENOENT') throw e
-        outstat = { isDirectory: () => false }
-      }
-
-      if (!outstat.isDirectory() && inputs.length !== 0) {
-        const firstInput = inputs[0]
-        if (
-          inputs.length > 1 ||
-          (firstInput && myStatSync(process.stdin, firstInput).isDirectory())
-        ) {
-          const msg = 'Output must be a directory when specifying multiple inputs'
-          outputctl.error(msg)
-          return reject(new Error(msg))
-        }
-      }
     }
 
     const outstreamProvider: OutstreamProvider =
