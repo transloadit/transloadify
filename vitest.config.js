@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     globals: true,
     testTimeout: 100000,
-    include: ['test/**/*.js'],
-    exclude: ['test/OutputCtl.js'],
+    include: ['test/**/*.ts'],
+    exclude: ['test/OutputCtl.ts'],
   },
 })

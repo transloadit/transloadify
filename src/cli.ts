@@ -1,4 +1,32 @@
-import Parser from './Parser.js'
+import type { ParseResult } from './Parser.js'
+import Parser, { isParseError } from './Parser.js'
+
+interface ParsedOption {
+  name: string
+  value?: string
+}
+
+interface CLIError {
+  error: string
+  option?: string
+  message: string
+}
+
+interface CLIResult {
+  error?: undefined
+  mode?: string
+  action?: string
+  logLevel?: number
+  jsonMode?: boolean
+  [key: string]: unknown
+}
+
+type CLIOutput = CLIError | CLIResult
+
+type ConstraintFn = (opts: ParsedOption[], tgts: string[]) => CLIError | undefined
+type OptionPredicate = (opt: ParsedOption) => boolean
+type SubcommandHandler = (opts: ParsedOption[], tgts: string[]) => CLIOutput
+type SubcommandMap = { [key: string]: SubcommandHandler }
 
 const parser = new Parser()
 
@@ -49,21 +77,21 @@ parser.register('json', 'j', false)
 parser.register('version', null, false)
 parser.register('help', 'h', false)
 
-export default function cli(...args) {
-  const result = parser.parse(...args)
-  if (result.error != null) return result
+export default function cli(...args: (string[] | null | undefined)[]): CLIOutput {
+  const result = parser.parse(args[0] as string[] | null | undefined)
+  if (isParseError(result)) return result
 
-  const { commands, options, targets } = result
+  const { commands, options, targets } = result as ParseResult
 
-  const err = generalValidation(options)
+  const err = generalValidation(options as ParsedOption[])
   if (err != null) return err
 
-  return modeDispatch(commands, options, targets)
+  return modeDispatch(commands, options as ParsedOption[], targets)
 }
 
-function generalValidation(options) {
+function generalValidation(options: ParsedOption[]): CLIError | undefined {
   for (const option of options) {
-    if (option.name === 'field' && !option.value.match(/^[^=]+=[\s\S]*$/)) {
+    if (option.name === 'field' && option.value && !option.value.match(/^[^=]+=[\s\S]*$/)) {
       return {
         error: 'INVALID_OPTION',
         option: option.name,
@@ -77,6 +105,7 @@ function generalValidation(options) {
 
     if (
       option.name === 'sort' &&
+      option.value &&
       ['id', 'name', 'created', 'modified'].indexOf(option.value) === -1
     ) {
       return {
@@ -86,7 +115,7 @@ function generalValidation(options) {
       }
     }
 
-    if (option.name === 'order' && ['asc', 'desc'].indexOf(option.value) === -1) {
+    if (option.name === 'order' && option.value && ['asc', 'desc'].indexOf(option.value) === -1) {
       return {
         error: 'INVALID_OPTION',
         option: option.name,
@@ -94,7 +123,11 @@ function generalValidation(options) {
       }
     }
 
-    if (option.name === 'verbosity' && ['0', '1', '2'].indexOf(option.value) === -1) {
+    if (
+      option.name === 'verbosity' &&
+      option.value &&
+      ['0', '1', '2'].indexOf(option.value) === -1
+    ) {
       return {
         error: 'INVALID_OPTION',
         option: option.name,
@@ -102,9 +135,17 @@ function generalValidation(options) {
       }
     }
   }
+  return undefined
 }
 
-function modeDispatch({ mode, action }, opts, tgts) {
+function modeDispatch(
+  { mode: initialMode, action: initialAction }: { mode?: string; action?: string },
+  opts: ParsedOption[],
+  tgts: string[],
+): CLIOutput {
+  let mode = initialMode
+  let action = initialAction
+
   if (opts.filter((opt) => opt.name === 'help').length !== 0) {
     return {
       mode: 'help',
@@ -119,7 +160,10 @@ function modeDispatch({ mode, action }, opts, tgts) {
     if (action != null) mode = 'assemblies'
     else if (opts.length === 0) mode = 'register'
     else if (opts.filter((opt) => opt.name === 'version').length !== 0) mode = 'version'
-    else [mode, action] = ['assemblies', 'create']
+    else {
+      mode = 'assemblies'
+      action = 'create'
+    }
   }
 
   const verbosity = getVerbosity(opts)
@@ -128,63 +172,71 @@ function modeDispatch({ mode, action }, opts, tgts) {
   const jsonMode = opts.length !== noJsonFlag.length
   const filteredOpts = noJsonFlag
 
-  let handler = subcommands[mode]
+  let handler: SubcommandHandler | SubcommandMap | undefined = subcommands[mode]
   if (action != null) {
-    if (!(typeof handler === 'object' || action in handler)) {
+    if (!(typeof handler === 'object' && action in handler)) {
       return {
         error: 'INVALID_COMMAND',
         message: `mode '${mode}' does not support the action '${action}'`,
       }
     }
-    handler = handler[action]
+    handler = (handler as SubcommandMap)[action]
   }
 
   if (typeof handler !== 'function') {
     return {
       error: 'INVALID_COMMAND',
-      message: `mode '${mode}' requires an action (one of ${Object.keys(handler)})`,
+      message: `mode '${mode}' requires an action (one of ${Object.keys(handler as object)})`,
     }
   }
 
   const result = handler(filteredOpts, tgts)
 
   if (!result.error) {
-    result.logLevel = verbosity
-    result.jsonMode = jsonMode
-    result.mode = mode
-    result.action = action
+    ;(result as CLIResult).logLevel = verbosity
+    ;(result as CLIResult).jsonMode = jsonMode
+    ;(result as CLIResult).mode = mode
+    ;(result as CLIResult).action = action
   }
 
   return result
 }
 
-// determine the specified verbosity, and remove any verbosity-related options
-// so that we don't have to worry about them.
-function getVerbosity(opts) {
+function getVerbosity(opts: ParsedOption[]): number {
   let result = 1
   let writeAt = 0
   for (let readFrom = 0; readFrom < opts.length; readFrom++) {
-    if (opts[readFrom].name === 'verbose') result = 2
-    else if (opts[readFrom].name === 'quiet') result = 0
-    else opts[writeAt++] = opts[readFrom]
+    const opt = opts[readFrom]!
+    if (opt.name === 'verbose') result = 2
+    else if (opt.name === 'quiet') result = 0
+    else opts[writeAt++] = opt
   }
   opts.splice(writeAt)
   return result
 }
 
-function allowOptions(optClassFn, msgfn) {
+function allowOptions(
+  optClassFn: OptionPredicate,
+  msgfn: (opt: ParsedOption) => string,
+): ConstraintFn {
   return (opts, _tgts) => {
     const invalid = opts.filter((opt) => !optClassFn(opt))
-    if (invalid.length > 0) {
+    if (invalid.length > 0 && invalid[0]) {
       return {
         error: 'INVALID_OPTION',
         message: msgfn(invalid[0]),
       }
     }
+    return undefined
   }
 }
 
-function nOfOption(optClassFn, low, high, msgfn) {
+function nOfOption(
+  optClassFn: OptionPredicate,
+  low: number,
+  high: number,
+  msgfn: (opt: ParsedOption | undefined) => string,
+): ConstraintFn {
   return (opts, _tgts) => {
     const relevantOpts = opts.filter(optClassFn)
     if (!(low <= relevantOpts.length && relevantOpts.length <= high)) {
@@ -193,17 +245,24 @@ function nOfOption(optClassFn, low, high, msgfn) {
         message: msgfn(relevantOpts[0]),
       }
     }
+    return undefined
   }
 }
 
-function exactlyOneOfOption(optClassFn, msgfn) {
+function exactlyOneOfOption(
+  optClassFn: OptionPredicate,
+  msgfn: (opt: ParsedOption | undefined) => string,
+): ConstraintFn {
   return nOfOption(optClassFn, 1, 1, msgfn)
 }
-function atMostOneOfOption(optClassFn, msgfn) {
+function atMostOneOfOption(
+  optClassFn: OptionPredicate,
+  msgfn: (opt: ParsedOption | undefined) => string,
+): ConstraintFn {
   return nOfOption(optClassFn, 0, 1, msgfn)
 }
 
-function noTargets(msg) {
+function noTargets(msg: string): ConstraintFn {
   return (_opts, tgts) => {
     if (tgts.length > 0) {
       return {
@@ -211,9 +270,10 @@ function noTargets(msg) {
         message: msg,
       }
     }
+    return undefined
   }
 }
-function requireTargets(msg) {
+function requireTargets(msg: string): ConstraintFn {
   return (_opts, tgts) => {
     if (tgts.length === 0) {
       return {
@@ -221,43 +281,54 @@ function requireTargets(msg) {
         message: msg,
       }
     }
+    return undefined
   }
 }
-function nTargets(low, high, { few, many }) {
+function nTargets(
+  low: number,
+  high: number,
+  { few, many }: { few?: string; many?: string },
+): ConstraintFn {
   return (_opts, tgts) => {
-    if (tgts.length < low) {
+    if (tgts.length < low && few) {
       return {
         error: 'MISSING_ARGUMENT',
         message: few,
       }
     }
-    if (tgts.length > high) {
+    if (tgts.length > high && many) {
       return {
         error: 'INVALID_ARGUMENT',
         message: many,
       }
     }
+    return undefined
   }
 }
 
-function validate(opts, tgts, ...constraints) {
+function validate(
+  opts: ParsedOption[],
+  tgts: string[],
+  ...constraints: ConstraintFn[]
+): CLIError | undefined {
   for (const constraint of constraints) {
     const err = constraint(opts, tgts)
     if (err) return err
   }
+  return undefined
 }
 
-function anyOf(...args) {
+function anyOf(...args: string[]): OptionPredicate {
   return (opt) => args.indexOf(opt.name) !== -1
 }
 
-function optget(opts, opt) {
+function optget(opts: ParsedOption[], opt: string): string | boolean {
   const all = optgetall(opts, opt)
-  return all.length > 0 ? all[all.length - 1] : false
+  return all.length > 0 ? all[all.length - 1]! : false
 }
 
-function optgetall(opts, name) {
-  const result = []
+function optgetall(opts: ParsedOption[], name: string): (string | boolean)[] {
+  const result: (string | boolean)[] = []
   for (const opt of opts) {
     if (opt.name === name) {
       result.push(opt.value != null ? opt.value : true)
@@ -266,16 +337,21 @@ function optgetall(opts, name) {
   return result
 }
 
-function getfields(opts) {
-  const fields = {}
+function getfields(opts: ParsedOption[]): Record<string, string> {
+  const fields: Record<string, string> = {}
   for (const field of optgetall(opts, 'field')) {
-    const segments = field.split('=')
-    fields[segments[0]] = segments.slice(1).join('=')
+    if (typeof field === 'string') {
+      const segments = field.split('=')
+      const key = segments[0]
+      if (key) {
+        fields[key] = segments.slice(1).join('=')
+      }
+    }
   }
   return fields
 }
 
-const subcommands = {
+const subcommands: Record<string, SubcommandHandler | SubcommandMap> = {
   register(opts, tgts) {
     const err = validate(
       opts,
@@ -325,7 +401,7 @@ const subcommands = {
         noTargets('too many arguments passed to assemblies create'),
       )
 
-      const inputs = optgetall(opts, 'input')
+      const inputs = optgetall(opts, 'input') as string[]
 
       if (inputs.length === 0 && optget(opts, 'watch')) {
         err = {
@@ -361,17 +437,17 @@ const subcommands = {
 
         atMostOneOfOption(
           anyOf('before'),
-          (opt) => `assemblies list accepts at most one of --${opt.name}`,
+          (opt) => `assemblies list accepts at most one of --${opt?.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('after'),
-          (opt) => `assemblies list accepts at most one of --${opt.name}`,
+          (opt) => `assemblies list accepts at most one of --${opt?.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('fields'),
-          (opt) => `assemblies list accepts at most one of --${opt.name}`,
+          (opt) => `assemblies list accepts at most one of --${opt?.name}`,
         ),
 
         noTargets('too many arguments passed to assemblies list'),
@@ -379,14 +455,16 @@ const subcommands = {
 
       if (err) return err
 
-      const keywords = []
+      const keywords: string[] = []
       for (const arg of optgetall(opts, 'keywords')) {
-        for (const kw of arg.split(',')) keywords.push(kw)
+        if (typeof arg === 'string') {
+          for (const kw of arg.split(',')) keywords.push(kw)
+        }
       }
 
-      let fields = optget(opts, 'fields')
-      if (fields) fields = fields.split(',')
-      else fields = undefined
+      let fields: string[] | undefined
+      const fieldsOpt = optget(opts, 'fields')
+      if (typeof fieldsOpt === 'string') fields = fieldsOpt.split(',')
 
       return {
         before: optget(opts, 'before') || undefined,
@@ -459,7 +537,7 @@ const subcommands = {
         fields: getfields(opts),
         reparse: optget(opts, 'reparse-template'),
         steps: optget(opts, 'steps'),
-        notiy_url: optget(opts, 'notify-url') || undefined,
+        notify_url: optget(opts, 'notify-url') || undefined,
         assemblies: tgts,
       }
     },
@@ -558,27 +636,27 @@ const subcommands = {
 
         atMostOneOfOption(
           anyOf('before'),
-          (opt) => `templates list accepts at most one of --${opt.name}`,
+          (opt) => `templates list accepts at most one of --${opt?.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('after'),
-          (opt) => `templates list accepts at most one of --${opt.name}`,
+          (opt) => `templates list accepts at most one of --${opt?.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('sort'),
-          (opt) => `templates list accepts at most one of --${opt.name}`,
+          (opt) => `templates list accepts at most one of --${opt?.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('order'),
-          (opt) => `templates list accepts at most one of --${opt.name}`,
+          (opt) => `templates list accepts at most one of --${opt?.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('fields'),
-          (opt) => `templates list accepts at most one of --${opt.name}`,
+          (opt) => `templates list accepts at most one of --${opt?.name}`,
         ),
 
         noTargets('too many arguments passed to templates list'),
@@ -586,9 +664,9 @@ const subcommands = {
 
       if (err) return err
 
-      let fields = optget(opts, 'fields')
-      if (fields) fields = fields.split(',')
-      else fields = undefined
+      let fields: string[] | undefined
+      const fieldsOpt = optget(opts, 'fields')
+      if (typeof fieldsOpt === 'string') fields = fieldsOpt.split(',')
 
       return {
         before: optget(opts, 'before') || undefined,
@@ -632,7 +710,7 @@ const subcommands = {
 
         atMostOneOfOption(
           anyOf('notify-url'),
-          (opt) => `assembly-notifications replay accepts at most one of --${opt.name}`,
+          (opt) => `assembly-notifications replay accepts at most one of --${opt?.name}`,
         ),
 
         requireTargets('no assemblies specified'),
@@ -662,7 +740,7 @@ const subcommands = {
         ),
 
         nTargets(0, 1, {
-          few: undefined, // can't have <0 targets
+          few: undefined,
           many: 'too many assembly ids provided to assembly-notifications list',
         }),
       )
@@ -691,7 +769,7 @@ const subcommands = {
 
       if (err) return err
 
-      const months = []
+      const months: string[] = []
       for (const tgt of tgts) {
         const pat = /^(\d{4})-(\d{1,2})$/
         if (!tgt.match(pat)) {

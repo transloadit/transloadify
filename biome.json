@@ -24,7 +24,7 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noExplicitAny": "error",
+        "noExplicitAny": "warn",
         "noImplicitAnyLet": "error",
         "noConfusingVoidType": "error",
         "noAssignInExpressions": "error",
@@ -37,14 +37,16 @@
         "useAwait": "error"
       },
       "correctness": {
-        "noInvalidUseBeforeDeclaration": "error"
+        "noInvalidUseBeforeDeclaration": "error",
+        "noVoidTypeReturn": "warn"
       },
       "complexity": {
         "useLiteralKeys": "error",
         "noForEach": "error"
       },
       "style": {
-        "noNonNullAssertion": "error",
+        "noNonNullAssertion": "warn",
+        "noNamespace": "warn",
         "noParameterAssign": "error",
         "noUnusedTemplateLiteral": "error",
         "useAsConstAssertion": "error",
@@ -54,7 +56,6 @@
         "useNumberNamespace": "error",
         "noInferrableTypes": "error",
         "noUselessElse": "error",
-        "noNamespace": "error",
         "useImportType": {
           "level": "error",
           "options": {

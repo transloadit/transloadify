@@ -4,9 +4,16 @@ import { assert, describe, it } from 'vitest'
 import ModifiedLookup from '../../src/template-last-modified.js'
 import 'dotenv/config'
 
+const authKey = process.env.TRANSLOADIT_KEY
+const authSecret = process.env.TRANSLOADIT_SECRET
+
+if (!authKey || !authSecret) {
+  throw new Error('TRANSLOADIT_KEY and TRANSLOADIT_SECRET must be set')
+}
+
 const client = new TransloaditClient({
-  authKey: process.env.TRANSLOADIT_KEY,
-  authSecret: process.env.TRANSLOADIT_SECRET,
+  authKey,
+  authSecret,
 })
 
 describe('ModifiedLookup', () => {
@@ -17,6 +24,7 @@ describe('ModifiedLookup', () => {
       const byIdAsync = promisify(lookup.byId.bind(lookup))
 
       const modified = await byIdAsync(item.id)
+      if (!modified) throw new Error('modified is undefined')
       const itemTime = Date.parse(item.modified)
       const lookupTime = modified.valueOf()
       if (Math.abs(itemTime - lookupTime) > 10000) {
@@ -36,6 +44,7 @@ describe('ModifiedLookup', () => {
 
     const lookups = items.map(async (item) => {
       const modified = await byIdAsync(item.id)
+      if (!modified) throw new Error('modified is undefined')
       const itemTime = Date.parse(item.modified)
       const lookupTime = modified.valueOf()
       if (Math.abs(itemTime - lookupTime) > 10000) {

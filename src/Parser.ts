@@ -1,6 +1,49 @@
 import process from 'node:process'
 
+interface OptionRecord {
+  long: string
+  short: string | null
+  hasArg: boolean
+}
+
+interface CommandRecord {
+  name: string
+  aliases: string[]
+}
+
+interface ParsedOption {
+  name: string
+  value?: string
+}
+
+interface ParsedCommands {
+  [key: string]: string
+}
+
+export interface ParseResult {
+  commands: ParsedCommands
+  options: ParsedOption[]
+  targets: string[]
+}
+
+export interface ParseError {
+  error: 'INVALID_OPTION' | 'UNNECESSARY_ARGUMENT' | 'MISSING_ARGUMENT'
+  option: string
+  message: string
+}
+
+export type ParseOutput = ParseResult | ParseError
+
+function isParseError(result: ParseOutput): result is ParseError {
+  return 'error' in result
+}
+
 export default class Parser {
+  private _opts: OptionRecord[]
+  private _longs: Record<string, OptionRecord>
+  private _shorts: Record<string, OptionRecord>
+  private _commands: Record<string, CommandRecord[]>
+
   constructor() {
     this._opts = []
     this._longs = {}
@@ -8,35 +51,40 @@ export default class Parser {
     this._commands = {}
   }
 
-  register(long, short, hasArg) {
-    const record = { long, short, hasArg }
+  register(long: string, short: string | null, hasArg: boolean): void {
+    const record: OptionRecord = { long, short, hasArg }
     this._opts.push(record)
     this._longs[long] = record
     if (short) this._shorts[short] = record
   }
 
-  command(field, name, ...aliases) {
+  command(field: string, name: string, ...aliases: string[]): void {
     if (!this._commands[field]) {
       this._commands[field] = []
     }
     aliases.push(name)
-    this._commands[field].push({ name, aliases })
+    this._commands[field]?.push({ name, aliases })
   }
 
-  parse(argv) {
+  parse(argv?: string[] | null): ParseOutput {
     let args = argv
     if (args == null) args = Array.from(process.argv.slice(2))
 
     return this._parse(args, {}, [], [])
   }
 
-  _parse(args, cmds, opts, tgts) {
+  private _parse(
+    args: string[],
+    cmds: ParsedCommands,
+    opts: ParsedOption[],
+    tgts: string[],
+  ): ParseOutput {
     if (args.length === 0) return { commands: cmds, options: opts, targets: tgts }
 
-    const arg = args.shift()
+    const arg = args.shift()!
 
     if (arg === '--') {
-      while (args.length > 0) tgts.push(args.shift())
+      while (args.length > 0) tgts.push(args.shift()!)
       return this._parse(args, cmds, opts, tgts)
     }
 
@@ -49,12 +97,19 @@ export default class Parser {
     return this._parse(args, cmds, opts, tgts)
   }
 
-  _parseLong(arg, args, cmds, opts, tgts) {
-    let name
-    let value
-    arg.replace(/^--([^=]*)(?:=([\s\S]*))?$/, (_$0, $1, $2) => {
+  private _parseLong(
+    arg: string,
+    args: string[],
+    cmds: ParsedCommands,
+    opts: ParsedOption[],
+    tgts: string[],
+  ): ParseOutput {
+    let name: string | undefined
+    let value: string | undefined
+    arg.replace(/^--([^=]*)(?:=([\s\S]*))?$/, (_$0, $1: string, $2: string | undefined) => {
       name = $1
       value = $2
+      return ''
     })
     if (name == null) throw new Error('failed parsing long argument')
 
@@ -66,7 +121,7 @@ export default class Parser {
       }
     }
 
-    const { hasArg } = this._longs[name]
+    const { hasArg } = this._longs[name]!
 
     if (!hasArg && value != null) {
       return {
@@ -95,15 +150,21 @@ export default class Parser {
       }
     }
 
-    opts.push({ name, value: args.shift() })
+    opts.push({ name, value: args.shift()! })
     return this._parse(args, cmds, opts, tgts)
   }
 
-  _parseShort(arg, args, cmds, opts, tgts) {
+  private _parseShort(
+    arg: string,
+    args: string[],
+    cmds: ParsedCommands,
+    opts: ParsedOption[],
+    tgts: string[],
+  ): ParseOutput {
     const chars = Array.from(arg.slice(1))
 
     do {
-      const opt = chars.shift()
+      const opt = chars.shift()!
 
       if (!Object.hasOwn(this._shorts, opt)) {
         return {
@@ -113,7 +174,8 @@ export default class Parser {
         }
       }
 
-      const { long: name, hasArg } = this._shorts[opt]
+      const record = this._shorts[opt]!
+      const { long: name, hasArg } = record
       if (!hasArg) opts.push({ name })
       else {
         if (chars.length === 0) {
@@ -125,7 +187,7 @@ export default class Parser {
             }
           }
 
-          opts.push({ name, value: args.shift() })
+          opts.push({ name, value: args.shift()! })
         } else {
           opts.push({ name, value: chars.join('') })
         }
@@ -136,9 +198,9 @@ export default class Parser {
     return this._parse(args, cmds, opts, tgts)
   }
 
-  _isCommand(cmds, arg) {
+  private _isCommand(cmds: ParsedCommands, arg: string): boolean {
     for (const field in this._commands) {
-      for (const command of this._commands[field]) {
+      for (const command of this._commands[field]!) {
         if (command.aliases.indexOf(arg) !== -1) {
           if (field in cmds) return false
           return true
@@ -149,9 +211,15 @@ export default class Parser {
     return false
   }
 
-  _parseCommand(arg, args, cmds, opts, tgts) {
+  private _parseCommand(
+    arg: string,
+    args: string[],
+    cmds: ParsedCommands,
+    opts: ParsedOption[],
+    tgts: string[],
+  ): ParseOutput {
     for (const field in this._commands) {
-      for (const command of this._commands[field]) {
+      for (const command of this._commands[field]!) {
         if (command.aliases.indexOf(arg) !== -1) {
           cmds[field] = command.name
           return this._parse(args, cmds, opts, tgts)
@@ -162,3 +230,5 @@ export default class Parser {
     throw new Error('unreachable')
   }
 }
+
+export { isParseError }

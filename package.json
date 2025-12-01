@@ -26,8 +26,8 @@
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
   "type": "module",
-  "bin": "./bin/cmd.js",
-  "main": "./src/index.js",
+  "bin": "./bin/cmd.ts",
+  "main": "./src/index.ts",
   "files": [
     "src",
     "bin",
@@ -37,19 +37,22 @@
     "node-watch": "^0.7.4",
     "recursive-readdir": "2.2.3",
     "shell-completion": "0.0.5",
-    "transloadit": "latest"
+    "transloadit": "latest",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "@types/node": "^24.10.1",
+    "@types/recursive-readdir": "^2.2.4",
+    "@types/request": "^2.48.13",
     "@vitest/coverage-v8": "^4.0.14",
     "dotenv": "^17.2.3",
-    "fakefile": "^1.1.0",
     "image-size": "2.0.2",
     "npm-run-all": "^4.1.5",
     "request": "2.88.2",
     "rimraf": "6.1.2",
     "true": "^0.0.4",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.14"
   }

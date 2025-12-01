@@ -1,12 +1,33 @@
-export default function help(output, _client, { helpMode: mode, helpAction: action }) {
-  if (!mode && action) return output.print(messages.default)
+import type { Transloadit } from 'transloadit'
+import type { IOutputCtl } from './OutputCtl.js'
 
-  let msg = messages
-  if (mode) msg = msg[mode]
-  if (action) msg = msg[action]
+export interface HelpOptions {
+  helpMode?: string
+  helpAction?: string
+}
+
+interface MessagesMap {
+  default: string
+  [key: string]: string | MessagesMap
+}
+
+export default function help(
+  output: IOutputCtl,
+  _client: Transloadit | undefined,
+  { helpMode: mode, helpAction: action }: HelpOptions,
+): void {
+  if (!mode && action) return output.print(messages.default, null)
+
+  let msg: string | MessagesMap = messages
+  if (mode && typeof msg === 'object' && mode in msg) {
+    msg = msg[mode] as string | MessagesMap
+  }
+  if (action && typeof msg === 'object' && action in msg) {
+    msg = msg[action] as string | MessagesMap
+  }
   if (typeof msg === 'object') msg = msg.default
 
-  output.print(msg.slice(1))
+  output.print((msg as string).slice(1), null)
 }
 
 const register = `
@@ -198,7 +219,7 @@ Usage: transloadify bills get MONTH...
 
 Months should be specified in YYYY-MM format.`
 
-const messages = {
+const messages: MessagesMap = {
   default: main,
   register,
   assemblies: {

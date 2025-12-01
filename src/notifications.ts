@@ -1,0 +1,37 @@
+import type { Transloadit } from 'transloadit'
+import type { IOutputCtl } from './OutputCtl.js'
+
+export interface NotificationsReplayOptions {
+  notify_url?: string
+  assemblies: string[]
+}
+
+export interface NotificationsListOptions {
+  type?: string
+  assembly_id?: string
+  pagesize?: number
+}
+
+export async function replay(
+  output: IOutputCtl,
+  client: Transloadit,
+  { notify_url, assemblies }: NotificationsReplayOptions,
+): Promise<void> {
+  try {
+    const promises = assemblies.map((id) => {
+      return client.replayAssemblyNotification(id, { notify_url })
+    })
+    await Promise.all(promises)
+  } catch (err) {
+    output.error(err)
+  }
+}
+
+export function list(
+  output: IOutputCtl,
+  _client: Transloadit,
+  { type: _type, assembly_id: _assembly_id }: NotificationsListOptions,
+): Promise<void> {
+  output.error('List notifications is not supported in this version')
+  return Promise.resolve()
+}
