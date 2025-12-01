@@ -4341,7 +4341,7 @@ __metadata:
     recursive-readdir: "npm:2.2.3"
     rimraf: "npm:6.1.2"
     shell-completion: "npm:0.0.5"
-    transloadit: "npm:latest"
+    transloadit: "npm:^4.0.7"
     tsx: "npm:^4.21.0"
     typescript: "npm:^5.9.3"
     vitest: "npm:^4.0.14"
@@ -4351,7 +4351,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"transloadit@npm:latest":
+"transloadit@npm:^4.0.7":
   version: 4.0.7
   resolution: "transloadit@npm:4.0.7"
   dependencies:
