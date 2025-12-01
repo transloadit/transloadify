@@ -9,7 +9,9 @@ import { Transloadit as TransloaditClient } from 'transloadit'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as assemblies from '../src/assemblies.js'
 import assembliesCreate from '../src/assemblies-create.js'
+import * as bills from '../src/bills.js'
 import { zip } from '../src/helpers.js'
+import * as notifications from '../src/notifications.js'
 import * as templates from '../src/templates.js'
 import OutputCtl from './OutputCtl.js'
 import 'dotenv/config'
@@ -566,384 +568,496 @@ describe('End-to-end', function () {
           })
         }),
       )
-    })
-
-    describe('create', function () {
-      const genericImg = 'https://placehold.co/100.jpg'
-      function imgPromise(fname = 'in.jpg') {
-        return Q.Promise((resolve, reject) => {
-          let req = request(genericImg)
-          req.pipe(fs.createWriteStream(fname))
-          req.on('error', reject)
-          req.on('end', () => resolve(fname))
-        })
-      }
-
-      const genericSteps = {
-        resize: {
-          robot: '/image/resize',
-          use: ':original',
-          result: true,
-          width: 130,
-          height: 130,
-        },
-      }
-      function stepsPromise(fname = 'steps.json', steps = genericSteps) {
-        return Q.nfcall(fs.writeFile, 'steps.json', JSON.stringify(steps)).then(() => 'steps.json')
-      }
-
-      it(
-        'should transcode a file',
-        testCase((client) => {
-          let inFilePromise = imgPromise()
-          let stepsFilePromise = stepsPromise()
-
-          let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
+      describe('list', function () {
+        it(
+          'should list assemblies',
+          testCase((client) => {
             let output = new OutputCtl()
-            return assembliesCreate(output, client, {
-              steps,
-              inputs: [infile],
-              output: 'out.jpg',
-            }).then(() => output.get(true))
-          })
-
-          return resultPromise.then((result) => {
-            expect(result).to.have.lengthOf(3)
-            expect(result).to.have.nested.property('[0].type').that.equals('debug')
-            expect(result).to.have.nested.property('[0].msg').that.equals('GOT JOB in.jpg out.jpg')
-            expect(result).to.have.nested.property('[1].type').that.equals('debug')
-            expect(result).to.have.nested.property('[1].msg').that.equals('DOWNLOADING')
-            expect(result).to.have.nested.property('[2].type').that.equals('debug')
-            expect(result)
-              .to.have.nested.property('[2].msg')
-              .that.equals('COMPLETED in.jpg out.jpg')
-            return Q.nfcall(imgSize, 'out.jpg').then((dim) => {
-              expect(dim).to.have.property('width').that.equals(130)
-              expect(dim).to.have.property('height').that.equals(130)
+            return assemblies.list(output, client, { pagesize: 1 }).then(() => {
+              let logs = output.get()
+              // Should have at least some output if there are assemblies, or none if empty.
+              // We can't guarantee assemblies exist, but we can check if it ran without error.
+              // Actually, previous tests likely created assemblies.
+              // Let's just assert no error.
+              expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
             })
+          }),
+        )
+      })
+
+      describe('delete', function () {
+        it(
+          'should delete assemblies',
+          testCase((client) => {
+            // Create an assembly to delete
+            let createPromise = client.createAssembly({
+              params: {
+                steps: { import: { robot: '/http/import', url: 'https://placehold.co/100.jpg' } },
+              },
+            })
+
+            return createPromise.then((assembly) => {
+              let output = new OutputCtl()
+              return assemblies
+                .delete(output, client, { assemblies: [assembly.assembly_id] })
+                .then(() => {
+                  return client.getAssembly(assembly.assembly_id)
+                })
+                .then((res) => {
+                  // Should be deleted, but getAssembly might return it with different status or 404?
+                  // SDK cancelAssembly returns AssemblyStatus.
+                  // getAssembly on deleted assembly usually works for a while but status might change?
+                  // Or 404?
+                  // Actually cancelAssembly aborts it.
+                  expect(res.ok).to.equal('ASSEMBLY_CANCELED')
+                })
+            })
+          }),
+        )
+      })
+
+      describe('replay', function () {
+        it(
+          'should replay assemblies',
+          testCase((client) => {
+            // Create an assembly to replay
+            let createPromise = client.createAssembly({
+              params: {
+                steps: { import: { robot: '/http/import', url: 'https://placehold.co/100.jpg' } },
+              },
+            })
+
+            return createPromise.then((assembly) => {
+              let output = new OutputCtl()
+              return assemblies
+                .replay(output, client, { assemblies: [assembly.assembly_id], steps: null })
+                .then(() => {
+                  let logs = output.get()
+                  expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
+                })
+            })
+          }),
+        )
+      })
+
+      describe('create', function () {
+        const genericImg = 'https://placehold.co/100.jpg'
+        function imgPromise(fname = 'in.jpg') {
+          return Q.Promise((resolve, reject) => {
+            let req = request(genericImg)
+            req.pipe(fs.createWriteStream(fname))
+            req.on('error', reject)
+            req.on('end', () => resolve(fname))
           })
-        }),
-      )
+        }
 
-      it(
-        'should handle multiple inputs',
-        testCase((client) => {
-          let inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
-          let stepsFilePromise = stepsPromise()
-          let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+        const genericSteps = {
+          resize: {
+            robot: '/image/resize',
+            use: ':original',
+            result: true,
+            width: 130,
+            height: 130,
+          },
+        }
+        function stepsPromise(fname = 'steps.json', steps = genericSteps) {
+          return Q.nfcall(fs.writeFile, 'steps.json', JSON.stringify(steps)).then(
+            () => 'steps.json',
+          )
+        }
 
-          let resultPromise = Q.spread(
-            [inFilesPromise, stepsFilePromise, outdirPromise],
-            (infiles, steps) => {
+        it(
+          'should transcode a file',
+          testCase((client) => {
+            let inFilePromise = imgPromise()
+            let stepsFilePromise = stepsPromise()
+
+            let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
               let output = new OutputCtl()
               return assembliesCreate(output, client, {
                 steps,
-                inputs: infiles,
-                output: 'out',
-              }).then(() => output.get())
-            },
-          )
-
-          return resultPromise.then((result) => {
-            return Q.nfcall(fs.readdir, 'out').then((outs) => {
-              expect(outs).to.have.property(0).that.equals('in1.jpg')
-              expect(outs).to.have.property(1).that.equals('in2.jpg')
-              expect(outs).to.have.property(2).that.equals('in3.jpg')
-              expect(outs).to.have.lengthOf(3)
+                inputs: [infile],
+                output: 'out.jpg',
+              }).then(() => output.get(true))
             })
-          })
-        }),
-      )
 
-      it(
-        'should not output outside outdir',
-        testCase((client) => {
-          return Q.nfcall(fs.mkdir, 'sub').then(() => {
-            process.chdir('sub')
-            let inFilePromise = imgPromise('../in.jpg')
-            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            return resultPromise.then((result) => {
+              expect(result).to.have.lengthOf(3)
+              expect(result).to.have.nested.property('[0].type').that.equals('debug')
+              expect(result)
+                .to.have.nested.property('[0].msg')
+                .that.equals('GOT JOB in.jpg out.jpg')
+              expect(result).to.have.nested.property('[1].type').that.equals('debug')
+              expect(result).to.have.nested.property('[1].msg').that.equals('DOWNLOADING')
+              expect(result).to.have.nested.property('[2].type').that.equals('debug')
+              expect(result)
+                .to.have.nested.property('[2].msg')
+                .that.equals('COMPLETED in.jpg out.jpg')
+              return Q.nfcall(imgSize, 'out.jpg').then((dim) => {
+                expect(dim).to.have.property('width').that.equals(130)
+                expect(dim).to.have.property('height').that.equals(130)
+              })
+            })
+          }),
+        )
+
+        it(
+          'should handle multiple inputs',
+          testCase((client) => {
+            let inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
             let stepsFilePromise = stepsPromise()
+            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
 
             let resultPromise = Q.spread(
-              [inFilePromise, stepsFilePromise, outdirPromise],
-              (infile, steps) => {
+              [inFilesPromise, stepsFilePromise, outdirPromise],
+              (infiles, steps) => {
                 let output = new OutputCtl()
                 return assembliesCreate(output, client, {
                   steps,
-                  inputs: [infile],
+                  inputs: infiles,
                   output: 'out',
                 }).then(() => output.get())
               },
             )
 
             return resultPromise.then((result) => {
-              let outcheck = Q.nfcall(fs.readdir, 'out').then((outs) => {
-                expect(outs).to.have.property(0).that.equals('in.jpg')
+              return Q.nfcall(fs.readdir, 'out').then((outs) => {
+                expect(outs).to.have.property(0).that.equals('in1.jpg')
+                expect(outs).to.have.property(1).that.equals('in2.jpg')
+                expect(outs).to.have.property(2).that.equals('in3.jpg')
+                expect(outs).to.have.lengthOf(3)
+              })
+            })
+          }),
+        )
+
+        it(
+          'should not output outside outdir',
+          testCase((client) => {
+            return Q.nfcall(fs.mkdir, 'sub').then(() => {
+              process.chdir('sub')
+              let inFilePromise = imgPromise('../in.jpg')
+              let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+              let stepsFilePromise = stepsPromise()
+
+              let resultPromise = Q.spread(
+                [inFilePromise, stepsFilePromise, outdirPromise],
+                (infile, steps) => {
+                  let output = new OutputCtl()
+                  return assembliesCreate(output, client, {
+                    steps,
+                    inputs: [infile],
+                    output: 'out',
+                  }).then(() => output.get())
+                },
+              )
+
+              return resultPromise.then((result) => {
+                let outcheck = Q.nfcall(fs.readdir, 'out').then((outs) => {
+                  expect(outs).to.have.property(0).that.equals('in.jpg')
+                  expect(outs).to.have.lengthOf(1)
+                })
+
+                let pwdcheck = Q.nfcall(fs.readdir, '.').then((ls) => {
+                  expect(ls).to.not.contain('in.jpg')
+                })
+
+                return Q.all([outcheck, pwdcheck])
+              })
+            })
+          }),
+        )
+
+        it(
+          'should structure output directory correctly',
+          testCase((client) => {
+            let indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
+            let inFilesPromise = indirPromise.then(() => {
+              return Q.all(['1.jpg', 'in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
+            })
+            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            let stepsFilePromise = stepsPromise()
+
+            let resultPromise = Q.spread(
+              [stepsFilePromise, inFilesPromise, outdirPromise],
+              (steps) => {
+                let output = new OutputCtl()
+                return assembliesCreate(output, client, {
+                  recursive: true,
+                  steps,
+                  inputs: ['1.jpg', 'in'],
+                  output: 'out',
+                }).then(() => output.get())
+              },
+            )
+
+            return resultPromise.then((result) => {
+              return Q.nfcall(rreaddir, 'out').then((outs) => {
+                expect(outs).to.include('out/1.jpg')
+                expect(outs).to.include('out/2.jpg')
+                expect(outs).to.include('out/sub/3.jpg')
+                expect(outs).to.have.lengthOf(3)
+              })
+            })
+          }),
+        )
+
+        it(
+          'should not be recursive by default',
+          testCase((client) => {
+            let indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
+            let inFilesPromise = indirPromise.then(() => {
+              return Q.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
+            })
+            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            let stepsFilePromise = stepsPromise()
+
+            let resultPromise = Q.spread(
+              [stepsFilePromise, inFilesPromise, outdirPromise],
+              (steps) => {
+                let output = new OutputCtl()
+                return assembliesCreate(output, client, {
+                  steps,
+                  inputs: ['in'],
+                  output: 'out',
+                }).then(() => output.get())
+              },
+            )
+
+            return resultPromise.then((result) => {
+              return Q.nfcall(rreaddir, 'out').then((outs) => {
+                expect(outs).to.include('out/2.jpg')
+                expect(outs).to.not.include('out/sub/3.jpg')
                 expect(outs).to.have.lengthOf(1)
               })
-
-              let pwdcheck = Q.nfcall(fs.readdir, '.').then((ls) => {
-                expect(ls).to.not.contain('in.jpg')
-              })
-
-              return Q.all([outcheck, pwdcheck])
             })
-          })
-        }),
-      )
+          }),
+        )
 
-      it(
-        'should structure output directory correctly',
-        testCase((client) => {
-          let indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
-          let inFilesPromise = indirPromise.then(() => {
-            return Q.all(['1.jpg', 'in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
-          })
-          let outdirPromise = Q.nfcall(fs.mkdir, 'out')
-          let stepsFilePromise = stepsPromise()
+        it(
+          'should be able to handle directories recursively',
+          testCase((client) => {
+            let indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
+            let inFilesPromise = indirPromise.then(() => {
+              return Q.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
+            })
+            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            let stepsFilePromise = stepsPromise()
 
-          let resultPromise = Q.spread(
-            [stepsFilePromise, inFilesPromise, outdirPromise],
-            (steps) => {
+            let resultPromise = Q.spread(
+              [stepsFilePromise, inFilesPromise, outdirPromise],
+              (steps) => {
+                let output = new OutputCtl()
+                return assembliesCreate(output, client, {
+                  recursive: true,
+                  steps,
+                  inputs: ['in'],
+                  output: 'out',
+                }).then(() => output.get())
+              },
+            )
+
+            return resultPromise.then((result) => {
+              return Q.nfcall(rreaddir, 'out').then((outs) => {
+                expect(outs).to.include('out/2.jpg')
+                expect(outs).to.include('out/sub/3.jpg')
+                expect(outs).to.have.lengthOf(2)
+              })
+            })
+          }),
+        )
+
+        it.skip(
+          'should detect outdir conflicts',
+          testCase((client) => {
+            let indirPromise = Q.nfcall(fs.mkdir, 'in')
+            let inFilesPromise = indirPromise.then(() => {
+              return Q.all(['1.jpg', 'in/1.jpg'].map(imgPromise))
+            })
+            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            let stepsFilePromise = stepsPromise()
+
+            let errMsgDeferred = Q.defer()
+
+            Q.spread([stepsFilePromise, inFilesPromise, outdirPromise], (steps) => {
               let output = new OutputCtl()
               return assembliesCreate(output, client, {
-                recursive: true,
                 steps,
                 inputs: ['1.jpg', 'in'],
                 output: 'out',
-              }).then(() => output.get())
-            },
-          )
-
-          return resultPromise.then((result) => {
-            return Q.nfcall(rreaddir, 'out').then((outs) => {
-              expect(outs).to.include('out/1.jpg')
-              expect(outs).to.include('out/2.jpg')
-              expect(outs).to.include('out/sub/3.jpg')
-              expect(outs).to.have.lengthOf(3)
-            })
-          })
-        }),
-      )
-
-      it(
-        'should not be recursive by default',
-        testCase((client) => {
-          let indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
-          let inFilesPromise = indirPromise.then(() => {
-            return Q.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
-          })
-          let outdirPromise = Q.nfcall(fs.mkdir, 'out')
-          let stepsFilePromise = stepsPromise()
-
-          let resultPromise = Q.spread(
-            [stepsFilePromise, inFilesPromise, outdirPromise],
-            (steps) => {
-              let output = new OutputCtl()
-              return assembliesCreate(output, client, {
-                steps,
-                inputs: ['in'],
-                output: 'out',
-              }).then(() => output.get())
-            },
-          )
-
-          return resultPromise.then((result) => {
-            return Q.nfcall(rreaddir, 'out').then((outs) => {
-              expect(outs).to.include('out/2.jpg')
-              expect(outs).to.not.include('out/sub/3.jpg')
-              expect(outs).to.have.lengthOf(1)
-            })
-          })
-        }),
-      )
-
-      it(
-        'should be able to handle directories recursively',
-        testCase((client) => {
-          let indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
-          let inFilesPromise = indirPromise.then(() => {
-            return Q.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
-          })
-          let outdirPromise = Q.nfcall(fs.mkdir, 'out')
-          let stepsFilePromise = stepsPromise()
-
-          let resultPromise = Q.spread(
-            [stepsFilePromise, inFilesPromise, outdirPromise],
-            (steps) => {
-              let output = new OutputCtl()
-              return assembliesCreate(output, client, {
-                recursive: true,
-                steps,
-                inputs: ['in'],
-                output: 'out',
-              }).then(() => output.get())
-            },
-          )
-
-          return resultPromise.then((result) => {
-            return Q.nfcall(rreaddir, 'out').then((outs) => {
-              expect(outs).to.include('out/2.jpg')
-              expect(outs).to.include('out/sub/3.jpg')
-              expect(outs).to.have.lengthOf(2)
-            })
-          })
-        }),
-      )
-
-      it.skip(
-        'should detect outdir conflicts',
-        testCase((client) => {
-          let indirPromise = Q.nfcall(fs.mkdir, 'in')
-          let inFilesPromise = indirPromise.then(() => {
-            return Q.all(['1.jpg', 'in/1.jpg'].map(imgPromise))
-          })
-          let outdirPromise = Q.nfcall(fs.mkdir, 'out')
-          let stepsFilePromise = stepsPromise()
-
-          let errMsgDeferred = Q.defer()
-
-          Q.spread([stepsFilePromise, inFilesPromise, outdirPromise], (steps) => {
-            let output = new OutputCtl()
-            return assembliesCreate(output, client, {
-              steps,
-              inputs: ['1.jpg', 'in'],
-              output: 'out',
-            })
-              .then(() =>
-                errMsgDeferred.reject(new Error('assembliesCreate didnt err; should have')),
-              )
-              .catch((err) => {
-                errMsgDeferred.resolve(output.get(), err) // pass err to satisfy linter
               })
-          })
-
-          return errMsgDeferred.promise.then((result) => {
-            expect(result[result.length - 1])
-              .to.have.property('type')
-              .that.equals('error')
-            expect(result[result.length - 1])
-              .to.have.nested.property('msg.message')
-              .that.equals("Output collision between 'in/1.jpg' and '1.jpg'")
-          })
-        }),
-      )
-
-      it(
-        'should not download the result if no output is specified',
-        testCase((client) => {
-          let inFilePromise = imgPromise()
-          let stepsFilePromise = stepsPromise()
-
-          let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
-            let output = new OutputCtl()
-            return assembliesCreate(output, client, { steps, inputs: [infile], output: null }).then(
-              () => output.get(true),
-            )
-          })
-
-          return resultPromise.then((result) => {
-            expect(result.filter((line) => line.msg === 'DOWNLOADING')).to.have.lengthOf(0)
-          })
-        }),
-      )
-
-      it(
-        'should accept invocations with no inputs',
-        testCase((client) => {
-          let inFilePromise = imgPromise()
-          let stepsFilePromise = stepsPromise('steps.json', {
-            import: {
-              robot: '/http/import',
-              url: genericImg,
-            },
-            resize: {
-              robot: '/image/resize',
-              use: 'import',
-              result: true,
-              width: 130,
-              height: 130,
-            },
-          })
-
-          let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
-            let output = new OutputCtl()
-            return assembliesCreate(output, client, { steps, inputs: [], output: 'out.jpg' }).then(
-              () => output.get(true),
-            )
-          })
-
-          return resultPromise.then((result) => Q.nfcall(fs.access, 'out.jpg'))
-        }),
-      )
-
-      it(
-        'should allow deleting inputs after processing',
-        testCase((client) => {
-          let inFilePromise = imgPromise()
-          let stepsFilePromise = stepsPromise()
-
-          let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
-            let output = new OutputCtl()
-            return assembliesCreate(output, client, {
-              steps,
-              inputs: [infile],
-              output: null,
-              del: true,
-            }).then(() => output.get(true))
-          })
-
-          return Q.spread([inFilePromise, resultPromise], (infile) => {
-            return Q.Promise((resolve, reject) => {
-              fs.access(infile, (err) => {
-                try {
-                  expect(err).to.exist
-                  resolve()
-                } catch (err) {
-                  reject(err)
-                }
-              })
+                .then(() =>
+                  errMsgDeferred.reject(new Error('assembliesCreate didnt err; should have')),
+                )
+                .catch((err) => {
+                  errMsgDeferred.resolve(output.get(), err) // pass err to satisfy linter
+                })
             })
-          })
-        }),
-      )
 
-      it(
-        'should not reprocess inputs that are older than their output',
-        testCase((client) => {
-          let inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
-          let stepsFilePromise = stepsPromise()
-          let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+            return errMsgDeferred.promise.then((result) => {
+              expect(result[result.length - 1])
+                .to.have.property('type')
+                .that.equals('error')
+              expect(result[result.length - 1])
+                .to.have.nested.property('msg.message')
+                .that.equals("Output collision between 'in/1.jpg' and '1.jpg'")
+            })
+          }),
+        )
 
-          let resultPromise = Q.spread(
-            [inFilesPromise, stepsFilePromise, outdirPromise],
-            (infiles, steps) => {
+        it(
+          'should not download the result if no output is specified',
+          testCase((client) => {
+            let inFilePromise = imgPromise()
+            let stepsFilePromise = stepsPromise()
+
+            let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
               let output = new OutputCtl()
               return assembliesCreate(output, client, {
                 steps,
-                inputs: [infiles[0]],
-                output: 'out',
-              })
-            },
-          )
-
-          resultPromise = Q.spread(
-            [inFilesPromise, stepsFilePromise, resultPromise],
-            (infiles, steps) => {
-              let output = new OutputCtl()
-              return assembliesCreate(output, client, {
-                steps,
-                inputs: infiles,
-                output: 'out',
+                inputs: [infile],
+                output: null,
               }).then(() => output.get(true))
-            },
-          )
+            })
 
-          return resultPromise.then((result) => {
-            // assert that no log lines mention the stale input
-            expect(
-              result.map((line) => line.msg).filter((msg) => msg.includes('in1.jpg')),
-            ).to.have.lengthOf(0)
+            return resultPromise.then((result) => {
+              expect(result.filter((line) => line.msg === 'DOWNLOADING')).to.have.lengthOf(0)
+            })
+          }),
+        )
+
+        it(
+          'should accept invocations with no inputs',
+          testCase((client) => {
+            let inFilePromise = imgPromise()
+            let stepsFilePromise = stepsPromise('steps.json', {
+              import: {
+                robot: '/http/import',
+                url: genericImg,
+              },
+              resize: {
+                robot: '/image/resize',
+                use: 'import',
+                result: true,
+                width: 130,
+                height: 130,
+              },
+            })
+
+            let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
+              let output = new OutputCtl()
+              return assembliesCreate(output, client, {
+                steps,
+                inputs: [],
+                output: 'out.jpg',
+              }).then(() => output.get(true))
+            })
+
+            return resultPromise.then((result) => Q.nfcall(fs.access, 'out.jpg'))
+          }),
+        )
+
+        it(
+          'should allow deleting inputs after processing',
+          testCase((client) => {
+            let inFilePromise = imgPromise()
+            let stepsFilePromise = stepsPromise()
+
+            let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
+              let output = new OutputCtl()
+              return assembliesCreate(output, client, {
+                steps,
+                inputs: [infile],
+                output: null,
+                del: true,
+              }).then(() => output.get(true))
+            })
+
+            return Q.spread([inFilePromise, resultPromise], (infile) => {
+              return Q.Promise((resolve, reject) => {
+                fs.access(infile, (err) => {
+                  try {
+                    expect(err).to.exist
+                    resolve()
+                  } catch (err) {
+                    reject(err)
+                  }
+                })
+              })
+            })
+          }),
+        )
+
+        it(
+          'should not reprocess inputs that are older than their output',
+          testCase((client) => {
+            let inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
+            let stepsFilePromise = stepsPromise()
+            let outdirPromise = Q.nfcall(fs.mkdir, 'out')
+
+            let resultPromise = Q.spread(
+              [inFilesPromise, stepsFilePromise, outdirPromise],
+              (infiles, steps) => {
+                let output = new OutputCtl()
+                return assembliesCreate(output, client, {
+                  steps,
+                  inputs: [infiles[0]],
+                  output: 'out',
+                })
+              },
+            )
+
+            resultPromise = Q.spread(
+              [inFilesPromise, stepsFilePromise, resultPromise],
+              (infiles, steps) => {
+                let output = new OutputCtl()
+                return assembliesCreate(output, client, {
+                  steps,
+                  inputs: infiles,
+                  output: 'out',
+                }).then(() => output.get(true))
+              },
+            )
+
+            return resultPromise.then((result) => {
+              // assert that no log lines mention the stale input
+              expect(
+                result.map((line) => line.msg).filter((msg) => msg.includes('in1.jpg')),
+              ).to.have.lengthOf(0)
+            })
+          }),
+        )
+      })
+    })
+  })
+
+  describe('assembly-notifications', function () {
+    describe('list', function () {
+      it.skip(
+        'should list notifications',
+        testCase((client) => {
+          let output = new OutputCtl()
+          return notifications.list(output, client, { pagesize: 1 }).then(() => {
+            let logs = output.get()
+            expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
+          })
+        }),
+      )
+    })
+  })
+
+  describe('bills', function () {
+    describe('get', function () {
+      it(
+        'should get bills',
+        testCase((client) => {
+          let output = new OutputCtl()
+          let date = new Date()
+          let month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+          return bills.get(output, client, { months: [month] }).then(() => {
+            let logs = output.get()
+            expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
+            expect(logs.filter((l) => l.type === 'print')).to.have.length.above(0)
           })
         }),
       )

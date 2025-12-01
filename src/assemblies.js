@@ -23,8 +23,13 @@ export function list(output, client, { before, after, fields, keywords }) {
     }
   })
 
-  assemblies.on('error', (err) => {
-    output.error(formatAPIError(err))
+  return new Promise((resolve, reject) => {
+    assemblies.on('end', resolve)
+    assemblies.on('error', (err) => {
+      output.error(formatAPIError(err))
+      // Resolve anyway so CLI doesn't hang, error is logged
+      resolve()
+    })
   })
 }
 
@@ -52,38 +57,47 @@ export function get(output, client, { assemblies }) {
 }
 
 function _delete(output, client, { assemblies }) {
-  for (let assembly of assemblies) {
-    client.cancelAssembly(assembly).catch((err) => {
-      output.error(formatAPIError(err))
-    })
-  }
+  return Q.all(
+    assemblies.map((assembly) => {
+      return client.cancelAssembly(assembly).catch((err) => {
+        output.error(formatAPIError(err))
+      })
+    }),
+  )
 }
 
 export { _delete as delete }
 
 export function replay(output, client, { fields, reparse, steps, notify_url, assemblies }) {
   if (steps) {
+    let deferred = Q.defer()
     stream2buf(createReadStream(steps), (err, buf) => {
-      if (err) return output.error(err.message)
+      if (err) {
+        output.error(err.message)
+        return deferred.reject(err)
+      }
 
-      apiCall(JSON.parse(buf.toString()))
+      deferred.resolve(apiCall(JSON.parse(buf.toString())))
     })
+    return deferred.promise
   } else {
-    apiCall()
+    return apiCall()
   }
 
   function apiCall(steps) {
-    for (let assembly of assemblies) {
-      client
-        .replayAssembly(assembly, {
-          reparse_template: reparse,
-          fields,
-          steps,
-          notify_url,
-        })
-        .catch((err) => {
-          return output.error(formatAPIError(err))
-        })
-    }
+    return Q.all(
+      assemblies.map((assembly) => {
+        return client
+          .replayAssembly(assembly, {
+            reparse_template: reparse,
+            fields,
+            steps,
+            notify_url,
+          })
+          .catch((err) => {
+            return output.error(formatAPIError(err))
+          })
+      }),
+    )
   }
 }

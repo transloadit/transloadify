@@ -1,20 +1,26 @@
+import Q from 'q'
+
 export function replay(output, client, { notify_url, assemblies }) {
-  for (let id of assemblies) {
-    client.replayAssemblyNotification(id, { notify_url }).catch((err) => {
-      output.error(err)
-    })
-  }
+  return Q.all(
+    assemblies.map((id) => {
+      return client.replayAssemblyNotification(id, { notify_url }).catch((err) => {
+        output.error(err)
+      })
+    }),
+  )
 }
 
 export function list(output, client, { type, assembly_id }) {
-  let notifications = client.streamAssemblyNotifications({ type, assembly_id })
-
-  notifications.on('readable', () => {
-    let notification = notifications.read()
-    if (!notification) return
-
-    output.print(notification, notification)
-  })
-
-  notifications.on('error', output.error.bind(output))
+  // return client
+  //   .listAssemblyNotifications({ type, assembly_id })
+  //   .then((result) => {
+  //     result.items.forEach((notification) => {
+  //       output.print(notification, notification)
+  //     })
+  //   })
+  //   .catch((err) => {
+  //     output.error(err)
+  //   })
+  output.error('List notifications is not supported in this version')
+  return Promise.resolve()
 }

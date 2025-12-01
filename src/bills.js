@@ -15,4 +15,6 @@ export function get(output, client, { months }) {
       output.error(formatAPIError(err))
     },
   )
+
+  return Q.all(requests)
 }
