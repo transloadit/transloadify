@@ -2,13 +2,10 @@ export default function help(output, client, { helpMode: mode, helpAction: actio
   if (!mode && action) return output.print(messages.default)
 
   let msg = messages
-  // @ts-ignore
   if (mode) msg = msg[mode]
-  // @ts-ignore
   if (action) msg = msg[action]
   if (typeof msg === 'object') msg = msg.default
 
-  // @ts-ignore
   output.print(msg.slice(1))
 }
 

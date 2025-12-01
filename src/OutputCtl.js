@@ -3,14 +3,10 @@ export default class OutputCtl {
     this.json = jsonMode
     this.logLevel = logLevel
 
-    // @ts-ignore
     process.stdout.on('error', (err) => {
-      // @ts-ignore
       if (err.code === 'EPIPE') return process.exit(0)
     })
-    // @ts-ignore
     process.stderr.on('error', (err) => {
-      // @ts-ignore
       if (err.code === 'EPIPE') return process.exit(0)
     })
   }

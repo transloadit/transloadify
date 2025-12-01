@@ -9,7 +9,6 @@ import Q from 'q'
 import JobsPromise from './JobsPromise.js'
 
 // workaround for determining mime-type of stdin
-// @ts-ignore
 process.stdin.path = '/dev/stdin'
 
 function myStatSync(stdioStream, path) {
@@ -53,7 +52,6 @@ function dirProvider(output) {
       })
       .then((mtime) => {
         let outstream = fs.createWriteStream(outpath)
-        // @ts-ignore
         outstream.mtime = mtime
         return outstream
       })
@@ -72,7 +70,6 @@ function fileProvider(output) {
 
       return mtimeP.then((mtime) => {
         let outstream = fs.createWriteStream(output)
-        // @ts-ignore
         outstream.mtime = mtime
         return outstream
       })
