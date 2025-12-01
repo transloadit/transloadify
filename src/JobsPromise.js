@@ -9,9 +9,11 @@ export default class JobsPromise extends EventEmitter {
 
   add(promise) {
     this.promises.add(promise)
-    promise.finally(() => this.promises.delete(promise)).catch((err) => {
-      this.emit('error', err)
-    })
+    promise
+      .finally(() => this.promises.delete(promise))
+      .catch((err) => {
+        this.emit('error', err)
+      })
   }
 
   promise() {

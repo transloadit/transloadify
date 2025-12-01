@@ -646,7 +646,7 @@ describe('End-to-end', () => {
               expect(msgs).to.include('GOT JOB in.jpg out.jpg')
               expect(msgs).to.include('DOWNLOADING')
               expect(msgs).to.include('COMPLETED in.jpg out.jpg')
-              
+
               return Q.nfcall(imgSize, 'out.jpg').then((dim) => {
                 expect(dim).to.have.property('width').that.equals(130)
                 expect(dim).to.have.property('height').that.equals(130)

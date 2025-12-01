@@ -1,6 +1,6 @@
 import { assert, describe, it } from 'vitest'
-import Parser from '../src/Parser.js'
 import cli from '../src/cli.js'
+import Parser from '../src/Parser.js'
 
 describe('Parser', () => {
   describe('constructor', () => {
