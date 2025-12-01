@@ -54,8 +54,8 @@ function testCase(cb) {
 }
 
 import { exec } from 'node:child_process'
-import util from 'node:util'
 import { fileURLToPath } from 'node:url'
+import util from 'node:util'
 
 const execAsync = util.promisify(exec)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
