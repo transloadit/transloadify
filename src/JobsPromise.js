@@ -1,5 +1,4 @@
 import { EventEmitter } from 'node:events'
-import Q from 'q'
 
 export default class JobsPromise extends EventEmitter {
   constructor() {
@@ -10,8 +9,7 @@ export default class JobsPromise extends EventEmitter {
 
   add(promise) {
     this.promises.add(promise)
-    promise.fin(() => this.promises.delete(promise))
-    promise.fail((err) => {
+    promise.finally(() => this.promises.delete(promise)).catch((err) => {
       this.emit('error', err)
     })
   }
@@ -21,6 +19,6 @@ export default class JobsPromise extends EventEmitter {
     for (const promise of this.promises) {
       promises.push(promise)
     }
-    return Q.all(promises)
+    return Promise.all(promises)
   }
 }
