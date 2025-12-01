@@ -1,4 +1,5 @@
 import type { Transloadit } from 'transloadit'
+import { tryCatch } from './alphalib/tryCatch.ts'
 import type { IOutputCtl } from './OutputCtl.ts'
 import { ensureError } from './types.ts'
 
@@ -18,12 +19,9 @@ export async function replay(
   client: Transloadit,
   { notify_url, assemblies }: NotificationsReplayOptions,
 ): Promise<void> {
-  try {
-    const promises = assemblies.map((id) => {
-      return client.replayAssemblyNotification(id, { notify_url })
-    })
-    await Promise.all(promises)
-  } catch (err) {
+  const promises = assemblies.map((id) => client.replayAssemblyNotification(id, { notify_url }))
+  const [err] = await tryCatch(Promise.all(promises))
+  if (err) {
     output.error(ensureError(err).message)
   }
 }

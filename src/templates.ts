@@ -4,6 +4,7 @@ import { promisify } from 'node:util'
 import rreaddir from 'recursive-readdir'
 import type { TemplateContent, Transloadit } from 'transloadit'
 import { z } from 'zod'
+import { tryCatch } from './alphalib/tryCatch.ts'
 import { createReadStream, formatAPIError, stream2buf } from './helpers.ts'
 import type { IOutputCtl } from './OutputCtl.ts'
 import ModifiedLookup from './template-last-modified.ts'
@@ -86,14 +87,14 @@ export async function get(
 ): Promise<void> {
   const requests = templates.map((template) => client.getTemplate(template))
 
-  try {
-    const results = await Promise.all(requests)
-    for (const result of results) {
-      output.print(result, result)
-    }
-  } catch (err) {
+  const [err, results] = await tryCatch(Promise.all(requests))
+  if (err) {
     output.error(formatAPIError(err))
     throw err
+  }
+
+  for (const result of results) {
+    output.print(result, result)
   }
 }
 
@@ -155,9 +156,8 @@ async function _delete(
 ): Promise<void> {
   await Promise.all(
     templates.map(async (template) => {
-      try {
-        await client.deleteTemplate(template)
-      } catch (err) {
+      const [err] = await tryCatch(client.deleteTemplate(template))
+      if (err) {
         output.error(formatAPIError(err))
         throw err
       }
@@ -256,8 +256,8 @@ export async function sync(
 
   const modified = new ModifiedLookup(client)
 
-  try {
-    await Promise.all(
+  const [err] = await tryCatch(
+    Promise.all(
       templates.map(async (template) => {
         if (!('steps' in template.data)) {
           if (!template.data.transloadit_template_id) {
@@ -298,8 +298,9 @@ export async function sync(
         if (fileModified > templateModified) return upload(template)
         return download(template)
       }),
-    )
-  } catch (err) {
+    ),
+  )
+  if (err) {
     output.error(err)
     throw err
   }

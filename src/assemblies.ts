@@ -1,5 +1,6 @@
 import type { Transloadit } from 'transloadit'
 import { z } from 'zod'
+import { tryCatch } from './alphalib/tryCatch.ts'
 import assembliesCreate from './assemblies-create.ts'
 import { createReadStream, formatAPIError, stream2buf } from './helpers.ts'
 import type { IOutputCtl } from './OutputCtl.ts'
@@ -77,13 +78,12 @@ export async function get(
 ): Promise<void> {
   for (const assembly of assemblies) {
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    try {
-      const result = await client.getAssembly(assembly)
-      output.print(result, result)
-    } catch (err) {
+    const [err, result] = await tryCatch(client.getAssembly(assembly))
+    if (err) {
       output.error(formatAPIError(err))
       throw ensureError(err)
     }
+    output.print(result, result)
   }
 }
 
@@ -93,9 +93,8 @@ async function _delete(
   { assemblies }: AssemblyDeleteOptions,
 ): Promise<void> {
   const promises = assemblies.map(async (assembly) => {
-    try {
-      await client.cancelAssembly(assembly)
-    } catch (err) {
+    const [err] = await tryCatch(client.cancelAssembly(assembly))
+    if (err) {
       output.error(formatAPIError(err))
     }
   })
@@ -136,13 +135,14 @@ export async function replay(
 
   async function apiCall(_steps?: Record<string, unknown>): Promise<void> {
     const promises = assemblies.map(async (assembly) => {
-      try {
-        await client.replayAssembly(assembly, {
+      const [err] = await tryCatch(
+        client.replayAssembly(assembly, {
           reparse_template: reparse ? 1 : 0,
           fields,
           notify_url,
-        })
-      } catch (err) {
+        }),
+      )
+      if (err) {
         output.error(formatAPIError(err))
       }
     })

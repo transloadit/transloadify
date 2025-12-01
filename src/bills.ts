@@ -1,5 +1,6 @@
 import type { Transloadit } from 'transloadit'
 import { z } from 'zod'
+import { tryCatch } from './alphalib/tryCatch.ts'
 import { formatAPIError } from './helpers.ts'
 import type { IOutputCtl } from './OutputCtl.ts'
 
@@ -16,21 +17,20 @@ export async function get(
   client: Transloadit,
   { months }: BillsGetOptions,
 ): Promise<void> {
-  const requests = months.map((month) => {
-    return client.getBill(month)
-  })
+  const requests = months.map((month) => client.getBill(month))
 
-  try {
-    const results = await Promise.all(requests)
-    for (const result of results) {
-      const parsed = BillResponseSchema.safeParse(result)
-      if (parsed.success) {
-        output.print(`$${parsed.data.total}`, result)
-      } else {
-        output.print('Unable to parse bill response', result)
-      }
-    }
-  } catch (err) {
+  const [err, results] = await tryCatch(Promise.all(requests))
+  if (err) {
     output.error(formatAPIError(err))
+    return
+  }
+
+  for (const result of results) {
+    const parsed = BillResponseSchema.safeParse(result)
+    if (parsed.success) {
+      output.print(`$${parsed.data.total}`, result)
+    } else {
+      output.print('Unable to parse bill response', result)
+    }
   }
 }
