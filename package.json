@@ -28,11 +28,7 @@
   "type": "module",
   "bin": "./bin/cmd.js",
   "main": "./src/index.js",
-  "files": [
-    "src",
-    "bin",
-    "_transloadify"
-  ],
+  "files": ["src", "bin", "_transloadify"],
   "dependencies": {
     "node-watch": "^0.4.1",
     "q": "1.4.1",

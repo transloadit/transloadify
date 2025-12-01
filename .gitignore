@@ -8,3 +8,5 @@ npm-debug.log
 .env
 coverage/e2e
 coverage-report.md
+coverage/unit/.tmp
+coverage/unit
