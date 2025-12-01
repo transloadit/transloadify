@@ -1660,6 +1660,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dotenv@npm:^17.2.3":
+  version: 17.2.3
+  resolution: "dotenv@npm:17.2.3"
+  checksum: fde23eb88649041ec7a0f6a47bbe59cac3c454fc2007cf2e40b9c984aaf0636347218c56cfbbf067034b0a73f530a2698a19b4058695787eb650ec69fe234624
+  languageName: node
+  linkType: hard
+
 "eastasianwidth@npm:^0.2.0":
   version: 0.2.0
   resolution: "eastasianwidth@npm:0.2.0"
@@ -5569,6 +5576,7 @@ __metadata:
     babel-cli: ^6.18.0
     babel-preset-es2015: ^6.18.0
     chai: 3.5.0
+    dotenv: ^17.2.3
     eslint: ^8.36.0
     eslint-config-prettier: ^8.8.0
     eslint-config-standard: ^17.0.0
