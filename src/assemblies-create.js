@@ -403,24 +403,6 @@ function makeJobEmitter(
   return stalefilter(detectConflicts(emitter))
 }
 
-/**
- * @typedef {Object} RunOptions
- * @property {any} [steps]
- * @property {any} [template]
- * @property {any} [fields]
- * @property {any} [watch]
- * @property {any} [recursive]
- * @property {any} [inputs]
- * @property {any} [output]
- * @property {any} [del]
- * @property {any} [reprocessStale]
- */
-
-/**
- * @param {any} outputctl
- * @param {any} client
- * @param {RunOptions} options
- */
 export default function run(
   outputctl,
   client,
