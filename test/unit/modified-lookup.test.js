@@ -1,4 +1,4 @@
-import Q from 'q'
+import { promisify } from 'node:util'
 import { Transloadit as TransloaditClient } from 'transloadit'
 import { assert, describe, it } from 'vitest'
 import ModifiedLookup from '../../src/template-last-modified.js'
@@ -10,41 +10,41 @@ const client = new TransloaditClient({
 })
 
 describe('ModifiedLookup', () => {
-  it('should work with empty cache', () =>
-    client.listTemplates({ page: 1, pagesize: 50 }).then(({ items }) => {
-      const lookups = items.map((item) => {
-        const lookup = new ModifiedLookup(client, 50)
-
-        return Q.nfcall(lookup.byId.bind(lookup), item.id).then((modified) => {
-          const itemTime = Date.parse(item.modified)
-          const lookupTime = modified.valueOf()
-          if (Math.abs(itemTime - lookupTime) > 10000) {
-            assert.fail(
-              `Timestamp mismatch: item ${itemTime} vs lookup ${lookupTime} (diff ${itemTime - lookupTime}ms)`,
-            )
-          }
-        })
-      })
-
-      return Q.all(lookups)
-    }))
-
-  it('should work with full cache', () =>
-    client.listTemplates({ page: 1, pagesize: 50 }).then(({ items }) => {
+  it('should work with empty cache', async () => {
+    const { items } = await client.listTemplates({ page: 1, pagesize: 50 })
+    const lookups = items.map(async (item) => {
       const lookup = new ModifiedLookup(client, 50)
+      const byIdAsync = promisify(lookup.byId.bind(lookup))
 
-      const lookups = items.map((item) => {
-        return Q.nfcall(lookup.byId.bind(lookup), item.id).then((modified) => {
-          const itemTime = Date.parse(item.modified)
-          const lookupTime = modified.valueOf()
-          if (Math.abs(itemTime - lookupTime) > 10000) {
-            assert.fail(
-              `Timestamp mismatch: item ${itemTime} vs lookup ${lookupTime} (diff ${itemTime - lookupTime}ms)`,
-            )
-          }
-        })
-      })
+      const modified = await byIdAsync(item.id)
+      const itemTime = Date.parse(item.modified)
+      const lookupTime = modified.valueOf()
+      if (Math.abs(itemTime - lookupTime) > 10000) {
+        assert.fail(
+          `Timestamp mismatch: item ${itemTime} vs lookup ${lookupTime} (diff ${itemTime - lookupTime}ms)`,
+        )
+      }
+    })
 
-      return Q.all(lookups)
-    }))
+    await Promise.all(lookups)
+  })
+
+  it('should work with full cache', async () => {
+    const { items } = await client.listTemplates({ page: 1, pagesize: 50 })
+    const lookup = new ModifiedLookup(client, 50)
+    const byIdAsync = promisify(lookup.byId.bind(lookup))
+
+    const lookups = items.map(async (item) => {
+      const modified = await byIdAsync(item.id)
+      const itemTime = Date.parse(item.modified)
+      const lookupTime = modified.valueOf()
+      if (Math.abs(itemTime - lookupTime) > 10000) {
+        assert.fail(
+          `Timestamp mismatch: item ${itemTime} vs lookup ${lookupTime} (diff ${itemTime - lookupTime}ms)`,
+        )
+      }
+    })
+
+    await Promise.all(lookups)
+  })
 })

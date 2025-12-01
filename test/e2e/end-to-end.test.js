@@ -1,10 +1,14 @@
+import { exec } from 'node:child_process'
 import fs from 'node:fs'
+import fsp from 'node:fs/promises'
 import path from 'node:path'
-import imgSize from 'image-size'
-import Q from 'q'
+import process from 'node:process'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
+import { imageSize } from 'image-size'
 import rreaddir from 'recursive-readdir'
 import request from 'request'
-import rimraf from 'rimraf'
+import { rimraf } from 'rimraf'
 import { Transloadit as TransloaditClient } from 'transloadit'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as assemblies from '../../src/assemblies.js'
@@ -15,7 +19,12 @@ import * as notifications from '../../src/notifications.js'
 import * as templates from '../../src/templates.js'
 import OutputCtl from '../OutputCtl.js'
 import 'dotenv/config'
-import process from 'node:process'
+
+const execAsync = promisify(exec)
+const rreaddirAsync = promisify(rreaddir)
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const cliPath = path.resolve(__dirname, '../../bin/cmd.js')
 
 const tmpDir = '/tmp'
 
@@ -29,37 +38,30 @@ if (!authKey || !authSecret) {
   process.exit(1)
 }
 
-const _testno = 0
-
 process.setMaxListeners(Number.POSITIVE_INFINITY)
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 function testCase(cb) {
   const cwd = process.cwd()
-  return () => {
+  return async () => {
     const dirname = path.join(
       tmpDir,
       `transloadify_test-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
     )
     const client = new TransloaditClient({ authKey, authSecret })
-    return Q.nfcall(fs.mkdir, dirname)
-      .then(() => {
-        process.chdir(dirname)
-        return cb(client)
-      })
-      .fin(() => {
-        process.chdir(cwd)
-        return Q.nfcall(rimraf, dirname)
-      })
+    try {
+      await fsp.mkdir(dirname)
+      process.chdir(dirname)
+      return await cb(client)
+    } finally {
+      process.chdir(cwd)
+      await rimraf(dirname)
+    }
   }
 }
-
-import { exec } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
-import util from 'node:util'
-
-const execAsync = util.promisify(exec)
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const cliPath = path.resolve(__dirname, '../../bin/cmd.js')
 
 function runCli(args, env = {}) {
   return execAsync(`node ${cliPath} ${args}`, {
@@ -83,24 +85,17 @@ describe('End-to-end', () => {
         testCase(async (client) => {
           const executions = [1, 2, 3, 4, 5].map(async (n) => {
             const output = new OutputCtl()
-            // Make a file with the template contents
-            await Q.nfcall(fs.writeFile, `${n}.json`, JSON.stringify({ testno: n }))
-            // run the test subject
+            await fsp.writeFile(`${n}.json`, JSON.stringify({ testno: n }))
             await templates.create(output, client, { name: `test-${n}`, file: `${n}.json` })
-            // ignore the promise result, just look at the output the user would
-            // see
             return output.get()
           })
 
           const results = await Promise.all(executions)
           for (const result of results) {
-            // Verify that the output looks as expected
             expect(result).to.have.lengthOf(1)
             expect(result).to.have.nested.property('[0].type').that.equals('print')
             expect(result).to.have.nested.property('[0].msg').that.equals(result[0].json.id)
 
-            // delete these test templates from the server, but don't fail the
-            // test if it doesn't work
             await client.deleteTemplate(result[0].json.id).catch(() => {})
           }
         }),
@@ -111,15 +106,12 @@ describe('End-to-end', () => {
       it(
         'should get templates',
         testCase(async (client) => {
-          // get some valid template IDs to request
           const response = await client.listTemplates({ pagesize: 5 })
           const templatesList = response.items
           if (templatesList.length === 0) throw new Error('account has no templates to fetch')
 
           const expectations = await Promise.all(
-            templatesList.map((template) => {
-              return client.getTemplate(template.id)
-            }),
+            templatesList.map((template) => client.getTemplate(template.id)),
           )
 
           const actuals = await Promise.all(
@@ -163,147 +155,116 @@ describe('End-to-end', () => {
     describe('modify', () => {
       let templateId
 
-      beforeAll(() => {
+      beforeAll(async () => {
         const client = new TransloaditClient({ authKey, authSecret })
-        return client
-          .createTemplate({
-            name: 'original-name',
-            template: JSON.stringify({ stage: 0 }),
-          })
-          .then((response) => {
-            templateId = response.id
-          })
+        const response = await client.createTemplate({
+          name: 'original-name',
+          template: JSON.stringify({ stage: 0 }),
+        })
+        templateId = response.id
       })
 
       it(
         'should modify but not rename the template',
-        testCase((client) => {
-          const filePromise = Q.nfcall(fs.writeFile, 'template.json', JSON.stringify({ stage: 1 }))
+        testCase(async (client) => {
+          await fsp.writeFile('template.json', JSON.stringify({ stage: 1 }))
 
-          const resultPromise = filePromise.then(() => {
-            const output = new OutputCtl()
-            return templates
-              .modify(output, client, {
-                template: templateId,
-                file: 'template.json',
-              })
-              .then(() => output.get())
+          const output = new OutputCtl()
+          await templates.modify(output, client, {
+            template: templateId,
+            file: 'template.json',
           })
+          const result = output.get()
 
-          return resultPromise.then((result) => {
-            expect(result).to.have.lengthOf(0)
-            return Q.delay(2000)
-              .then(() => client.getTemplate(templateId))
-              .then((template) => {
-                expect(template).to.have.property('name').that.equals('original-name')
-                expect(template).to.have.property('content').that.deep.equals({ stage: 1 })
-              })
-          })
+          expect(result).to.have.lengthOf(0)
+          await delay(2000)
+          const template = await client.getTemplate(templateId)
+          expect(template).to.have.property('name').that.equals('original-name')
+          expect(template).to.have.property('content').that.deep.equals({ stage: 1 })
         }),
       )
 
       it(
         'should not modify but rename the template',
-        testCase((client) => {
-          const filePromise = Q.nfcall(fs.writeFile, 'template.json', '')
+        testCase(async (client) => {
+          await fsp.writeFile('template.json', '')
 
-          const resultPromise = filePromise.then(() => {
-            const output = new OutputCtl()
-            return templates
-              .modify(output, client, {
-                template: templateId,
-                name: 'new-name',
-                file: 'template.json',
-              })
-              .then(() => output.get())
+          const output = new OutputCtl()
+          await templates.modify(output, client, {
+            template: templateId,
+            name: 'new-name',
+            file: 'template.json',
           })
+          const result = output.get()
 
-          return resultPromise.then((result) => {
-            expect(result).to.have.lengthOf(0)
-            return Q.delay(2000)
-              .then(() => client.getTemplate(templateId))
-              .then((template) => {
-                expect(template).to.have.property('name').that.equals('new-name')
-                expect(template).to.have.property('content').that.deep.equals({ stage: 1 })
-              })
-          })
+          expect(result).to.have.lengthOf(0)
+          await delay(2000)
+          const template = await client.getTemplate(templateId)
+          expect(template).to.have.property('name').that.equals('new-name')
+          expect(template).to.have.property('content').that.deep.equals({ stage: 1 })
         }),
       )
 
       it(
         'should modify and rename the template',
-        testCase((client) => {
-          const filePromise = Q.nfcall(fs.writeFile, 'template.json', JSON.stringify({ stage: 2 }))
+        testCase(async (client) => {
+          await fsp.writeFile('template.json', JSON.stringify({ stage: 2 }))
 
-          const resultPromise = filePromise.then(() => {
-            const output = new OutputCtl()
-            return templates
-              .modify(output, client, {
-                template: templateId,
-                name: 'newer-name',
-                file: 'template.json',
-              })
-              .then(() => output.get())
+          const output = new OutputCtl()
+          await templates.modify(output, client, {
+            template: templateId,
+            name: 'newer-name',
+            file: 'template.json',
           })
+          const result = output.get()
 
-          return resultPromise.then((result) => {
-            expect(result).to.have.lengthOf(0)
-            return Q.delay(2000)
-              .then(() => client.getTemplate(templateId))
-              .then((template) => {
-                expect(template).to.have.property('name').that.equals('newer-name')
-                expect(template).to.have.property('content').that.deep.equals({ stage: 2 })
-              })
-          })
+          expect(result).to.have.lengthOf(0)
+          await delay(2000)
+          const template = await client.getTemplate(templateId)
+          expect(template).to.have.property('name').that.equals('newer-name')
+          expect(template).to.have.property('content').that.deep.equals({ stage: 2 })
         }),
       )
 
-      afterAll(() => {
+      afterAll(async () => {
         const client = new TransloaditClient({ authKey, authSecret })
-        return client.deleteTemplate(templateId)
+        await client.deleteTemplate(templateId)
       })
     })
 
     describe('delete', () => {
       it(
         'should delete templates',
-        testCase((client) => {
-          const templateIdsPromise = Q.all(
-            [1, 2, 3, 4, 5].map((n) => {
-              return client
-                .createTemplate({
-                  name: `delete-test-${n}`,
-                  template: JSON.stringify({ n }),
-                })
-                .then((response) => response.id)
+        testCase(async (client) => {
+          const ids = await Promise.all(
+            [1, 2, 3, 4, 5].map(async (n) => {
+              const response = await client.createTemplate({
+                name: `delete-test-${n}`,
+                template: JSON.stringify({ n }),
+              })
+              return response.id
             }),
           )
 
-          const resultPromise = templateIdsPromise.then((ids) => {
-            const output = new OutputCtl()
-            return templates.delete(output, client, { templates: ids }).then(() => output.get())
-          })
+          const output = new OutputCtl()
+          await templates.delete(output, client, { templates: ids })
+          const result = output.get()
 
-          return Q.spread([resultPromise, templateIdsPromise], (result, ids) => {
-            expect(result).to.have.lengthOf(0)
-            return Q.all(
-              ids.map((id) => {
-                return client
-                  .getTemplate(id)
-                  .then((response) => {
-                    expect(response).to.not.exist
-                  })
-                  .catch((err) => {
-                    const errorCode =
-                      err.code || err.transloaditErrorCode || err.response?.body?.error
-                    if (errorCode !== 'TEMPLATE_NOT_FOUND') {
-                      console.error('Delete failed with unexpected error:', err, 'Code:', errorCode)
-                      throw err
-                    }
-                  })
-              }),
-            )
-          })
+          expect(result).to.have.lengthOf(0)
+          await Promise.all(
+            ids.map(async (id) => {
+              try {
+                const response = await client.getTemplate(id)
+                expect(response).to.not.exist
+              } catch (err) {
+                const errorCode = err.code || err.transloaditErrorCode || err.response?.body?.error
+                if (errorCode !== 'TEMPLATE_NOT_FOUND') {
+                  console.error('Delete failed with unexpected error:', err, 'Code:', errorCode)
+                  throw err
+                }
+              }
+            }),
+          )
         }),
       )
     })
@@ -311,152 +272,106 @@ describe('End-to-end', () => {
     describe('sync', () => {
       it(
         'should handle directories recursively',
-        testCase((client) => {
-          const templateIdsPromise = client
-            .listTemplates({
-              pagesize: 5,
-            })
-            .then((response) => response.items.map((item) => ({ id: item.id, name: item.name })))
+        testCase(async (client) => {
+          const response = await client.listTemplates({ pagesize: 5 })
+          const templateIds = response.items.map((item) => ({ id: item.id, name: item.name }))
 
-          const filesPromise = templateIdsPromise.then((ids) => {
-            let dirname = 'd'
-            let promise = Q.fcall(() => {})
+          let dirname = 'd'
+          const files = []
+          for (const { id, name } of templateIds) {
+            const fname = path.join(dirname, `${name}.json`)
+            await fsp.mkdir(dirname, { recursive: true })
+            await fsp.writeFile(fname, `{"transloadit_template_id":"${id}"}`)
+            files.push(fname)
+            dirname = path.join(dirname, 'd')
+          }
 
-            return Q.all(
-              ids.map(({ id, name }) => {
-                promise = promise.then(() => {
-                  const fname = path.join(dirname, `${name}.json`)
-                  return Q.nfcall(fs.mkdir, dirname)
-                    .then(() =>
-                      Q.nfcall(fs.writeFile, fname, `{"transloadit_template_id":"${id}"}`),
-                    )
-                    .then(() => {
-                      dirname = path.join(dirname, 'd')
-                    })
-                    .then(() => fname)
-                })
-                return promise
-              }),
-            )
-          })
+          const output = new OutputCtl()
+          await templates.sync(output, client, { recursive: true, files: ['d'] })
+          const result = output.get()
 
-          const resultPromise = filesPromise.then((_files) => {
-            const output = new OutputCtl()
-            return templates
-              .sync(output, client, { recursive: true, files: ['d'] })
-              .then(() => output.get())
-          })
-
-          return Q.spread(
-            [resultPromise, templateIdsPromise, filesPromise],
-            (result, ids, files) => {
-              expect(result).to.have.lengthOf(0)
-              const fileContentsPromise = Q.all(
-                files.map((file) => Q.nfcall(fs.readFile, file).then(JSON.parse)),
-              )
-              return fileContentsPromise.then((contents) => {
-                return Q.all(
-                  zip(contents, ids).map(([content, id]) => {
-                    expect(content).to.have.property('transloadit_template_id').that.equals(id.id)
-                    expect(content).to.have.property('steps')
-                    return null
-                  }),
-                )
-              })
-            },
+          expect(result).to.have.lengthOf(0)
+          const contents = await Promise.all(
+            files.map(async (file) => JSON.parse(await fsp.readFile(file, 'utf8'))),
           )
+          for (const [content, idObj] of zip(contents, templateIds)) {
+            expect(content).to.have.property('transloadit_template_id').that.equals(idObj.id)
+            expect(content).to.have.property('steps')
+          }
         }),
       )
 
       it(
         'should update local files when outdated',
-        testCase((client) => {
+        testCase(async (client) => {
           const params = {
             name: 'test-local-update-1',
             template: JSON.stringify({ changed: true }),
           }
-          const templateIdPromise = client.createTemplate(params).then((response) => response.id)
+          const response = await client.createTemplate(params)
+          const id = response.id
 
-          const filePromise = templateIdPromise.then((id) => {
+          try {
             const fname = `${params.name}.json`
-            return Q.nfcall(
-              fs.writeFile,
+            await fsp.writeFile(
               fname,
               JSON.stringify({
                 transloadit_template_id: id,
                 steps: { changed: false },
               }),
             )
-              .then(() => Q.nfcall(fs.utimes, fname, 0, 0)) // make the file appear old
-              .then(() => fname)
-          })
+            await fsp.utimes(fname, 0, 0)
 
-          const resultPromise = filePromise.then((fname) => {
             const output = new OutputCtl()
-            return templates.sync(output, client, { files: [fname] }).then(() => output.get())
-          })
+            await templates.sync(output, client, { files: [fname] })
+            const result = output.get()
 
-          return Q.spread([resultPromise, templateIdPromise, filePromise], (result, id, fname) => {
             expect(result).to.have.lengthOf(0)
-            return Q.nfcall(fs.readFile, fname)
-              .then(JSON.parse)
-              .then((content) => {
-                expect(content).to.have.property('steps').that.has.property('changed').that.is.true
-              })
-              .then(() => client.getTemplate(id))
-              .then((response) => {
-                expect(response).to.have.property('content').that.has.property('changed').that.is
-                  .true
-              })
-          }).fin(() => {
-            return templateIdPromise.then((id) => client.deleteTemplate(id)).catch(() => {})
-          })
+            const content = JSON.parse(await fsp.readFile(fname, 'utf8'))
+            expect(content).to.have.property('steps').that.has.property('changed').that.is.true
+            const fetchedTemplate = await client.getTemplate(id)
+            expect(fetchedTemplate).to.have.property('content').that.has.property('changed').that.is
+              .true
+          } finally {
+            await client.deleteTemplate(id).catch(() => {})
+          }
         }),
       )
 
       it(
         'should update remote template when outdated',
-        testCase((client) => {
+        testCase(async (client) => {
           const params = {
             name: 'test-local-update-1',
             template: JSON.stringify({ changed: false }),
           }
-          const templateIdPromise = client.createTemplate(params).then((response) => response.id)
+          const response = await client.createTemplate(params)
+          const id = response.id
 
-          const filePromise = templateIdPromise.then((id) => {
+          try {
             const fname = `${params.name}.json`
-            return Q.nfcall(
-              fs.writeFile,
+            await fsp.writeFile(
               fname,
               JSON.stringify({
                 transloadit_template_id: id,
                 steps: { changed: true },
               }),
             )
-              .then(() => Q.nfcall(fs.utimes, fname, Date.now() * 2, Date.now() * 2)) // make the file appear new
-              .then(() => fname)
-          })
+            await fsp.utimes(fname, Date.now() * 2, Date.now() * 2)
 
-          const resultPromise = filePromise.then((fname) => {
             const output = new OutputCtl()
-            return templates.sync(output, client, { files: [fname] }).then(() => output.get())
-          })
+            await templates.sync(output, client, { files: [fname] })
+            const result = output.get()
 
-          return Q.spread([resultPromise, templateIdPromise, filePromise], (result, id, fname) => {
             expect(result).to.have.lengthOf(0)
-            return Q.nfcall(fs.readFile, fname)
-              .then(JSON.parse)
-              .then((content) => {
-                expect(content).to.have.property('steps').that.has.property('changed').that.is.true
-              })
-              .then(() => client.getTemplate(id))
-              .then((response) => {
-                expect(response).to.have.property('content').that.has.property('changed').that.is
-                  .true
-              })
-          }).fin(() => {
-            return templateIdPromise.then((id) => client.deleteTemplate(id)).catch(() => {})
-          })
+            const content = JSON.parse(await fsp.readFile(fname, 'utf8'))
+            expect(content).to.have.property('steps').that.has.property('changed').that.is.true
+            const fetchedTemplate = await client.getTemplate(id)
+            expect(fetchedTemplate).to.have.property('content').that.has.property('changed').that.is
+              .true
+          } finally {
+            await client.deleteTemplate(id).catch(() => {})
+          }
         }),
       )
     })
@@ -466,102 +381,69 @@ describe('End-to-end', () => {
     describe('get', () => {
       it(
         'should get assemblies',
-        testCase((client) => {
-          // get some valid assembly IDs to request
-          const assemblyRequests = client
-            .listAssemblies({
-              pagesize: 5,
-              type: 'completed',
-            })
-            .then((response) => response.items)
-            .then((assemblies) => {
-              if (assemblies.length === 0) throw new Error('account has no assemblies to fetch')
-              return assemblies
-            })
-
-          const sdkResults = assemblyRequests.then((as) => {
-            return Q.all(
-              as.map((assembly) => {
-                return client.getAssembly(assembly.id)
-              }),
-            )
+        testCase(async (client) => {
+          const response = await client.listAssemblies({
+            pagesize: 5,
+            type: 'completed',
           })
+          const assemblyList = response.items
+          if (assemblyList.length === 0) throw new Error('account has no assemblies to fetch')
 
-          const transloadifyResults = assemblyRequests.then((as) => {
-            return Q.all(
-              as.map((assembly) => {
-                const output = new OutputCtl()
-                return assemblies
-                  .get(output, client, { assemblies: [assembly.id] })
-                  .then(() => output.get())
-              }),
-            )
-          })
+          const expectations = await Promise.all(
+            assemblyList.map((assembly) => client.getAssembly(assembly.id)),
+          )
 
-          return Q.spread([sdkResults, transloadifyResults], (expectations, actuals) => {
-            return Q.all(
-              zip(expectations, actuals).map(([expectation, actual]) => {
-                expect(actual).to.have.lengthOf(1)
-                expect(actual).to.have.nested.property('[0].type').that.equals('print')
-                expect(actual).to.have.nested.property('[0].json').that.deep.equals(expectation)
-                return null
-              }),
-            )
-          })
+          const actuals = await Promise.all(
+            assemblyList.map(async (assembly) => {
+              const output = new OutputCtl()
+              await assemblies.get(output, client, { assemblies: [assembly.id] })
+              return output.get()
+            }),
+          )
+
+          for (const [expectation, actual] of zip(expectations, actuals)) {
+            expect(actual).to.have.lengthOf(1)
+            expect(actual).to.have.nested.property('[0].type').that.equals('print')
+            expect(actual).to.have.nested.property('[0].json').that.deep.equals(expectation)
+          }
         }),
       )
 
       it(
         'should return assemblies in the order specified',
-        testCase((client) => {
-          const assemblyRequests = client
-            .listAssemblies({ pagesize: 5 })
-            .then((response) => response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1))
-            .then((assemblies) => {
-              if (assemblies.length === 0) throw new Error('account has no assemblies to fetch')
-              return assemblies
-            })
+        testCase(async (client) => {
+          const response = await client.listAssemblies({ pagesize: 5 })
+          const assemblyList = response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1)
+          if (assemblyList.length === 0) throw new Error('account has no assemblies to fetch')
 
-          const idsPromise = assemblyRequests.then((assemblies) =>
-            assemblies.map((assembly) => assembly.id),
-          )
+          const ids = assemblyList.map((assembly) => assembly.id)
 
-          const resultsPromise = idsPromise.then((ids) => {
-            const output = new OutputCtl()
-            return assemblies.get(output, client, { assemblies: ids }).then(() => output.get())
-          })
+          const output = new OutputCtl()
+          await assemblies.get(output, client, { assemblies: ids })
+          const results = output.get()
 
-          return Q.spread([resultsPromise, idsPromise], (results, ids) => {
-            try {
-              expect(results).to.have.lengthOf(ids.length)
-            } catch (e) {
-              console.error('DEBUG: Results:', JSON.stringify(results, null, 2))
-              console.error('DEBUG: Ids:', JSON.stringify(ids, null, 2))
-              throw e
-            }
-            return Q.all(
-              zip(results, ids).map(([result, id]) => {
-                expect(result).to.have.property('type').that.equals('print')
-                expect(result).to.have.nested.property('json.assembly_id').that.equals(id)
-                return null
-              }),
-            )
-          })
+          try {
+            expect(results).to.have.lengthOf(ids.length)
+          } catch (e) {
+            console.error('DEBUG: Results:', JSON.stringify(results, null, 2))
+            console.error('DEBUG: Ids:', JSON.stringify(ids, null, 2))
+            throw e
+          }
+          for (const [result, id] of zip(results, ids)) {
+            expect(result).to.have.property('type').that.equals('print')
+            expect(result).to.have.nested.property('json.assembly_id').that.equals(id)
+          }
         }),
       )
+
       describe('list', () => {
         it(
           'should list assemblies',
-          testCase((client) => {
+          testCase(async (client) => {
             const output = new OutputCtl()
-            return assemblies.list(output, client, { pagesize: 1 }).then(() => {
-              const logs = output.get()
-              // Should have at least some output if there are assemblies, or none if empty.
-              // We can't guarantee assemblies exist, but we can check if it ran without error.
-              // Actually, previous tests likely created assemblies.
-              // Let's just assert no error.
-              expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
-            })
+            await assemblies.list(output, client, { pagesize: 1 })
+            const logs = output.get()
+            expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
           }),
         )
       })
@@ -569,30 +451,17 @@ describe('End-to-end', () => {
       describe('delete', () => {
         it(
           'should delete assemblies',
-          testCase((client) => {
-            // Create an assembly to delete
-            const createPromise = client.createAssembly({
+          testCase(async (client) => {
+            const assembly = await client.createAssembly({
               params: {
                 steps: { import: { robot: '/http/import', url: 'https://placehold.co/100.jpg' } },
               },
             })
 
-            return createPromise.then((assembly) => {
-              const output = new OutputCtl()
-              return assemblies
-                .delete(output, client, { assemblies: [assembly.assembly_id] })
-                .then(() => {
-                  return client.getAssembly(assembly.assembly_id)
-                })
-                .then((res) => {
-                  // Should be deleted, but getAssembly might return it with different status or 404?
-                  // SDK cancelAssembly returns AssemblyStatus.
-                  // getAssembly on deleted assembly usually works for a while but status might change?
-                  // Or 404?
-                  // Actually cancelAssembly aborts it.
-                  expect(res.ok).to.equal('ASSEMBLY_CANCELED')
-                })
-            })
+            const output = new OutputCtl()
+            await assemblies.delete(output, client, { assemblies: [assembly.assembly_id] })
+            const res = await client.getAssembly(assembly.assembly_id)
+            expect(res.ok).to.equal('ASSEMBLY_CANCELED')
           }),
         )
       })
@@ -600,31 +469,29 @@ describe('End-to-end', () => {
       describe('replay', () => {
         it(
           'should replay assemblies',
-          testCase((client) => {
-            // Create an assembly to replay
-            const createPromise = client.createAssembly({
+          testCase(async (client) => {
+            const assembly = await client.createAssembly({
               params: {
                 steps: { import: { robot: '/http/import', url: 'https://placehold.co/100.jpg' } },
               },
             })
 
-            return createPromise.then((assembly) => {
-              const output = new OutputCtl()
-              return assemblies
-                .replay(output, client, { assemblies: [assembly.assembly_id], steps: null })
-                .then(() => {
-                  const logs = output.get()
-                  expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
-                })
+            const output = new OutputCtl()
+            await assemblies.replay(output, client, {
+              assemblies: [assembly.assembly_id],
+              steps: null,
             })
+            const logs = output.get()
+            expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
           }),
         )
       })
 
       describe('create', () => {
         const genericImg = 'https://placehold.co/100.jpg'
+
         function imgPromise(fname = 'in.jpg') {
-          return Q.Promise((resolve, reject) => {
+          return new Promise((resolve, reject) => {
             const req = request(genericImg)
             req.pipe(fs.createWriteStream(fname))
             req.on('error', reject)
@@ -641,272 +508,210 @@ describe('End-to-end', () => {
             height: 130,
           },
         }
-        function stepsPromise(_fname = 'steps.json', steps = genericSteps) {
-          return Q.nfcall(fs.writeFile, 'steps.json', JSON.stringify(steps)).then(
-            () => 'steps.json',
-          )
+
+        async function stepsPromise(_fname = 'steps.json', steps = genericSteps) {
+          await fsp.writeFile('steps.json', JSON.stringify(steps))
+          return 'steps.json'
         }
 
         it(
           'should transcode a file',
-          testCase((client) => {
-            const inFilePromise = imgPromise()
-            const stepsFilePromise = stepsPromise()
+          testCase(async (client) => {
+            const infile = await imgPromise()
+            const steps = await stepsPromise()
 
-            const resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
-              const output = new OutputCtl()
-              return assembliesCreate(output, client, {
-                steps,
-                inputs: [infile],
-                output: 'out.jpg',
-              }).then(() => output.get(true))
+            const output = new OutputCtl()
+            await assembliesCreate(output, client, {
+              steps,
+              inputs: [infile],
+              output: 'out.jpg',
             })
+            const result = output.get(true)
 
-            return resultPromise.then((result) => {
-              expect(result.length).to.be.at.least(3)
-              const msgs = result.map((r) => r.msg)
-              expect(msgs).to.include('GOT JOB in.jpg out.jpg')
-              expect(msgs).to.include('DOWNLOADING')
-              expect(msgs).to.include('COMPLETED in.jpg out.jpg')
+            expect(result.length).to.be.at.least(3)
+            const msgs = result.map((r) => r.msg)
+            expect(msgs).to.include('GOT JOB in.jpg out.jpg')
+            expect(msgs).to.include('DOWNLOADING')
+            expect(msgs).to.include('COMPLETED in.jpg out.jpg')
 
-              return Q.nfcall(imgSize, 'out.jpg').then((dim) => {
-                expect(dim).to.have.property('width').that.equals(130)
-                expect(dim).to.have.property('height').that.equals(130)
-              })
-            })
+            const imgBuffer = await fsp.readFile('out.jpg')
+            const dim = imageSize(new Uint8Array(imgBuffer))
+            expect(dim).to.have.property('width').that.equals(130)
+            expect(dim).to.have.property('height').that.equals(130)
           }),
         )
 
         it(
           'should handle multiple inputs',
-          testCase((client) => {
-            const inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
-            const stepsFilePromise = stepsPromise()
-            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
+          testCase(async (client) => {
+            const infiles = await Promise.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
+            const steps = await stepsPromise()
+            await fsp.mkdir('out')
 
-            const resultPromise = Q.spread(
-              [inFilesPromise, stepsFilePromise, outdirPromise],
-              (infiles, steps) => {
-                const output = new OutputCtl()
-                return assembliesCreate(output, client, {
-                  steps,
-                  inputs: infiles,
-                  output: 'out',
-                }).then(() => output.get())
-              },
-            )
-
-            return resultPromise.then((_result) => {
-              return Q.nfcall(fs.readdir, 'out').then((outs) => {
-                expect(outs).to.have.property(0).that.equals('in1.jpg')
-                expect(outs).to.have.property(1).that.equals('in2.jpg')
-                expect(outs).to.have.property(2).that.equals('in3.jpg')
-                expect(outs).to.have.lengthOf(3)
-              })
+            const output = new OutputCtl()
+            await assembliesCreate(output, client, {
+              steps,
+              inputs: infiles,
+              output: 'out',
             })
+
+            const outs = await fsp.readdir('out')
+            expect(outs).to.have.property(0).that.equals('in1.jpg')
+            expect(outs).to.have.property(1).that.equals('in2.jpg')
+            expect(outs).to.have.property(2).that.equals('in3.jpg')
+            expect(outs).to.have.lengthOf(3)
           }),
         )
 
         it(
           'should not output outside outdir',
-          testCase((client) => {
-            return Q.nfcall(fs.mkdir, 'sub').then(() => {
-              process.chdir('sub')
-              const inFilePromise = imgPromise('../in.jpg')
-              const outdirPromise = Q.nfcall(fs.mkdir, 'out')
-              const stepsFilePromise = stepsPromise()
+          testCase(async (client) => {
+            await fsp.mkdir('sub')
+            process.chdir('sub')
 
-              const resultPromise = Q.spread(
-                [inFilePromise, stepsFilePromise, outdirPromise],
-                (infile, steps) => {
-                  const output = new OutputCtl()
-                  return assembliesCreate(output, client, {
-                    steps,
-                    inputs: [infile],
-                    output: 'out',
-                  }).then(() => output.get())
-                },
-              )
+            const infile = await imgPromise('../in.jpg')
+            await fsp.mkdir('out')
+            const steps = await stepsPromise()
 
-              return resultPromise.then((_result) => {
-                const outcheck = Q.nfcall(fs.readdir, 'out').then((outs) => {
-                  expect(outs).to.have.property(0).that.equals('in.jpg')
-                  expect(outs).to.have.lengthOf(1)
-                })
-
-                const pwdcheck = Q.nfcall(fs.readdir, '.').then((ls) => {
-                  expect(ls).to.not.contain('in.jpg')
-                })
-
-                return Q.all([outcheck, pwdcheck])
-              })
+            const output = new OutputCtl()
+            await assembliesCreate(output, client, {
+              steps,
+              inputs: [infile],
+              output: 'out',
             })
+
+            const outs = await fsp.readdir('out')
+            expect(outs).to.have.property(0).that.equals('in.jpg')
+            expect(outs).to.have.lengthOf(1)
+
+            const ls = await fsp.readdir('.')
+            expect(ls).to.not.contain('in.jpg')
           }),
         )
 
         it(
           'should structure output directory correctly',
-          testCase((client) => {
-            const indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
-            const inFilesPromise = indirPromise.then(() => {
-              return Q.all(['1.jpg', 'in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
-            })
-            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
-            const stepsFilePromise = stepsPromise()
+          testCase(async (client) => {
+            await fsp.mkdir('in')
+            await fsp.mkdir('in/sub')
+            await Promise.all(['1.jpg', 'in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
+            await fsp.mkdir('out')
+            const steps = await stepsPromise()
 
-            const resultPromise = Q.spread(
-              [stepsFilePromise, inFilesPromise, outdirPromise],
-              (steps) => {
-                const output = new OutputCtl()
-                return assembliesCreate(output, client, {
-                  recursive: true,
-                  steps,
-                  inputs: ['1.jpg', 'in'],
-                  output: 'out',
-                }).then(() => output.get())
-              },
-            )
-
-            return resultPromise.then((_result) => {
-              return Q.nfcall(rreaddir, 'out').then((outs) => {
-                expect(outs).to.include('out/1.jpg')
-                expect(outs).to.include('out/2.jpg')
-                expect(outs).to.include('out/sub/3.jpg')
-                expect(outs).to.have.lengthOf(3)
-              })
+            const output = new OutputCtl()
+            await assembliesCreate(output, client, {
+              recursive: true,
+              steps,
+              inputs: ['1.jpg', 'in'],
+              output: 'out',
             })
+
+            const outs = await rreaddirAsync('out')
+            expect(outs).to.include('out/1.jpg')
+            expect(outs).to.include('out/2.jpg')
+            expect(outs).to.include('out/sub/3.jpg')
+            expect(outs).to.have.lengthOf(3)
           }),
         )
 
         it(
           'should not be recursive by default',
-          testCase((client) => {
-            const indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
-            const inFilesPromise = indirPromise.then(() => {
-              return Q.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
-            })
-            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
-            const stepsFilePromise = stepsPromise()
+          testCase(async (client) => {
+            await fsp.mkdir('in')
+            await fsp.mkdir('in/sub')
+            await Promise.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
+            await fsp.mkdir('out')
+            const steps = await stepsPromise()
 
-            const resultPromise = Q.spread(
-              [stepsFilePromise, inFilesPromise, outdirPromise],
-              (steps) => {
-                const output = new OutputCtl()
-                return assembliesCreate(output, client, {
-                  steps,
-                  inputs: ['in'],
-                  output: 'out',
-                }).then(() => output.get())
-              },
-            )
-
-            return resultPromise.then((_result) => {
-              return Q.nfcall(rreaddir, 'out').then((outs) => {
-                expect(outs).to.include('out/2.jpg')
-                expect(outs).to.not.include('out/sub/3.jpg')
-                expect(outs).to.have.lengthOf(1)
-              })
+            const output = new OutputCtl()
+            await assembliesCreate(output, client, {
+              steps,
+              inputs: ['in'],
+              output: 'out',
             })
+
+            const outs = await rreaddirAsync('out')
+            expect(outs).to.include('out/2.jpg')
+            expect(outs).to.not.include('out/sub/3.jpg')
+            expect(outs).to.have.lengthOf(1)
           }),
         )
 
         it(
           'should be able to handle directories recursively',
-          testCase((client) => {
-            const indirPromise = Q.nfcall(fs.mkdir, 'in').then(() => Q.nfcall(fs.mkdir, 'in/sub'))
-            const inFilesPromise = indirPromise.then(() => {
-              return Q.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
-            })
-            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
-            const stepsFilePromise = stepsPromise()
+          testCase(async (client) => {
+            await fsp.mkdir('in')
+            await fsp.mkdir('in/sub')
+            await Promise.all(['in/2.jpg', 'in/sub/3.jpg'].map(imgPromise))
+            await fsp.mkdir('out')
+            const steps = await stepsPromise()
 
-            const resultPromise = Q.spread(
-              [stepsFilePromise, inFilesPromise, outdirPromise],
-              (steps) => {
-                const output = new OutputCtl()
-                return assembliesCreate(output, client, {
-                  recursive: true,
-                  steps,
-                  inputs: ['in'],
-                  output: 'out',
-                }).then(() => output.get())
-              },
-            )
-
-            return resultPromise.then((_result) => {
-              return Q.nfcall(rreaddir, 'out').then((outs) => {
-                expect(outs).to.include('out/2.jpg')
-                expect(outs).to.include('out/sub/3.jpg')
-                expect(outs).to.have.lengthOf(2)
-              })
+            const output = new OutputCtl()
+            await assembliesCreate(output, client, {
+              recursive: true,
+              steps,
+              inputs: ['in'],
+              output: 'out',
             })
+
+            const outs = await rreaddirAsync('out')
+            expect(outs).to.include('out/2.jpg')
+            expect(outs).to.include('out/sub/3.jpg')
+            expect(outs).to.have.lengthOf(2)
           }),
         )
 
         it.skip(
           'should detect outdir conflicts',
-          testCase((client) => {
-            const indirPromise = Q.nfcall(fs.mkdir, 'in')
-            const inFilesPromise = indirPromise.then(() => {
-              return Q.all(['1.jpg', 'in/1.jpg'].map(imgPromise))
-            })
-            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
-            const stepsFilePromise = stepsPromise()
+          testCase(async (client) => {
+            await fsp.mkdir('in')
+            await Promise.all(['1.jpg', 'in/1.jpg'].map(imgPromise))
+            await fsp.mkdir('out')
+            const steps = await stepsPromise()
 
-            const errMsgDeferred = Q.defer()
-
-            Q.spread([stepsFilePromise, inFilesPromise, outdirPromise], (steps) => {
-              const output = new OutputCtl()
-              return assembliesCreate(output, client, {
+            const output = new OutputCtl()
+            try {
+              await assembliesCreate(output, client, {
                 steps,
                 inputs: ['1.jpg', 'in'],
                 output: 'out',
               })
-                .then(() =>
-                  errMsgDeferred.reject(new Error('assembliesCreate didnt err; should have')),
-                )
-                .catch((err) => {
-                  errMsgDeferred.resolve(output.get(), err) // pass err to satisfy linter
-                })
-            })
-
-            return errMsgDeferred.promise.then((result) => {
+              throw new Error('assembliesCreate didnt err; should have')
+            } catch (_err) {
+              const result = output.get()
               expect(result[result.length - 1])
                 .to.have.property('type')
                 .that.equals('error')
               expect(result[result.length - 1])
                 .to.have.nested.property('msg.message')
                 .that.equals("Output collision between 'in/1.jpg' and '1.jpg'")
-            })
+            }
           }),
         )
 
         it(
           'should not download the result if no output is specified',
-          testCase((client) => {
-            const inFilePromise = imgPromise()
-            const stepsFilePromise = stepsPromise()
+          testCase(async (client) => {
+            const infile = await imgPromise()
+            const steps = await stepsPromise()
 
-            const resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
-              const output = new OutputCtl()
-              return assembliesCreate(output, client, {
-                steps,
-                inputs: [infile],
-                output: null,
-              }).then(() => output.get(true))
+            const output = new OutputCtl()
+            await assembliesCreate(output, client, {
+              steps,
+              inputs: [infile],
+              output: null,
             })
+            const result = output.get(true)
 
-            return resultPromise.then((result) => {
-              expect(result.filter((line) => line.msg === 'DOWNLOADING')).to.have.lengthOf(0)
-            })
+            expect(result.filter((line) => line.msg === 'DOWNLOADING')).to.have.lengthOf(0)
           }),
         )
 
         it(
           'should accept invocations with no inputs',
-          testCase((client) => {
-            const inFilePromise = imgPromise()
-            const stepsFilePromise = stepsPromise('steps.json', {
+          testCase(async (client) => {
+            await imgPromise()
+            const steps = await stepsPromise('steps.json', {
               import: {
                 robot: '/http/import',
                 url: genericImg,
@@ -920,87 +725,65 @@ describe('End-to-end', () => {
               },
             })
 
-            const resultPromise = Q.spread([inFilePromise, stepsFilePromise], (_infile, steps) => {
-              const output = new OutputCtl()
-              return assembliesCreate(output, client, {
-                steps,
-                inputs: [],
-                output: 'out.jpg',
-              }).then(() => output.get(true))
+            const output = new OutputCtl()
+            await assembliesCreate(output, client, {
+              steps,
+              inputs: [],
+              output: 'out.jpg',
             })
 
-            return resultPromise.then((_result) => Q.nfcall(fs.access, 'out.jpg'))
+            await fsp.access('out.jpg')
           }),
         )
 
         it(
           'should allow deleting inputs after processing',
-          testCase((client) => {
-            const inFilePromise = imgPromise()
-            const stepsFilePromise = stepsPromise()
+          testCase(async (client) => {
+            const infile = await imgPromise()
+            const steps = await stepsPromise()
 
-            const resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
-              const output = new OutputCtl()
-              return assembliesCreate(output, client, {
-                steps,
-                inputs: [infile],
-                output: null,
-                del: true,
-              }).then(() => output.get(true))
+            const output = new OutputCtl()
+            await assembliesCreate(output, client, {
+              steps,
+              inputs: [infile],
+              output: null,
+              del: true,
             })
 
-            return Q.spread([inFilePromise, resultPromise], (infile) => {
-              return Q.Promise((resolve, reject) => {
-                fs.access(infile, (err) => {
-                  try {
-                    expect(err).to.exist
-                    resolve()
-                  } catch (err) {
-                    reject(err)
-                  }
-                })
-              })
-            })
+            try {
+              await fsp.access(infile)
+              throw new Error('File should have been deleted')
+            } catch (err) {
+              expect(err.code).to.equal('ENOENT')
+            }
           }),
         )
 
         it(
           'should not reprocess inputs that are older than their output',
-          testCase((client) => {
-            const inFilesPromise = Q.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
-            const stepsFilePromise = stepsPromise()
-            const outdirPromise = Q.nfcall(fs.mkdir, 'out')
+          testCase(async (client) => {
+            const infiles = await Promise.all(['in1.jpg', 'in2.jpg', 'in3.jpg'].map(imgPromise))
+            const steps = await stepsPromise()
+            await fsp.mkdir('out')
 
-            let resultPromise = Q.spread(
-              [inFilesPromise, stepsFilePromise, outdirPromise],
-              (infiles, steps) => {
-                const output = new OutputCtl()
-                return assembliesCreate(output, client, {
-                  steps,
-                  inputs: [infiles[0]],
-                  output: 'out',
-                })
-              },
-            )
-
-            resultPromise = Q.spread(
-              [inFilesPromise, stepsFilePromise, resultPromise],
-              (infiles, steps) => {
-                const output = new OutputCtl()
-                return assembliesCreate(output, client, {
-                  steps,
-                  inputs: infiles,
-                  output: 'out',
-                }).then(() => output.get(true))
-              },
-            )
-
-            return resultPromise.then((result) => {
-              // assert that no log lines mention the stale input
-              expect(
-                result.map((line) => line.msg).filter((msg) => msg.includes('in1.jpg')),
-              ).to.have.lengthOf(0)
+            const output1 = new OutputCtl()
+            await assembliesCreate(output1, client, {
+              steps,
+              inputs: [infiles[0]],
+              output: 'out',
             })
+
+            const output2 = new OutputCtl()
+            await assembliesCreate(output2, client, {
+              steps,
+              inputs: infiles,
+              output: 'out',
+            })
+            const result = output2.get(true)
+
+            expect(
+              result.map((line) => line.msg).filter((msg) => msg.includes('in1.jpg')),
+            ).to.have.lengthOf(0)
           }),
         )
       })

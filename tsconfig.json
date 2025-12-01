@@ -9,7 +9,7 @@
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "types": ["node", "vitest/globals", "q"]
+    "types": ["node", "vitest/globals"]
   },
   "include": ["src/**/*", "bin/**/*", "test/**/*"],
   "exclude": ["node_modules"]

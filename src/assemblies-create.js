@@ -1,11 +1,11 @@
 import EventEmitter from 'node:events'
 import fs from 'node:fs'
+import fsp from 'node:fs/promises'
 import http from 'node:http'
 import https from 'node:https'
 import path from 'node:path'
 import process from 'node:process'
 import watch from 'node-watch'
-import Q from 'q'
 import JobsPromise from './JobsPromise.js'
 
 // workaround for determining mime-type of stdin
@@ -16,23 +16,24 @@ function myStatSync(stdioStream, path) {
   return fs.statSync(path)
 }
 
-function ensureDir(dir) {
-  return Q.nfcall(fs.mkdir, dir).fail((err) => {
+async function ensureDir(dir) {
+  try {
+    await fsp.mkdir(dir)
+  } catch (err) {
     if (err.code === 'EEXIST') {
-      return Q.nfcall(fs.stat, dir).then((stats) => {
-        if (!stats.isDirectory()) throw err
-      })
+      const stats = await fsp.stat(dir)
+      if (!stats.isDirectory()) throw err
+      return
     }
     if (err.code !== 'ENOENT') throw err
 
-    return ensureDir(path.dirname(dir)).then(() => {
-      return Q.nfcall(fs.mkdir, dir)
-    })
-  })
+    await ensureDir(path.dirname(dir))
+    await fsp.mkdir(dir)
+  }
 }
 
 function dirProvider(output) {
-  return (inpath, indir = process.cwd()) => {
+  return async (inpath, indir = process.cwd()) => {
     if (inpath == null || inpath === '-') {
       throw new Error('You must provide an input to output to a directory')
     }
@@ -44,41 +45,41 @@ function dirProvider(output) {
     const outpath = path.join(output, relpath)
     const outdir = path.dirname(outpath)
 
-    return ensureDir(outdir)
-      .then(() => {
-        return Q.nfcall(fs.stat, outpath)
-          .then((stats) => stats.mtime)
-          .fail(() => new Date(0))
-      })
-      .then((mtime) => {
-        const outstream = fs.createWriteStream(outpath)
-        outstream.mtime = mtime
-        return outstream
-      })
+    await ensureDir(outdir)
+    let mtime
+    try {
+      const stats = await fsp.stat(outpath)
+      mtime = stats.mtime
+    } catch (_err) {
+      mtime = new Date(0)
+    }
+    const outstream = fs.createWriteStream(outpath)
+    outstream.mtime = mtime
+    return outstream
   }
 }
 
 function fileProvider(output) {
   const dirExistsP = ensureDir(path.dirname(output))
-  return (_inpath) => {
-    return dirExistsP.then(() => {
-      if (output === '-') return process.stdout
+  return async (_inpath) => {
+    await dirExistsP
+    if (output === '-') return process.stdout
 
-      const mtimeP = Q.nfcall(fs.stat, output)
-        .then((stats) => stats.mtime)
-        .fail(() => new Date(0))
-
-      return mtimeP.then((mtime) => {
-        const outstream = fs.createWriteStream(output)
-        outstream.mtime = mtime
-        return outstream
-      })
-    })
+    let mtime
+    try {
+      const stats = await fsp.stat(output)
+      mtime = stats.mtime
+    } catch (_err) {
+      mtime = new Date(0)
+    }
+    const outstream = fs.createWriteStream(output)
+    outstream.mtime = mtime
+    return outstream
   }
 }
 
 function nullProvider() {
-  return (_inpath) => Q.fcall(() => null)
+  return async (_inpath) => null
 }
 
 class MyEventEmitter extends EventEmitter {
@@ -314,14 +315,15 @@ function dismissStaleJobs(jobEmitter) {
     if (job.in == null || job.out == null) return emitter.emit('job', job)
 
     jobsPromise.add(
-      Q.nfcall(fs.stat, job.in.path)
+      fsp
+        .stat(job.in.path)
         .then((stats) => {
           const inM = stats.mtime
           const outM = job.out.mtime || new Date(0)
 
           if (outM <= inM) emitter.emit('job', job)
         })
-        .fail(() => {
+        .catch(() => {
           emitter.emit('job', job)
         }),
     )
@@ -409,136 +411,134 @@ export default function run(
   // stdin or stdout is only respected when the input or output flag is '-'
   if (!output == null && !process.stdout.isTTY) output = '-'
 
-  const deferred = Q.defer()
+  return new Promise((resolve, reject) => {
+    const params = steps
+      ? { steps: JSON.parse(fs.readFileSync(steps).toString()) }
+      : { template_id: template }
+    params.fields = fields
 
-  const params = steps
-    ? { steps: JSON.parse(fs.readFileSync(steps).toString()) }
-    : { template_id: template }
-  params.fields = fields
+    let outstat
 
-  let outstat
-
-  if (output != null) {
-    try {
-      outstat = myStatSync(process.stdout, output)
-    } catch (e) {
-      if (e.code !== 'ENOENT') throw e
-      outstat = { isDirectory: () => false }
-    }
-
-    if (!outstat.isDirectory() && inputs.length !== 0) {
-      if (inputs.length > 1 || myStatSync(process.stdin, inputs[0]).isDirectory()) {
-        const msg = 'Output must be a directory when specifying multiple inputs'
-        outputctl.error(msg)
-        return deferred.reject(new Error(msg))
-      }
-    }
-  }
-
-  const outstreamProvider =
-    output == null
-      ? nullProvider()
-      : outstat.isDirectory()
-        ? dirProvider(output)
-        : fileProvider(output)
-  const streamRegistry = {}
-
-  const emitter = makeJobEmitter(inputs, {
-    recursive,
-    watch,
-    outstreamProvider,
-    streamRegistry,
-    reprocessStale,
-  })
-
-  const jobsPromise = new JobsPromise()
-  emitter.on('job', (job) => {
-    outputctl.debug(`GOT JOB ${job.in?.path} ${job.out?.path}`)
-
-    let superceded = false
-    if (job.out != null)
-      job.out.on('finish', () => {
-        superceded = true
-      })
-
-    const createOptions = { params }
-    if (job.in != null) {
-      createOptions.uploads = { in: job.in }
-    }
-
-    const jobPromise = (async () => {
-      const result = await client.createAssembly(createOptions)
-      if (superceded) return
-
-      let assembly = await client.getAssembly(result.assembly_id)
-
-      while (
-        assembly.ok !== 'ASSEMBLY_COMPLETED' &&
-        assembly.ok !== 'ASSEMBLY_CANCELED' && // Should handle canceled state too
-        !assembly.error
-      ) {
-        if (superceded) return
-        outputctl.debug(`Assembly status: ${assembly.ok}`)
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        assembly = await client.getAssembly(result.assembly_id)
+    if (output != null) {
+      try {
+        outstat = myStatSync(process.stdout, output)
+      } catch (e) {
+        if (e.code !== 'ENOENT') throw e
+        outstat = { isDirectory: () => false }
       }
 
-      if (assembly.error || (assembly.ok && assembly.ok !== 'ASSEMBLY_COMPLETED')) {
-        const msg = `Assembly failed: ${assembly.error || assembly.message} (Status: ${assembly.ok})`
-        outputctl.error(msg)
-        throw new Error(msg)
+      if (!outstat.isDirectory() && inputs.length !== 0) {
+        if (inputs.length > 1 || myStatSync(process.stdin, inputs[0]).isDirectory()) {
+          const msg = 'Output must be a directory when specifying multiple inputs'
+          outputctl.error(msg)
+          return reject(new Error(msg))
+        }
       }
+    }
 
-      const resulturl = assembly.results[Object.keys(assembly.results)[0]][0].url
+    const outstreamProvider =
+      output == null
+        ? nullProvider()
+        : outstat.isDirectory()
+          ? dirProvider(output)
+          : fileProvider(output)
+    const streamRegistry = {}
 
-      if (job.out != null) {
-        outputctl.debug('DOWNLOADING')
-        await new Promise((resolve, reject) => {
-          const get = resulturl.startsWith('https') ? https.get : http.get
-          get(resulturl, (res) => {
-            if (res.statusCode !== 200) {
-              const msg = `Server returned http status ${res.statusCode}`
-              outputctl.error(msg)
-              return reject(new Error(msg))
-            }
+    const emitter = makeJobEmitter(inputs, {
+      recursive,
+      watch,
+      outstreamProvider,
+      streamRegistry,
+      reprocessStale,
+    })
 
-            if (superceded) return resolve()
+    const jobsPromise = new JobsPromise()
+    emitter.on('job', (job) => {
+      outputctl.debug(`GOT JOB ${job.in?.path} ${job.out?.path}`)
 
-            res.pipe(job.out)
-            job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
-            res.on('end', () => resolve())
-          }).on('error', (err) => {
-            outputctl.error(err.message)
-            reject(err)
-          })
+      let superceded = false
+      if (job.out != null)
+        job.out.on('finish', () => {
+          superceded = true
         })
+
+      const createOptions = { params }
+      if (job.in != null) {
+        createOptions.uploads = { in: job.in }
       }
-      await completeJob()
-    })()
 
-    jobsPromise.add(jobPromise)
+      const jobPromise = (async () => {
+        const result = await client.createAssembly(createOptions)
+        if (superceded) return
 
-    function completeJob() {
-      outputctl.debug(`COMPLETED ${job.in?.path} ${job.out?.path}`)
+        let assembly = await client.getAssembly(result.assembly_id)
 
-      if (del && job.in != null) {
-        return Q.nfcall(fs.unlink, job.in.path)
+        while (
+          assembly.ok !== 'ASSEMBLY_COMPLETED' &&
+          assembly.ok !== 'ASSEMBLY_CANCELED' &&
+          !assembly.error
+        ) {
+          if (superceded) return
+          outputctl.debug(`Assembly status: ${assembly.ok}`)
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          assembly = await client.getAssembly(result.assembly_id)
+        }
+
+        if (assembly.error || (assembly.ok && assembly.ok !== 'ASSEMBLY_COMPLETED')) {
+          const msg = `Assembly failed: ${assembly.error || assembly.message} (Status: ${assembly.ok})`
+          outputctl.error(msg)
+          throw new Error(msg)
+        }
+
+        const resulturl = assembly.results[Object.keys(assembly.results)[0]][0].url
+
+        if (job.out != null) {
+          outputctl.debug('DOWNLOADING')
+          await new Promise((resolve, reject) => {
+            const get = resulturl.startsWith('https') ? https.get : http.get
+            get(resulturl, (res) => {
+              if (res.statusCode !== 200) {
+                const msg = `Server returned http status ${res.statusCode}`
+                outputctl.error(msg)
+                return reject(new Error(msg))
+              }
+
+              if (superceded) return resolve()
+
+              res.pipe(job.out)
+              job.out.on('finish', () => res.unpipe())
+              res.on('end', () => resolve())
+            }).on('error', (err) => {
+              outputctl.error(err.message)
+              reject(err)
+            })
+          })
+        }
+        await completeJob()
+      })()
+
+      jobsPromise.add(jobPromise)
+
+      async function completeJob() {
+        outputctl.debug(`COMPLETED ${job.in?.path} ${job.out?.path}`)
+
+        if (del && job.in != null) {
+          await fsp.unlink(job.in.path)
+        }
       }
-    }
-  })
+    })
 
-  jobsPromise.on('error', (err) => {
-    outputctl.error(err)
-  })
+    jobsPromise.on('error', (err) => {
+      outputctl.error(err)
+    })
 
-  emitter.on('error', (err) => {
-    outputctl.error(err)
-    deferred.reject(err)
-  })
+    emitter.on('error', (err) => {
+      outputctl.error(err)
+      reject(err)
+    })
 
-  emitter.on('end', () => {
-    deferred.resolve(jobsPromise.promise())
+    emitter.on('end', () => {
+      resolve(jobsPromise.promise())
+    })
   })
-
-  return deferred.promise
 }
