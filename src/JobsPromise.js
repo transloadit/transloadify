@@ -1,5 +1,5 @@
-import Q from 'q'
 import { EventEmitter } from 'events'
+import Q from 'q'
 
 export default class JobsPromise extends EventEmitter {
   constructor() {

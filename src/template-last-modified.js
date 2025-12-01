@@ -34,14 +34,17 @@ export default class ModifiedLookup {
         page,
         pagesize,
       }
-      client.listTemplates(params).then((result) => {
-        let items = new Array(pagesize)
-        items.fill({ id: 'gggggggggggggggggggggggggggggggg' }) // Larger than any hex ID
-        for (let i = 0; i < result.items.length; i++) {
-          items[i] = result.items[i]
-        }
-        cb(null, items)
-      }).catch(cb)
+      client
+        .listTemplates(params)
+        .then((result) => {
+          let items = new Array(pagesize)
+          items.fill({ id: 'gggggggggggggggggggggggggggggggg' }) // Larger than any hex ID
+          for (let i = 0; i < result.items.length; i++) {
+            items[i] = result.items[i]
+          }
+          cb(null, items)
+        })
+        .catch(cb)
     })
   }
 

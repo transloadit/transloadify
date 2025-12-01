@@ -1,5 +1,5 @@
-import { formatAPIError, inSequence } from './helpers.js'
 import Q from 'q'
+import { formatAPIError, inSequence } from './helpers.js'
 
 export function get(output, client, { months }) {
   let requests = months.map((month) => {
@@ -13,6 +13,6 @@ export function get(output, client, { months }) {
     },
     (err) => {
       output.error(formatAPIError(err))
-    }
+    },
   )
 }

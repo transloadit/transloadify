@@ -1,6 +1,6 @@
 import { assert, describe, it } from 'vitest'
-import Parser from '../src/Parser.js'
 import cli from '../src/cli.js'
+import Parser from '../src/Parser.js'
 
 describe('Parser', function () {
   describe('constructor', function () {
@@ -371,7 +371,7 @@ describe('Cli', function () {
           result[key],
           `expected result.${key} to be ${JSON.stringify(test.rslt[key])}; was ${
             result[key]
-          }\nargs: ${test.args}\nresult: ${JSON.stringify(result)}\n`
+          }\nargs: ${test.args}\nresult: ${JSON.stringify(result)}\n`,
         )
       }
     }

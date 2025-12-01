@@ -1,8 +1,8 @@
-import Q from 'q'
-import { stream2buf, createReadStream, inSequence, formatAPIError } from './helpers.js'
 import fs from 'fs'
 import path from 'path'
+import Q from 'q'
 import rreaddir from 'recursive-readdir'
+import { createReadStream, formatAPIError, inSequence, stream2buf } from './helpers.js'
 import ModifiedLookup from './template-last-modified.js'
 
 export function create(output, client, { name, file }) {
@@ -14,13 +14,16 @@ export function create(output, client, { name, file }) {
       return deferred.reject(err)
     }
 
-    client.createTemplate({ name, template: buf.toString() }).then((result) => {
-      output.print(result.id, result)
-      deferred.resolve(result)
-    }).catch((err) => {
-      output.error(err.message)
-      deferred.reject(err)
-    })
+    client
+      .createTemplate({ name, template: buf.toString() })
+      .then((result) => {
+        output.print(result.id, result)
+        deferred.resolve(result)
+      })
+      .catch((err) => {
+        output.error(err.message)
+        deferred.reject(err)
+      })
   })
 
   return deferred.promise
@@ -41,7 +44,7 @@ export function get(output, client, { templates }) {
     (err) => {
       output.error(formatAPIError(err))
       deferred.reject(err)
-    }
+    },
   ).then(deferred.resolve.bind(deferred))
 
   return deferred.promise
@@ -74,7 +77,7 @@ export function modify(output, client, { template, name, file }) {
         .fail((err) => {
           output.error(formatAPIError(err))
           throw err
-        })
+        }),
     )
   })
 
@@ -88,7 +91,7 @@ function _delete(output, client, { templates }) {
         output.error(formatAPIError(err))
         throw err
       })
-    })
+    }),
   )
 }
 
@@ -145,23 +148,23 @@ export function sync(output, client, { files, recursive }) {
                       if (!stats.isDirectory()) return resolve(child)
                       resolve()
                     })
-                  })
-                )
-              ).then((children) => children.filter((child) => child != null))
+                  }),
+                ),
+              ).then((children) => children.filter((child) => child != null)),
             )
           }
 
           resolve(children)
         })
-      })
-    )
+      }),
+    ),
   ).then(flatten)
 
   // Promise [{ file: String, data: JSON }] -- all templates
   let templates = relevantFiles.then((files) =>
     Q.all(files.map(templateFileOrNull)).then((maybeFiles) =>
-      maybeFiles.filter((maybeFile) => maybeFile !== null)
-    )
+      maybeFiles.filter((maybeFile) => maybeFile !== null),
+    ),
   )
 
   function templateFileOrNull(file) {
@@ -209,8 +212,8 @@ export function sync(output, client, { files, recursive }) {
           if (fileModified > templateModified) return upload(template)
           return download(template)
         })
-      })
-    )
+      }),
+    ),
   )
 
   function upload(template) {
@@ -221,37 +224,46 @@ export function sync(output, client, { files, recursive }) {
       }
 
       if (!template.data.transloadit_template_id) {
-        return client.createTemplate(params).then((result) => {
-          template.data.transloadit_template_id = result.id
-          fs.writeFile(template.file, JSON.stringify(template.data), (err) => {
-            if (err) return reject(err)
-            resolve()
+        return client
+          .createTemplate(params)
+          .then((result) => {
+            template.data.transloadit_template_id = result.id
+            fs.writeFile(template.file, JSON.stringify(template.data), (err) => {
+              if (err) return reject(err)
+              resolve()
+            })
           })
-        }).catch(reject)
+          .catch(reject)
       }
 
-      client.editTemplate(template.data.transloadit_template_id, params).then(() => {
-        resolve()
-      }).catch(reject)
+      client
+        .editTemplate(template.data.transloadit_template_id, params)
+        .then(() => {
+          resolve()
+        })
+        .catch(reject)
     })
   }
 
   function download(template) {
     return new Promise((resolve, reject) => {
-      client.getTemplate(template.data.transloadit_template_id).then((result) => {
-        template.data.steps = result.content
-        let file = path.join(path.dirname(template.file), result.name + '.json')
+      client
+        .getTemplate(template.data.transloadit_template_id)
+        .then((result) => {
+          template.data.steps = result.content
+          let file = path.join(path.dirname(template.file), result.name + '.json')
 
-        fs.writeFile(template.file, JSON.stringify(template.data), (err) => {
-          if (err) return reject(err)
-          if (file === template.file) return resolve()
-
-          fs.rename(template.file, file, (err) => {
+          fs.writeFile(template.file, JSON.stringify(template.data), (err) => {
             if (err) return reject(err)
-            resolve()
+            if (file === template.file) return resolve()
+
+            fs.rename(template.file, file, (err) => {
+              if (err) return reject(err)
+              resolve()
+            })
           })
         })
-      }).catch(reject)
+        .catch(reject)
     })
   }
 

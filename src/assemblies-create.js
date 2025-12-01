@@ -1,11 +1,11 @@
+import EventEmitter from 'events'
 import fs from 'fs'
-import watch from 'node-watch'
 import http from 'http'
 import https from 'https'
+import watch from 'node-watch'
 import path from 'path'
-import EventEmitter from 'events'
-import tty from 'tty'
 import Q from 'q'
+import tty from 'tty'
 import JobsPromise from './JobsPromise.js'
 
 // workaround for determining mime-type of stdin
@@ -292,8 +292,8 @@ function detectConflicts(jobEmitter) {
       emitter.emit(
         'error',
         new Error(
-          `Output collision between '${job.in.path}' and '${outfileAssociations[job.out.path]}'`
-        )
+          `Output collision between '${job.in.path}' and '${outfileAssociations[job.out.path]}'`,
+        ),
       )
     } else {
       outfileAssociations[job.out.path] = job.in.path
@@ -324,7 +324,7 @@ function dismissStaleJobs(jobEmitter) {
         })
         .fail(() => {
           emitter.emit('job', job)
-        })
+        }),
     )
   })
 
@@ -333,7 +333,7 @@ function dismissStaleJobs(jobEmitter) {
 
 function makeJobEmitter(
   inputs,
-  { recursive, outstreamProvider, streamRegistry, watch, reprocessStale }
+  { recursive, outstreamProvider, streamRegistry, watch, reprocessStale },
 ) {
   let emitter = new EventEmitter()
 
@@ -343,7 +343,7 @@ function makeJobEmitter(
   for (let input of inputs) {
     if (input === '-') {
       emitterFns.push(
-        () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry })
+        () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }),
       )
       watcherFns.push(() => new NullJobEmitter())
 
@@ -354,17 +354,19 @@ function makeJobEmitter(
         if (stats.isDirectory()) {
           emitterFns.push(
             () =>
-              new ReaddirJobEmitter({ dir: input, recursive, outstreamProvider, streamRegistry })
+              new ReaddirJobEmitter({ dir: input, recursive, outstreamProvider, streamRegistry }),
           )
           watcherFns.push(
-            () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry })
+            () =>
+              new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }),
           )
         } else {
           emitterFns.push(
-            () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry })
+            () => new SingleJobEmitter({ file: input, outstreamProvider, streamRegistry }),
           )
           watcherFns.push(
-            () => new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry })
+            () =>
+              new WatchJobEmitter({ file: input, recursive, outstreamProvider, streamRegistry }),
           )
         }
 
@@ -386,7 +388,7 @@ function makeJobEmitter(
     if (watch) {
       source = new ConcattedJobEmitter(
         () => source,
-        () => new MergedJobEmitter(...watcherFns.map((f) => f()))
+        () => new MergedJobEmitter(...watcherFns.map((f) => f())),
       )
     }
 
@@ -402,7 +404,7 @@ function makeJobEmitter(
 export default function run(
   outputctl,
   client,
-  { steps, template, fields, watch, recursive, inputs, output, del, reprocessStale }
+  { steps, template, fields, watch, recursive, inputs, output, del, reprocessStale },
 ) {
   // Quick fix for https://github.com/transloadit/transloadify/issues/13
   // stdin or stdout is only respected when the input or output flag is '-'
@@ -436,8 +438,8 @@ export default function run(
     output == null
       ? nullProvider()
       : outstat.isDirectory()
-      ? dirProvider(output)
-      : fileProvider(output)
+        ? dirProvider(output)
+        : fileProvider(output)
   let streamRegistry = {}
 
   let emitter = makeJobEmitter(inputs, {
@@ -472,19 +474,26 @@ export default function run(
         // result is now the assembly object directly (or we need to check SDK response structure)
         // Guide says: result = await transloadit.createAssembly(options)
         // result is likely the JSON response.
-        
-        return Q.resolve(client.getAssembly(result.assembly_id)).then(function callback(
-          result
-        ) {
+
+        return Q.resolve(client.getAssembly(result.assembly_id)).then(function callback(result) {
           if (superceded) return
 
           // SDK v4 throws on error, but if we are polling, we might get a result with error status?
           // If result.ok is 'ASSEMBLY_COMPLETED', it's done.
           // If it throws, catch block handles it. But we are in promise chain.
-          
-          if (result.error || (result.ok && result.ok !== 'ASSEMBLY_COMPLETED' && result.ok !== 'ASSEMBLY_EXECUTING' && result.ok !== 'ASSEMBLY_UPLOADING' && result.ok !== 'ASSEMBLY_REPLAYING')) {
-             outputctl.error(`Assembly failed: ${result.error} / ${result.message} (Status: ${result.ok})`)
-             return Q.reject(new Error(`Assembly failed: ${result.error || result.message}`))
+
+          if (
+            result.error ||
+            (result.ok &&
+              result.ok !== 'ASSEMBLY_COMPLETED' &&
+              result.ok !== 'ASSEMBLY_EXECUTING' &&
+              result.ok !== 'ASSEMBLY_UPLOADING' &&
+              result.ok !== 'ASSEMBLY_REPLAYING')
+          ) {
+            outputctl.error(
+              `Assembly failed: ${result.error} / ${result.message} (Status: ${result.ok})`,
+            )
+            return Q.reject(new Error(`Assembly failed: ${result.error || result.message}`))
           }
 
           if (result.ok !== 'ASSEMBLY_COMPLETED') {
@@ -500,28 +509,27 @@ export default function run(
             return Q.Promise((resolve, reject) => {
               let get = resulturl.startsWith('https') ? https.get : http.get
               get(resulturl, (res) => {
-                  if (res.statusCode !== 200) {
-                    let msg = `Server returned http status ${res.statusCode}`
-                    outputctl.error(msg)
-                    return reject(new Error(msg))
-                  }
+                if (res.statusCode !== 200) {
+                  let msg = `Server returned http status ${res.statusCode}`
+                  outputctl.error(msg)
+                  return reject(new Error(msg))
+                }
 
-                  if (superceded) return resolve()
+                if (superceded) return resolve()
 
-                  res.pipe(job.out)
-                  job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
-                  resolve(
-                    Q.Promise((resolve) => {
-                      res.on('end', () => {
-                        resolve(completeJob())
-                      })
+                res.pipe(job.out)
+                job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
+                resolve(
+                  Q.Promise((resolve) => {
+                    res.on('end', () => {
+                      resolve(completeJob())
                     })
-                  )
-                })
-                .on('error', (err) => {
-                  outputctl.error(err.message)
-                  reject(err)
-                })
+                  }),
+                )
+              }).on('error', (err) => {
+                outputctl.error(err.message)
+                reject(err)
+              })
             })
           } else {
             return completeJob()
@@ -535,7 +543,7 @@ export default function run(
             }
           }
         })
-      })
+      }),
     )
   })
 

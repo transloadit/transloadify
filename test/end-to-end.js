@@ -1,17 +1,17 @@
-import { expect, describe, it, beforeAll, afterAll } from 'vitest'
-import OutputCtl from './OutputCtl.js'
-import { Transloadit as TransloaditClient } from 'transloadit'
 import fs from 'fs'
+import imgSize from 'image-size'
 import path from 'path'
 import Q from 'q'
-import rimraf from 'rimraf'
-import { zip } from '../src/helpers.js'
-import imgSize from 'image-size'
-import request from 'request'
 import rreaddir from 'recursive-readdir'
-import assembliesCreate from '../src/assemblies-create.js'
-import * as templates from '../src/templates.js'
+import request from 'request'
+import rimraf from 'rimraf'
+import { Transloadit as TransloaditClient } from 'transloadit'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as assemblies from '../src/assemblies.js'
+import assembliesCreate from '../src/assemblies-create.js'
+import { zip } from '../src/helpers.js'
+import * as templates from '../src/templates.js'
+import OutputCtl from './OutputCtl.js'
 import 'dotenv/config'
 
 const tmpDir = '/tmp'
@@ -21,7 +21,7 @@ const authSecret = process.env.TRANSLOADIT_SECRET
 
 if (!authKey || !authSecret) {
   console.error(
-    'Please provide environment variables TRANSLOADIT_KEY and TRANSLOADIT_SECRET to run tests'
+    'Please provide environment variables TRANSLOADIT_KEY and TRANSLOADIT_SECRET to run tests',
   )
   process.exit(1)
 }
@@ -33,7 +33,10 @@ process.setMaxListeners(Infinity)
 function testCase(cb) {
   let cwd = process.cwd()
   return () => {
-    let dirname = path.join(tmpDir, `transloadify_test-${Date.now()}-${Math.floor(Math.random() * 10000)}`)
+    let dirname = path.join(
+      tmpDir,
+      `transloadify_test-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    )
     let client = new TransloaditClient({ authKey, authSecret })
     return Q.nfcall(fs.mkdir, dirname)
       .then(() => {
@@ -70,7 +73,7 @@ describe('End-to-end', function () {
               Q.nfcall(fs.writeFile, `${n}.json`, JSON.stringify({ testno: n }))
                 // run the test subject
                 .then(() =>
-                  templates.create(output, client, { name: `test-${n}`, file: `${n}.json` })
+                  templates.create(output, client, { name: `test-${n}`, file: `${n}.json` }),
                 )
                 // ignore the promise result, just look at the output the user would
                 // see
@@ -89,14 +92,12 @@ describe('End-to-end', function () {
                 }).fin(() => {
                   // delete these test templates from the server, but don't fail the
                   // test if it doesn't work
-                  return client.deleteTemplate(result[0].json.id).catch(
-                    () => {}
-                  )
+                  return client.deleteTemplate(result[0].json.id).catch(() => {})
                 })
-              })
+              }),
             )
           })
-        })
+        }),
       )
     })
 
@@ -105,7 +106,8 @@ describe('End-to-end', function () {
         'should get templates',
         testCase((client) => {
           // get some valid template IDs to request
-          let templateRequests = client.listTemplates({ pagesize: 5 })
+          let templateRequests = client
+            .listTemplates({ pagesize: 5 })
             .then((response) => response.items)
             .then((templates) => {
               if (templates.length === 0) throw new Error('account has no templates to fetch')
@@ -116,7 +118,7 @@ describe('End-to-end', function () {
             return Q.all(
               ts.map((template) => {
                 return client.getTemplate(template.id)
-              })
+              }),
             )
           })
 
@@ -127,7 +129,7 @@ describe('End-to-end', function () {
                 return templates
                   .get(output, client, { templates: [template.id] })
                   .then(() => output.get())
-              })
+              }),
             )
           })
 
@@ -137,16 +139,17 @@ describe('End-to-end', function () {
                 expect(actual).to.have.lengthOf(1)
                 expect(actual).to.have.nested.property('[0].type').that.equals('print')
                 expect(actual).to.have.nested.property('[0].json').that.deep.equals(expectation)
-              })
+              }),
             )
           })
-        })
+        }),
       )
 
       it(
         'should return templates in the order specified',
         testCase((client) => {
-          let templateRequests = client.listTemplates({ pagesize: 5 })
+          let templateRequests = client
+            .listTemplates({ pagesize: 5 })
             .then((response) => response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1))
             .then((templates) => {
               if (templates.length === 0) throw new Error('account has no templates to fetch')
@@ -154,7 +157,7 @@ describe('End-to-end', function () {
             })
 
           let idsPromise = templateRequests.then((templates) =>
-            templates.map((template) => template.id)
+            templates.map((template) => template.id),
           )
 
           let resultsPromise = idsPromise.then((ids) => {
@@ -168,10 +171,10 @@ describe('End-to-end', function () {
               zip(results, ids).map(([result, id]) => {
                 expect(result).to.have.property('type').that.equals('print')
                 expect(result).to.have.nested.property('json.id').that.equals(id)
-              })
+              }),
             )
           })
-        })
+        }),
       )
     })
 
@@ -180,12 +183,14 @@ describe('End-to-end', function () {
 
       beforeAll(function () {
         let client = new TransloaditClient({ authKey, authSecret })
-        return client.createTemplate({
-          name: 'original-name',
-          template: JSON.stringify({ stage: 0 }),
-        }).then((response) => {
-          templateId = response.id
-        })
+        return client
+          .createTemplate({
+            name: 'original-name',
+            template: JSON.stringify({ stage: 0 }),
+          })
+          .then((response) => {
+            templateId = response.id
+          })
       })
 
       it(
@@ -212,7 +217,7 @@ describe('End-to-end', function () {
                 expect(template).to.have.property('content').that.deep.equals({ stage: 1 })
               })
           })
-        })
+        }),
       )
 
       it(
@@ -240,7 +245,7 @@ describe('End-to-end', function () {
                 expect(template).to.have.property('content').that.deep.equals({ stage: 1 })
               })
           })
-        })
+        }),
       )
 
       it(
@@ -268,7 +273,7 @@ describe('End-to-end', function () {
                 expect(template).to.have.property('content').that.deep.equals({ stage: 2 })
               })
           })
-        })
+        }),
       )
 
       afterAll(function () {
@@ -283,11 +288,13 @@ describe('End-to-end', function () {
         testCase((client) => {
           let templateIdsPromise = Q.all(
             [1, 2, 3, 4, 5].map((n) => {
-              return client.createTemplate({
-                name: `delete-test-${n}`,
-                template: JSON.stringify({ n }),
-              }).then((response) => response.id)
-            })
+              return client
+                .createTemplate({
+                  name: `delete-test-${n}`,
+                  template: JSON.stringify({ n }),
+                })
+                .then((response) => response.id)
+            }),
           )
 
           let resultPromise = templateIdsPromise.then((ids) => {
@@ -299,21 +306,25 @@ describe('End-to-end', function () {
             expect(result).to.have.lengthOf(0)
             return Q.all(
               ids.map((id) => {
-                return client.getTemplate(id)
+                return client
+                  .getTemplate(id)
                   .then((response) => {
                     expect(response).to.not.exist
                   })
                   .catch((err) => {
-                    const errorCode = err.code || err.transloaditErrorCode || (err.response && err.response.body && err.response.body.error)
+                    const errorCode =
+                      err.code ||
+                      err.transloaditErrorCode ||
+                      (err.response && err.response.body && err.response.body.error)
                     if (errorCode !== 'TEMPLATE_NOT_FOUND') {
                       console.error('Delete failed with unexpected error:', err, 'Code:', errorCode)
                       throw err
                     }
                   })
-              })
+              }),
             )
           })
-        })
+        }),
       )
     })
 
@@ -321,9 +332,11 @@ describe('End-to-end', function () {
       it(
         'should handle directories recursively',
         testCase((client) => {
-          let templateIdsPromise = client.listTemplates({
-            pagesize: 5,
-          }).then((response) => response.items.map((item) => ({ id: item.id, name: item.name })))
+          let templateIdsPromise = client
+            .listTemplates({
+              pagesize: 5,
+            })
+            .then((response) => response.items.map((item) => ({ id: item.id, name: item.name })))
 
           let filesPromise = templateIdsPromise.then((ids) => {
             let dirname = 'd'
@@ -335,14 +348,14 @@ describe('End-to-end', function () {
                   let fname = path.join(dirname, `${name}.json`)
                   return Q.nfcall(fs.mkdir, dirname)
                     .then(() =>
-                      Q.nfcall(fs.writeFile, fname, `{"transloadit_template_id":"${id}"}`)
+                      Q.nfcall(fs.writeFile, fname, `{"transloadit_template_id":"${id}"}`),
                     )
                     .then(() => {
                       dirname = path.join(dirname, 'd')
                     })
                     .then(() => fname)
                 }))
-              })
+              }),
             )
           })
 
@@ -358,19 +371,19 @@ describe('End-to-end', function () {
             (result, ids, files) => {
               expect(result).to.have.lengthOf(0)
               let fileContentsPromise = Q.all(
-                files.map((file) => Q.nfcall(fs.readFile, file).then(JSON.parse))
+                files.map((file) => Q.nfcall(fs.readFile, file).then(JSON.parse)),
               )
               return fileContentsPromise.then((contents) => {
                 return Q.all(
                   zip(contents, ids).map(([content, id]) => {
                     expect(content).to.have.property('transloadit_template_id').that.equals(id.id)
                     expect(content).to.have.property('steps')
-                  })
+                  }),
                 )
               })
-            }
+            },
           )
-        })
+        }),
       )
 
       it(
@@ -380,9 +393,7 @@ describe('End-to-end', function () {
             name: 'test-local-update-1',
             template: JSON.stringify({ changed: true }),
           }
-          let templateIdPromise = client.createTemplate(params).then(
-            (response) => response.id
-          )
+          let templateIdPromise = client.createTemplate(params).then((response) => response.id)
 
           let filePromise = templateIdPromise.then((id) => {
             let fname = `${params.name}.json`
@@ -392,7 +403,7 @@ describe('End-to-end', function () {
               JSON.stringify({
                 transloadit_template_id: id,
                 steps: { changed: false },
-              })
+              }),
             )
               .then(() => Q.nfcall(fs.utimes, fname, 0, 0)) // make the file appear old
               .then(() => fname)
@@ -416,11 +427,9 @@ describe('End-to-end', function () {
                   .true
               })
           }).fin(() => {
-            return templateIdPromise
-              .then((id) => client.deleteTemplate(id))
-              .catch(() => {})
+            return templateIdPromise.then((id) => client.deleteTemplate(id)).catch(() => {})
           })
-        })
+        }),
       )
 
       it(
@@ -430,9 +439,7 @@ describe('End-to-end', function () {
             name: 'test-local-update-1',
             template: JSON.stringify({ changed: false }),
           }
-          let templateIdPromise = client.createTemplate(params).then(
-            (response) => response.id
-          )
+          let templateIdPromise = client.createTemplate(params).then((response) => response.id)
 
           let filePromise = templateIdPromise.then((id) => {
             let fname = `${params.name}.json`
@@ -442,7 +449,7 @@ describe('End-to-end', function () {
               JSON.stringify({
                 transloadit_template_id: id,
                 steps: { changed: true },
-              })
+              }),
             )
               .then(() => Q.nfcall(fs.utimes, fname, Date.now() * 2, Date.now() * 2)) // make the file appear new
               .then(() => fname)
@@ -466,11 +473,9 @@ describe('End-to-end', function () {
                   .true
               })
           }).fin(() => {
-            return templateIdPromise
-              .then((id) => client.deleteTemplate(id))
-              .catch(() => {})
+            return templateIdPromise.then((id) => client.deleteTemplate(id)).catch(() => {})
           })
-        })
+        }),
       )
     })
   })
@@ -481,10 +486,11 @@ describe('End-to-end', function () {
         'should get assemblies',
         testCase((client) => {
           // get some valid assembly IDs to request
-          let assemblyRequests = client.listAssemblies({
-            pagesize: 5,
-            type: 'completed',
-          })
+          let assemblyRequests = client
+            .listAssemblies({
+              pagesize: 5,
+              type: 'completed',
+            })
             .then((response) => response.items)
             .then((assemblies) => {
               if (assemblies.length === 0) throw new Error('account has no assemblies to fetch')
@@ -495,7 +501,7 @@ describe('End-to-end', function () {
             return Q.all(
               as.map((assembly) => {
                 return client.getAssembly(assembly.id)
-              })
+              }),
             )
           })
 
@@ -506,7 +512,7 @@ describe('End-to-end', function () {
                 return assemblies
                   .get(output, client, { assemblies: [assembly.id] })
                   .then(() => output.get())
-              })
+              }),
             )
           })
 
@@ -516,16 +522,17 @@ describe('End-to-end', function () {
                 expect(actual).to.have.lengthOf(1)
                 expect(actual).to.have.nested.property('[0].type').that.equals('print')
                 expect(actual).to.have.nested.property('[0].json').that.deep.equals(expectation)
-              })
+              }),
             )
           })
-        })
+        }),
       )
 
       it(
         'should return assemblies in the order specified',
         testCase((client) => {
-          let assemblyRequests = client.listAssemblies({ pagesize: 5 })
+          let assemblyRequests = client
+            .listAssemblies({ pagesize: 5 })
             .then((response) => response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1))
             .then((assemblies) => {
               if (assemblies.length === 0) throw new Error('account has no assemblies to fetch')
@@ -533,7 +540,7 @@ describe('End-to-end', function () {
             })
 
           let idsPromise = assemblyRequests.then((assemblies) =>
-            assemblies.map((assembly) => assembly.id)
+            assemblies.map((assembly) => assembly.id),
           )
 
           let resultsPromise = idsPromise.then((ids) => {
@@ -547,10 +554,10 @@ describe('End-to-end', function () {
               zip(results, ids).map(([result, id]) => {
                 expect(result).to.have.property('type').that.equals('print')
                 expect(result).to.have.nested.property('json.assembly_id').that.equals(id)
-              })
+              }),
             )
           })
-        })
+        }),
       )
     })
 
@@ -600,13 +607,15 @@ describe('End-to-end', function () {
             expect(result).to.have.nested.property('[1].type').that.equals('debug')
             expect(result).to.have.nested.property('[1].msg').that.equals('DOWNLOADING')
             expect(result).to.have.nested.property('[2].type').that.equals('debug')
-            expect(result).to.have.nested.property('[2].msg').that.equals('COMPLETED in.jpg out.jpg')
+            expect(result)
+              .to.have.nested.property('[2].msg')
+              .that.equals('COMPLETED in.jpg out.jpg')
             return Q.nfcall(imgSize, 'out.jpg').then((dim) => {
               expect(dim).to.have.property('width').that.equals(130)
               expect(dim).to.have.property('height').that.equals(130)
             })
           })
-        })
+        }),
       )
 
       it(
@@ -625,7 +634,7 @@ describe('End-to-end', function () {
                 inputs: infiles,
                 output: 'out',
               }).then(() => output.get())
-            }
+            },
           )
 
           return resultPromise.then((result) => {
@@ -636,7 +645,7 @@ describe('End-to-end', function () {
               expect(outs).to.have.lengthOf(3)
             })
           })
-        })
+        }),
       )
 
       it(
@@ -657,7 +666,7 @@ describe('End-to-end', function () {
                   inputs: [infile],
                   output: 'out',
                 }).then(() => output.get())
-              }
+              },
             )
 
             return resultPromise.then((result) => {
@@ -673,7 +682,7 @@ describe('End-to-end', function () {
               return Q.all([outcheck, pwdcheck])
             })
           })
-        })
+        }),
       )
 
       it(
@@ -696,7 +705,7 @@ describe('End-to-end', function () {
                 inputs: ['1.jpg', 'in'],
                 output: 'out',
               }).then(() => output.get())
-            }
+            },
           )
 
           return resultPromise.then((result) => {
@@ -707,7 +716,7 @@ describe('End-to-end', function () {
               expect(outs).to.have.lengthOf(3)
             })
           })
-        })
+        }),
       )
 
       it(
@@ -729,7 +738,7 @@ describe('End-to-end', function () {
                 inputs: ['in'],
                 output: 'out',
               }).then(() => output.get())
-            }
+            },
           )
 
           return resultPromise.then((result) => {
@@ -739,7 +748,7 @@ describe('End-to-end', function () {
               expect(outs).to.have.lengthOf(1)
             })
           })
-        })
+        }),
       )
 
       it(
@@ -762,7 +771,7 @@ describe('End-to-end', function () {
                 inputs: ['in'],
                 output: 'out',
               }).then(() => output.get())
-            }
+            },
           )
 
           return resultPromise.then((result) => {
@@ -772,7 +781,7 @@ describe('End-to-end', function () {
               expect(outs).to.have.lengthOf(2)
             })
           })
-        })
+        }),
       )
 
       it.skip(
@@ -795,7 +804,7 @@ describe('End-to-end', function () {
               output: 'out',
             })
               .then(() =>
-                errMsgDeferred.reject(new Error('assembliesCreate didnt err; should have'))
+                errMsgDeferred.reject(new Error('assembliesCreate didnt err; should have')),
               )
               .catch((err) => {
                 errMsgDeferred.resolve(output.get(), err) // pass err to satisfy linter
@@ -810,7 +819,7 @@ describe('End-to-end', function () {
               .to.have.nested.property('msg.message')
               .that.equals("Output collision between 'in/1.jpg' and '1.jpg'")
           })
-        })
+        }),
       )
 
       it(
@@ -822,14 +831,14 @@ describe('End-to-end', function () {
           let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
             let output = new OutputCtl()
             return assembliesCreate(output, client, { steps, inputs: [infile], output: null }).then(
-              () => output.get(true)
+              () => output.get(true),
             )
           })
 
           return resultPromise.then((result) => {
             expect(result.filter((line) => line.msg === 'DOWNLOADING')).to.have.lengthOf(0)
           })
-        })
+        }),
       )
 
       it(
@@ -853,12 +862,12 @@ describe('End-to-end', function () {
           let resultPromise = Q.spread([inFilePromise, stepsFilePromise], (infile, steps) => {
             let output = new OutputCtl()
             return assembliesCreate(output, client, { steps, inputs: [], output: 'out.jpg' }).then(
-              () => output.get(true)
+              () => output.get(true),
             )
           })
 
           return resultPromise.then((result) => Q.nfcall(fs.access, 'out.jpg'))
-        })
+        }),
       )
 
       it(
@@ -889,7 +898,7 @@ describe('End-to-end', function () {
               })
             })
           })
-        })
+        }),
       )
 
       it(
@@ -908,7 +917,7 @@ describe('End-to-end', function () {
                 inputs: [infiles[0]],
                 output: 'out',
               })
-            }
+            },
           )
 
           resultPromise = Q.spread(
@@ -920,16 +929,16 @@ describe('End-to-end', function () {
                 inputs: infiles,
                 output: 'out',
               }).then(() => output.get(true))
-            }
+            },
           )
 
           return resultPromise.then((result) => {
             // assert that no log lines mention the stale input
             expect(
-              result.map((line) => line.msg).filter((msg) => msg.includes('in1.jpg'))
+              result.map((line) => line.msg).filter((msg) => msg.includes('in1.jpg')),
             ).to.have.lengthOf(0)
           })
-        })
+        }),
       )
     })
   })

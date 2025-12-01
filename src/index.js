@@ -1,11 +1,11 @@
-import cli from './cli.js'
 import { Transloadit as TransloaditClient } from 'transloadit'
-import OutputCtl from './OutputCtl.js'
-import help from './help.js'
 import * as assemblies from './assemblies.js'
-import * as templates from './templates.js'
-import * as notifications from './notifications.js'
 import * as bills from './bills.js'
+import cli from './cli.js'
+import help from './help.js'
+import * as notifications from './notifications.js'
+import OutputCtl from './OutputCtl.js'
+import * as templates from './templates.js'
 
 let invocation = cli()
 
@@ -41,7 +41,7 @@ let client
 if (!['help', 'version', 'register'].indexOf(invocation.mode) !== -1) {
   if (!process.env.TRANSLOADIT_KEY || !process.env.TRANSLOADIT_SECRET) {
     output.error(
-      'Please provide API authentication in the environment variables TRANSLOADIT_KEY and TRANSLOADIT_SECRET'
+      'Please provide API authentication in the environment variables TRANSLOADIT_KEY and TRANSLOADIT_SECRET',
     )
     process.exit(1)
   }

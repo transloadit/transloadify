@@ -1,6 +1,6 @@
 import Q from 'q'
-import { stream2buf, createReadStream, inSequence, formatAPIError } from './helpers.js'
 import assembliesCreate from './assemblies-create.js'
+import { createReadStream, formatAPIError, inSequence, stream2buf } from './helpers.js'
 
 export const create = assembliesCreate
 
@@ -42,7 +42,7 @@ export function get(output, client, { assemblies }) {
     },
     (err) => {
       output.error(formatAPIError(err))
-    }
+    },
   ).then(deferred.resolve.bind(deferred))
 
   return deferred.promise
@@ -71,17 +71,16 @@ export function replay(output, client, { fields, reparse, steps, notify_url, ass
 
   function apiCall(steps) {
     for (let assembly of assemblies) {
-      client.replayAssembly(
-        assembly,
-        {
+      client
+        .replayAssembly(assembly, {
           reparse_template: reparse,
           fields,
           steps,
           notify_url,
-        }
-      ).catch((err) => {
-        return output.error(formatAPIError(err))
-      })
+        })
+        .catch((err) => {
+          return output.error(formatAPIError(err))
+        })
     }
   }
 }

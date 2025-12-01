@@ -28,26 +28,17 @@
   "gt_360": {
     "use": "mp4",
     "robot": "/file/filter",
-    "accepts": [
-      ["${file.meta.width}", ">=", "480"],
-      ["${file.meta.height}", ">=", "360"]
-    ]
+    "accepts": [["${file.meta.width}", ">=", "480"], ["${file.meta.height}", ">=", "360"]]
   },
   "gt_540": {
     "use": "mp4",
     "robot": "/file/filter",
-    "declines": [
-      ["${file.meta.width}", "<", "720"],
-      ["${file.meta.height}", "<", "540"]
-    ]
+    "declines": [["${file.meta.width}", "<", "720"], ["${file.meta.height}", "<", "540"]]
   },
   "gt_720": {
     "use": "mp4",
     "robot": "/file/filter",
-    "declines": [
-      ["${file.meta.width}", "<", "960"],
-      ["${file.meta.height}", "<", "720"]
-    ]
+    "declines": [["${file.meta.width}", "<", "960"], ["${file.meta.height}", "<", "720"]]
   },
   "segmented/234p": {
     "use": "mp4",

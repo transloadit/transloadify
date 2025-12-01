@@ -11,7 +11,7 @@ parser.command(
   'assembly-notification',
   'notifications',
   'notification',
-  'n'
+  'n',
 )
 parser.command('mode', 'bills', 'bill', 'b')
 
@@ -283,7 +283,7 @@ const subcommands = {
 
       allowOptions(anyOf('register'), (opt) => `register doesn't accept any options`),
 
-      noTargets('too many arguments passed to register')
+      noTargets('too many arguments passed to register'),
     )
 
     if (err) return err
@@ -307,22 +307,22 @@ const subcommands = {
             'input',
             'output',
             'delete-after-processing',
-            'reprocess-stale'
+            'reprocess-stale',
           ),
-          (opt) => `assemblies create doesn't accept the option --${opt.name}`
+          (opt) => `assemblies create doesn't accept the option --${opt.name}`,
         ),
 
         exactlyOneOfOption(
           anyOf('steps', 'template'),
-          (opt) => `assemblies create requires exactly one of either --steps and --template`
+          (opt) => `assemblies create requires exactly one of either --steps and --template`,
         ),
 
         atMostOneOfOption(
           anyOf('output'),
-          (opt) => `assemblies create accepts at most one --output`
+          (opt) => `assemblies create accepts at most one --output`,
         ),
 
-        noTargets('too many arguments passed to assemblies create')
+        noTargets('too many arguments passed to assemblies create'),
       )
 
       let inputs = optgetall(opts, 'input')
@@ -356,25 +356,25 @@ const subcommands = {
 
         allowOptions(
           anyOf('before', 'after', 'keywords', 'fields'),
-          (opt) => `assemblies list doesn't accept the option --${opt.name}`
+          (opt) => `assemblies list doesn't accept the option --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('before'),
-          (opt) => `assemblies list accepts at most one of --${opt.name}`
+          (opt) => `assemblies list accepts at most one of --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('after'),
-          (opt) => `assemblies list accepts at most one of --${opt.name}`
+          (opt) => `assemblies list accepts at most one of --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('fields'),
-          (opt) => `assemblies list accepts at most one of --${opt.name}`
+          (opt) => `assemblies list accepts at most one of --${opt.name}`,
         ),
 
-        noTargets('too many arguments passed to assemblies list')
+        noTargets('too many arguments passed to assemblies list'),
       )
 
       if (err) return err
@@ -403,7 +403,7 @@ const subcommands = {
 
         allowOptions(anyOf(), (opt) => `assemblies get doesn't accept the option --${opt.name}`),
 
-        requireTargets('no assemblies specified')
+        requireTargets('no assemblies specified'),
       )
 
       if (err) return err
@@ -420,7 +420,7 @@ const subcommands = {
 
         allowOptions(anyOf(), (opt) => `assemblies delete doesn't accept the option --${opt.name}`),
 
-        requireTargets('no assemblies specified')
+        requireTargets('no assemblies specified'),
       )
 
       if (err) return err
@@ -437,20 +437,20 @@ const subcommands = {
 
         allowOptions(
           anyOf('reparse-template', 'field', 'steps', 'notify-url'),
-          (opt) => `assemblies replay doesn't accept the option --${opt.name}`
+          (opt) => `assemblies replay doesn't accept the option --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('steps'),
-          (opt) => `too many --steps provided to assemblies replay`
+          (opt) => `too many --steps provided to assemblies replay`,
         ),
 
         atMostOneOfOption(
           anyOf('notify-url'),
-          (opt) => `too many --notify-urls provided to assemblies replay`
+          (opt) => `too many --notify-urls provided to assemblies replay`,
         ),
 
-        requireTargets('no assemblies specified')
+        requireTargets('no assemblies specified'),
       )
 
       if (err) return err
@@ -476,7 +476,7 @@ const subcommands = {
         nTargets(1, 2, {
           few: 'too few arguments passed to templates create',
           many: 'too many arguments passed to templates create',
-        })
+        }),
       )
 
       if (err) return err
@@ -494,7 +494,7 @@ const subcommands = {
 
         allowOptions(anyOf(), (opt) => `templates create doesn't accept the option --${opt.name}`),
 
-        requireTargets('no template specified')
+        requireTargets('no template specified'),
       )
 
       if (err) return err
@@ -511,13 +511,13 @@ const subcommands = {
 
         allowOptions(
           anyOf('name'),
-          (opt) => `templates modify doesn't accept the option --${opt.name}`
+          (opt) => `templates modify doesn't accept the option --${opt.name}`,
         ),
 
         nTargets(1, 2, {
           few: 'too few arguments passed to templates modify',
           many: 'too many arguments passed to templates modify',
-        })
+        }),
       )
 
       if (err) return err
@@ -536,7 +536,7 @@ const subcommands = {
 
         allowOptions(anyOf(), (opt) => `templates delete doesn't accept the option --${opt.name}`),
 
-        requireTargets('no template specified')
+        requireTargets('no template specified'),
       )
 
       if (err) return err
@@ -553,35 +553,35 @@ const subcommands = {
 
         allowOptions(
           anyOf('after', 'before', 'sort', 'order', 'fields'),
-          (opt) => `templates list doesn't accept the option --${opt.name}`
+          (opt) => `templates list doesn't accept the option --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('before'),
-          (opt) => `templates list accepts at most one of --${opt.name}`
+          (opt) => `templates list accepts at most one of --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('after'),
-          (opt) => `templates list accepts at most one of --${opt.name}`
+          (opt) => `templates list accepts at most one of --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('sort'),
-          (opt) => `templates list accepts at most one of --${opt.name}`
+          (opt) => `templates list accepts at most one of --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('order'),
-          (opt) => `templates list accepts at most one of --${opt.name}`
+          (opt) => `templates list accepts at most one of --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('fields'),
-          (opt) => `templates list accepts at most one of --${opt.name}`
+          (opt) => `templates list accepts at most one of --${opt.name}`,
         ),
 
-        noTargets('too many arguments passed to templates list')
+        noTargets('too many arguments passed to templates list'),
       )
 
       if (err) return err
@@ -606,8 +606,8 @@ const subcommands = {
 
         allowOptions(
           anyOf('recursive'),
-          (opt) => `templates sync doesn't accept the option --${opt.name}`
-        )
+          (opt) => `templates sync doesn't accept the option --${opt.name}`,
+        ),
       )
 
       if (err) return err
@@ -627,15 +627,15 @@ const subcommands = {
 
         allowOptions(
           anyOf('notify-url'),
-          (opt) => `assembly-notifications replay doesn't accept the option --${opt.name}`
+          (opt) => `assembly-notifications replay doesn't accept the option --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('notify-url'),
-          (opt) => `assembly-notifications replay accepts at most one of --${opt.name}`
+          (opt) => `assembly-notifications replay accepts at most one of --${opt.name}`,
         ),
 
-        requireTargets('no assemblies specified')
+        requireTargets('no assemblies specified'),
       )
 
       if (err) return err
@@ -653,18 +653,18 @@ const subcommands = {
 
         allowOptions(
           anyOf('failed', 'successful'),
-          (opt) => `assembly-notifications list doesn't accept the option --${opt.name}`
+          (opt) => `assembly-notifications list doesn't accept the option --${opt.name}`,
         ),
 
         atMostOneOfOption(
           anyOf('failed', 'successful'),
-          (opt) => `assembly-notifications accepts at most one of --failed and --successful`
+          (opt) => `assembly-notifications accepts at most one of --failed and --successful`,
         ),
 
         nTargets(0, 1, {
           few: undefined, // can't have <0 targets
           many: 'too many assembly ids provided to assembly-notifications list',
-        })
+        }),
       )
 
       if (err) return err
@@ -673,8 +673,8 @@ const subcommands = {
         type: optget(opts, 'failed')
           ? 'failed'
           : optget(opts, 'successful')
-          ? 'successful'
-          : undefined,
+            ? 'successful'
+            : undefined,
         assembly_id: tgts[0],
       }
     },
@@ -686,7 +686,7 @@ const subcommands = {
         opts,
         tgts,
 
-        allowOptions(anyOf(), (opt) => `bills get doesn't accept any options`)
+        allowOptions(anyOf(), (opt) => `bills get doesn't accept any options`),
       )
 
       if (err) return err
@@ -719,7 +719,7 @@ const subcommands = {
 
       allowOptions(anyOf('help'), (opt) => `--help doesn't accept any options`),
 
-      noTargets('too many argument passed to --help')
+      noTargets('too many argument passed to --help'),
     )
 
     if (err) return err
@@ -734,7 +734,7 @@ const subcommands = {
 
       allowOptions(anyOf('version'), (opt) => `--version doesn't accept any options`),
 
-      noTargets('too many argument passed to --version')
+      noTargets('too many argument passed to --version'),
     )
 
     if (err) return err
