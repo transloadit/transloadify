@@ -53,7 +53,27 @@ function testCase(cb) {
   }
 }
 
+import { exec } from 'node:child_process'
+import util from 'node:util'
+
+const execAsync = util.promisify(exec)
+const cliPath = path.resolve(__dirname, '../bin/cmd.js')
+
+function runCli(args, env = {}) {
+  return execAsync(`node ${cliPath} ${args}`, {
+    env: { ...process.env, ...env },
+  })
+}
+
 describe('End-to-end', () => {
+  describe('CLI', () => {
+    it('should list templates via CLI', async () => {
+      const { stdout, stderr } = await runCli('templates list')
+      expect(stderr).to.be.empty
+      expect(stdout).to.match(/[a-f0-9]{32}/)
+    })
+  })
+
   describe('templates', () => {
     describe('create', () => {
       it(
