@@ -18,15 +18,21 @@
     "release:patch": "env SEMANTIC=patch npm run release",
     "release": "npm version ${SEMANTIC:-patch} -m \"Release %s\" && git push && git push --tags && npm publish",
     "start": "npm run web:start",
-    "test": "vitest run",
-    "check": "npm-run-all lint:ts fix:js test"
+    "test": "npm-run-all test:unit test:e2e",
+    "test:unit": "vitest run --coverage --coverage.reportsDirectory=coverage/unit --exclude test/end-to-end.js",
+    "test:e2e": "vitest run --coverage --coverage.reportsDirectory=coverage/e2e test/end-to-end.js",
+    "check": "npm-run-all lint:ts fix:js test:unit"
   },
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
   "type": "module",
   "bin": "./bin/cmd.js",
   "main": "./src/index.js",
-  "files": ["src", "bin", "_transloadify"],
+  "files": [
+    "src",
+    "bin",
+    "_transloadify"
+  ],
   "dependencies": {
     "node-watch": "^0.4.1",
     "q": "1.4.1",
@@ -38,6 +44,7 @@
     "@biomejs/biome": "^2.3.8",
     "@types/node": "^24.10.1",
     "@types/q": "^1.5.8",
+    "@vitest/coverage-v8": "^4.0.14",
     "chai": "latest",
     "dotenv": "^17.2.3",
     "fakefile": "^0.0.8",

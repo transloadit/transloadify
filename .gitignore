@@ -6,3 +6,5 @@ lib/
 node_modules/
 npm-debug.log
 .env
+coverage/e2e
+coverage-report.md
