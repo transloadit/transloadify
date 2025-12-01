@@ -20,6 +20,9 @@ jobs:
       - name: Install
         run: |
           corepack yarn
+      - name: Lint
+        run: |
+          corepack yarn lint
       - name: Test
         env:
           TRANSLOADIT_KEY: ${{ secrets.TRANSLOADIT_KEY }}
