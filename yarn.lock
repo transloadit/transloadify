@@ -2261,7 +2261,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chai@npm:^6.2.1, chai@npm:latest":
+"chai@npm:^6.2.1":
   version: 6.2.1
   resolution: "chai@npm:6.2.1"
   checksum: 10c0/0c2d84392d7c6d44ca5d14d94204f1760e22af68b83d1f4278b5c4d301dabfc0242da70954dd86b1eda01e438f42950de6cf9d569df2103678538e4014abe50b
@@ -4561,7 +4561,6 @@ __metadata:
     "@types/node": "npm:^24.10.1"
     "@types/q": "npm:^1.5.8"
     "@vitest/coverage-v8": "npm:^4.0.14"
-    chai: "npm:latest"
     dotenv: "npm:^17.2.3"
     fakefile: "npm:^0.0.8"
     image-size: "npm:0.5.0"

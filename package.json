@@ -28,7 +28,11 @@
   "type": "module",
   "bin": "./bin/cmd.js",
   "main": "./src/index.js",
-  "files": ["src", "bin", "_transloadify"],
+  "files": [
+    "src",
+    "bin",
+    "_transloadify"
+  ],
   "dependencies": {
     "node-watch": "^0.4.1",
     "q": "1.4.1",
@@ -41,7 +45,6 @@
     "@types/node": "^24.10.1",
     "@types/q": "^1.5.8",
     "@vitest/coverage-v8": "^4.0.14",
-    "chai": "latest",
     "dotenv": "^17.2.3",
     "fakefile": "^0.0.8",
     "image-size": "0.5.0",
