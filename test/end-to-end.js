@@ -550,7 +550,13 @@ describe('End-to-end', function () {
           })
 
           return Q.spread([resultsPromise, idsPromise], (results, ids) => {
-            expect(results).to.have.lengthOf(ids.length)
+            try {
+              expect(results).to.have.lengthOf(ids.length)
+            } catch (e) {
+              console.error('DEBUG: Results:', JSON.stringify(results, null, 2))
+              console.error('DEBUG: Ids:', JSON.stringify(ids, null, 2))
+              throw e
+            }
             return Q.all(
               zip(results, ids).map(([result, id]) => {
                 expect(result).to.have.property('type').that.equals('print')

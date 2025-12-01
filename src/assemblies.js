@@ -31,19 +31,22 @@ export function list(output, client, { before, after, fields, keywords }) {
 export function get(output, client, { assemblies }) {
   let deferred = Q.defer()
 
-  let requests = assemblies.map((assembly) => {
-    return Q.resolve(client.getAssembly(assembly))
+  let promise = Q.resolve()
+
+  assemblies.forEach((assembly) => {
+    promise = promise.then(() => {
+      return Q.delay(1000)
+        .then(() => Q.resolve(client.getAssembly(assembly)))
+        .then((result) => {
+          output.print(result, result)
+        })
+    })
   })
 
-  inSequence(
-    requests,
-    (result) => {
-      output.print(result, result)
-    },
-    (err) => {
-      output.error(formatAPIError(err))
-    },
-  ).then(deferred.resolve.bind(deferred))
+  promise.then(deferred.resolve.bind(deferred)).catch((err) => {
+    output.error(formatAPIError(err))
+    deferred.reject(err)
+  })
 
   return deferred.promise
 }
