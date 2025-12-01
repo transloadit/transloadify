@@ -6,6 +6,7 @@ import { testCase } from './test-utils.ts'
 
 describe('assembly-notifications', () => {
   describe('list', () => {
+    // Skipped: notifications.list is not implemented in the SDK
     it.skip(
       'should list notifications',
       testCase(async (client) => {

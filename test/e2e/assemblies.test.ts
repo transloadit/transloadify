@@ -304,7 +304,7 @@ describe('assemblies', () => {
       }),
     )
 
-    it.skip(
+    it(
       'should detect outdir conflicts',
       testCase(async (client) => {
         await fsp.mkdir('in')
@@ -329,6 +329,8 @@ describe('assemblies', () => {
             .to.have.nested.property('msg.message')
             .that.equals("Output collision between 'in/1.jpg' and '1.jpg'")
         }
+        // Allow time for any pending file streams to settle/error before test cleanup
+        await new Promise((resolve) => setTimeout(resolve, 100))
       }),
     )
 
