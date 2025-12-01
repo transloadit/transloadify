@@ -1,14 +1,15 @@
-import EventEmitter from 'events'
-import fs from 'fs'
-import http from 'http'
-import https from 'https'
+import EventEmitter from 'node:events'
+import fs from 'node:fs'
+import http from 'node:http'
+import https from 'node:https'
+import path from 'node:path'
+import process from 'node:process'
 import watch from 'node-watch'
-import path from 'path'
 import Q from 'q'
-import tty from 'tty'
 import JobsPromise from './JobsPromise.js'
 
 // workaround for determining mime-type of stdin
+// @ts-ignore
 process.stdin.path = '/dev/stdin'
 
 function myStatSync(stdioStream, path) {
@@ -52,6 +53,7 @@ function dirProvider(output) {
       })
       .then((mtime) => {
         let outstream = fs.createWriteStream(outpath)
+        // @ts-ignore
         outstream.mtime = mtime
         return outstream
       })
@@ -70,6 +72,7 @@ function fileProvider(output) {
 
       return mtimeP.then((mtime) => {
         let outstream = fs.createWriteStream(output)
+        // @ts-ignore
         outstream.mtime = mtime
         return outstream
       })
@@ -88,13 +91,12 @@ class MyEventEmitter extends EventEmitter {
   }
 
   emit(event, ...args) {
-    if (this.hasEnded) return
+    if (this.hasEnded) return false
     if (event === 'end' || event === 'error') {
       this.hasEnded = true
-      super.emit(event, ...args)
-      return
+      return super.emit(event, ...args)
     }
-    super.emit(event, ...args)
+    return super.emit(event, ...args)
   }
 }
 
@@ -401,6 +403,24 @@ function makeJobEmitter(
   return stalefilter(detectConflicts(emitter))
 }
 
+/**
+ * @typedef {Object} RunOptions
+ * @property {any} [steps]
+ * @property {any} [template]
+ * @property {any} [fields]
+ * @property {any} [watch]
+ * @property {any} [recursive]
+ * @property {any} [inputs]
+ * @property {any} [output]
+ * @property {any} [del]
+ * @property {any} [reprocessStale]
+ */
+
+/**
+ * @param {any} outputctl
+ * @param {any} client
+ * @param {RunOptions} options
+ */
 export default function run(
   outputctl,
   client,
@@ -412,7 +432,9 @@ export default function run(
 
   let deferred = Q.defer()
 
-  let params = steps ? { steps: JSON.parse(fs.readFileSync(steps)) } : { template_id: template }
+  let params = steps
+    ? { steps: JSON.parse(fs.readFileSync(steps).toString()) }
+    : { template_id: template }
   params.fields = fields
 
   let outstat

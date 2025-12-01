@@ -1,3 +1,5 @@
+import process from 'node:process'
+
 export default class Parser {
   constructor() {
     this._opts = []

@@ -1,5 +1,5 @@
-import fs from 'fs'
-import path from 'path'
+import fs from 'node:fs'
+import path from 'node:path'
 import Q from 'q'
 import rreaddir from 'recursive-readdir'
 import { createReadStream, formatAPIError, inSequence, stream2buf } from './helpers.js'

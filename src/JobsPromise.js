@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events'
+import { EventEmitter } from 'node:events'
 import Q from 'q'
 
 export default class JobsPromise extends EventEmitter {

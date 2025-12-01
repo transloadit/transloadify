@@ -1,3 +1,4 @@
+import process from 'node:process'
 import { Transloadit as TransloaditClient } from 'transloadit'
 import * as assemblies from './assemblies.js'
 import * as bills from './bills.js'
@@ -38,7 +39,7 @@ if (
 }
 
 let client
-if (!['help', 'version', 'register'].indexOf(invocation.mode) !== -1) {
+if (['help', 'version', 'register'].indexOf(invocation.mode) === -1) {
   if (!process.env.TRANSLOADIT_KEY || !process.env.TRANSLOADIT_SECRET) {
     output.error(
       'Please provide API authentication in the environment variables TRANSLOADIT_KEY and TRANSLOADIT_SECRET',

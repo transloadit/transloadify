@@ -1,6 +1,6 @@
-import fs from 'fs'
+import fs from 'node:fs'
+import path from 'node:path'
 import imgSize from 'image-size'
-import path from 'path'
 import Q from 'q'
 import rreaddir from 'recursive-readdir'
 import request from 'request'
@@ -13,6 +13,7 @@ import { zip } from '../src/helpers.js'
 import * as templates from '../src/templates.js'
 import OutputCtl from './OutputCtl.js'
 import 'dotenv/config'
+import process from 'node:process'
 
 const tmpDir = '/tmp'
 

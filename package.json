@@ -36,6 +36,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
+    "@types/node": "^24.10.1",
+    "@types/q": "^1.5.8",
     "chai": "latest",
     "dotenv": "^17.2.3",
     "fakefile": "^0.0.8",
@@ -44,6 +46,7 @@
     "request": "2.79.0",
     "rimraf": "2.5.4",
     "true": "^0.0.4",
+    "typescript": "^5.9.3",
     "vitest": "^4.0.14"
   }
 }
