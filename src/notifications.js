@@ -1,13 +1,12 @@
-import Q from 'q'
-
-export function replay(output, client, { notify_url, assemblies }) {
-  return Q.all(
-    assemblies.map((id) => {
-      return client.replayAssemblyNotification(id, { notify_url }).catch((err) => {
-        output.error(err)
-      })
-    }),
-  )
+export async function replay(output, client, { notify_url, assemblies }) {
+  try {
+    const promises = assemblies.map((id) => {
+      return client.replayAssemblyNotification(id, { notify_url })
+    })
+    await Promise.all(promises)
+  } catch (err) {
+    output.error(err)
+  }
 }
 
 export function list(output, _client, { type: _type, assembly_id: _assembly_id }) {

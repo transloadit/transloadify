@@ -1,4 +1,3 @@
-import Q from 'q'
 import assembliesCreate from './assemblies-create.js'
 import { createReadStream, formatAPIError, stream2buf } from './helpers.js'
 
@@ -33,70 +32,65 @@ export function list(output, client, { before, after, fields, keywords }) {
   })
 }
 
-export function get(output, client, { assemblies }) {
-  const deferred = Q.defer()
-
-  let promise = Q.resolve()
+export async function get(output, client, { assemblies }) {
+  // We are still returning a deferred promise for compatibility or just a promise
+  // But we can use async/await internally.
 
   for (const assembly of assemblies) {
-    promise = promise.then(() => {
-      return Q.delay(1000)
-        .then(() => Q.resolve(client.getAssembly(assembly)))
-        .then((result) => {
-          output.print(result, result)
-        })
-    })
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const result = await client.getAssembly(assembly)
+      output.print(result, result)
+    } catch (err) {
+      output.error(formatAPIError(err))
+      throw err
+    }
   }
-
-  promise.then(deferred.resolve.bind(deferred)).catch((err) => {
-    output.error(formatAPIError(err))
-    deferred.reject(err)
-  })
-
-  return deferred.promise
 }
 
-function _delete(output, client, { assemblies }) {
-  return Q.all(
-    assemblies.map((assembly) => {
-      return client.cancelAssembly(assembly).catch((err) => {
-        output.error(formatAPIError(err))
-      })
-    }),
-  )
+async function _delete(output, client, { assemblies }) {
+  const promises = assemblies.map(async (assembly) => {
+    try {
+      await client.cancelAssembly(assembly)
+    } catch (err) {
+      output.error(formatAPIError(err))
+    }
+  })
+  await Promise.all(promises)
 }
 
 export { _delete as delete }
 
-export function replay(output, client, { fields, reparse, steps, notify_url, assemblies }) {
+export async function replay(output, client, { fields, reparse, steps, notify_url, assemblies }) {
   if (steps) {
-    const deferred = Q.defer()
-    stream2buf(createReadStream(steps), (err, buf) => {
-      if (err) {
-        output.error(err.message)
-        return deferred.reject(err)
-      }
-
-      deferred.resolve(apiCall(JSON.parse(buf.toString())))
-    })
-    return deferred.promise
+    try {
+      const buf = await new Promise((resolve, reject) => {
+        stream2buf(createReadStream(steps), (err, buf) => {
+          if (err) reject(err)
+          else resolve(buf)
+        })
+      })
+      await apiCall(JSON.parse(buf.toString()))
+    } catch (err) {
+      output.error(err.message || err)
+    }
+  } else {
+    await apiCall()
   }
-  return apiCall()
 
-  function apiCall(steps) {
-    return Q.all(
-      assemblies.map((assembly) => {
-        return client
-          .replayAssembly(assembly, {
-            reparse_template: reparse,
-            fields,
-            steps,
-            notify_url,
-          })
-          .catch((err) => {
-            return output.error(formatAPIError(err))
-          })
-      }),
-    )
+  async function apiCall(steps) {
+    const promises = assemblies.map(async (assembly) => {
+      try {
+        await client.replayAssembly(assembly, {
+          reparse_template: reparse,
+          fields,
+          steps,
+          notify_url,
+        })
+      } catch (err) {
+        output.error(formatAPIError(err))
+      }
+    })
+    await Promise.all(promises)
   }
 }

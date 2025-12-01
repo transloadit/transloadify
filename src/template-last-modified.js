@@ -26,7 +26,7 @@ class MemoizedPagination {
 
 export default class ModifiedLookup {
   constructor(client, pagesize = 50) {
-    this.byOrdinal = new MemoizedPagination(pagesize, (page, pagesize, cb) => {
+    this.byOrdinal = new MemoizedPagination(pagesize, async (page, pagesize, cb) => {
       const params = {
         sort: 'id',
         order: 'asc',
@@ -34,17 +34,17 @@ export default class ModifiedLookup {
         page,
         pagesize,
       }
-      client
-        .listTemplates(params)
-        .then((result) => {
-          const items = new Array(pagesize)
-          items.fill({ id: 'gggggggggggggggggggggggggggggggg' }) // Larger than any hex ID
-          for (let i = 0; i < result.items.length; i++) {
-            items[i] = result.items[i]
-          }
-          cb(null, items)
-        })
-        .catch(cb)
+      try {
+        const result = await client.listTemplates(params)
+        const items = new Array(pagesize)
+        items.fill({ id: 'gggggggggggggggggggggggggggggggg' }) // Larger than any hex ID
+        for (let i = 0; i < result.items.length; i++) {
+          items[i] = result.items[i]
+        }
+        cb(null, items)
+      } catch (err) {
+        cb(err)
+      }
     })
   }
 

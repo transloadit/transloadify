@@ -68,38 +68,29 @@ describe('End-to-end', () => {
     describe('create', () => {
       it(
         'should create templates',
-        testCase((client) => {
-          const executions = [1, 2, 3, 4, 5].map((n) => {
+        testCase(async (client) => {
+          const executions = [1, 2, 3, 4, 5].map(async (n) => {
             const output = new OutputCtl()
             // Make a file with the template contents
-            return (
-              Q.nfcall(fs.writeFile, `${n}.json`, JSON.stringify({ testno: n }))
-                // run the test subject
-                .then(() =>
-                  templates.create(output, client, { name: `test-${n}`, file: `${n}.json` }),
-                )
-                // ignore the promise result, just look at the output the user would
-                // see
-                .then(() => output.get())
-            )
+            await Q.nfcall(fs.writeFile, `${n}.json`, JSON.stringify({ testno: n }))
+            // run the test subject
+            await templates.create(output, client, { name: `test-${n}`, file: `${n}.json` })
+            // ignore the promise result, just look at the output the user would
+            // see
+            return output.get()
           })
 
-          return Q.all(executions).then((results) => {
-            return Q.all(
-              results.map((result) => {
-                return Q.fcall(() => {
-                  // Verify that the output looks as expected
-                  expect(result).to.have.lengthOf(1)
-                  expect(result).to.have.nested.property('[0].type').that.equals('print')
-                  expect(result).to.have.nested.property('[0].msg').that.equals(result[0].json.id)
-                }).fin(() => {
-                  // delete these test templates from the server, but don't fail the
-                  // test if it doesn't work
-                  return client.deleteTemplate(result[0].json.id).catch(() => {})
-                })
-              }),
-            )
-          })
+          const results = await Promise.all(executions)
+          for (const result of results) {
+            // Verify that the output looks as expected
+            expect(result).to.have.lengthOf(1)
+            expect(result).to.have.nested.property('[0].type').that.equals('print')
+            expect(result).to.have.nested.property('[0].msg').that.equals(result[0].json.id)
+
+            // delete these test templates from the server, but don't fail the
+            // test if it doesn't work
+            await client.deleteTemplate(result[0].json.id).catch(() => {})
+          }
         }),
       )
     })
@@ -107,78 +98,52 @@ describe('End-to-end', () => {
     describe('get', () => {
       it(
         'should get templates',
-        testCase((client) => {
+        testCase(async (client) => {
           // get some valid template IDs to request
-          const templateRequests = client
-            .listTemplates({ pagesize: 5 })
-            .then((response) => response.items)
-            .then((templates) => {
-              if (templates.length === 0) throw new Error('account has no templates to fetch')
-              return templates
-            })
+          const response = await client.listTemplates({ pagesize: 5 })
+          const templatesList = response.items
+          if (templatesList.length === 0) throw new Error('account has no templates to fetch')
 
-          const sdkResults = templateRequests.then((ts) => {
-            return Q.all(
-              ts.map((template) => {
-                return client.getTemplate(template.id)
-              }),
-            )
-          })
+          const expectations = await Promise.all(
+            templatesList.map((template) => {
+              return client.getTemplate(template.id)
+            }),
+          )
 
-          const transloadifyResults = templateRequests.then((ts) => {
-            return Q.all(
-              ts.map((template) => {
-                const output = new OutputCtl()
-                return templates
-                  .get(output, client, { templates: [template.id] })
-                  .then(() => output.get())
-              }),
-            )
-          })
+          const actuals = await Promise.all(
+            templatesList.map(async (template) => {
+              const output = new OutputCtl()
+              await templates.get(output, client, { templates: [template.id] })
+              return output.get()
+            }),
+          )
 
-          return Q.spread([sdkResults, transloadifyResults], (expectations, actuals) => {
-            return Q.all(
-              zip(expectations, actuals).map(([expectation, actual]) => {
-                expect(actual).to.have.lengthOf(1)
-                expect(actual).to.have.nested.property('[0].type').that.equals('print')
-                expect(actual).to.have.nested.property('[0].json').that.deep.equals(expectation)
-                return null
-              }),
-            )
-          })
+          for (const [expectation, actual] of zip(expectations, actuals)) {
+            expect(actual).to.have.lengthOf(1)
+            expect(actual).to.have.nested.property('[0].type').that.equals('print')
+            expect(actual).to.have.nested.property('[0].json').that.deep.equals(expectation)
+          }
         }),
       )
 
       it(
         'should return templates in the order specified',
-        testCase((client) => {
-          const templateRequests = client
-            .listTemplates({ pagesize: 5 })
-            .then((response) => response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1))
-            .then((templates) => {
-              if (templates.length === 0) throw new Error('account has no templates to fetch')
-              return templates
-            })
+        testCase(async (client) => {
+          const response = await client.listTemplates({ pagesize: 5 })
+          const items = response.items.sort(() => 2 * Math.floor(Math.random() * 2) - 1)
+          if (items.length === 0) throw new Error('account has no templates to fetch')
 
-          const idsPromise = templateRequests.then((templates) =>
-            templates.map((template) => template.id),
-          )
+          const ids = items.map((template) => template.id)
 
-          const resultsPromise = idsPromise.then((ids) => {
-            const output = new OutputCtl()
-            return templates.get(output, client, { templates: ids }).then(() => output.get())
-          })
+          const output = new OutputCtl()
+          await templates.get(output, client, { templates: ids })
+          const results = output.get()
 
-          return Q.spread([resultsPromise, idsPromise], (results, ids) => {
-            expect(results).to.have.lengthOf(ids.length)
-            return Q.all(
-              zip(results, ids).map(([result, id]) => {
-                expect(result).to.have.property('type').that.equals('print')
-                expect(result).to.have.nested.property('json.id').that.equals(id)
-                return null
-              }),
-            )
-          })
+          expect(results).to.have.lengthOf(ids.length)
+          for (const [result, id] of zip(results, ids)) {
+            expect(result).to.have.property('type').that.equals('print')
+            expect(result).to.have.nested.property('json.id').that.equals(id)
+          }
         }),
       )
     })
@@ -1039,12 +1004,11 @@ describe('End-to-end', () => {
     describe('list', () => {
       it.skip(
         'should list notifications',
-        testCase((client) => {
+        testCase(async (client) => {
           const output = new OutputCtl()
-          return notifications.list(output, client, { pagesize: 1 }).then(() => {
-            const logs = output.get()
-            expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
-          })
+          await notifications.list(output, client, { pagesize: 1 })
+          const logs = output.get()
+          expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
         }),
       )
     })
@@ -1054,15 +1018,14 @@ describe('End-to-end', () => {
     describe('get', () => {
       it(
         'should get bills',
-        testCase((client) => {
+        testCase(async (client) => {
           const output = new OutputCtl()
           const date = new Date()
           const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-          return bills.get(output, client, { months: [month] }).then(() => {
-            const logs = output.get()
-            expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
-            expect(logs.filter((l) => l.type === 'print')).to.have.length.above(0)
-          })
+          await bills.get(output, client, { months: [month] })
+          const logs = output.get()
+          expect(logs.filter((l) => l.type === 'error')).to.have.lengthOf(0)
+          expect(logs.filter((l) => l.type === 'print')).to.have.length.above(0)
         }),
       )
     })

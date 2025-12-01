@@ -461,90 +461,70 @@ export default function run(
         superceded = true
       })
 
-    // if (job.in != null) client.addStream('in', job.in) // SDK v4: addStream removed
-
     const createOptions = { params }
     if (job.in != null) {
       createOptions.uploads = { in: job.in }
     }
 
-    jobsPromise.add(
-      Q.resolve(client.createAssembly(createOptions)).then((result) => {
+    const jobPromise = (async () => {
+      const result = await client.createAssembly(createOptions)
+      if (superceded) return
+
+      let assembly = await client.getAssembly(result.assembly_id)
+
+      while (
+        assembly.ok !== 'ASSEMBLY_COMPLETED' &&
+        assembly.ok !== 'ASSEMBLY_CANCELED' && // Should handle canceled state too
+        !assembly.error
+      ) {
         if (superceded) return
+        outputctl.debug(`Assembly status: ${assembly.ok}`)
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        assembly = await client.getAssembly(result.assembly_id)
+      }
 
-        // result is now the assembly object directly (or we need to check SDK response structure)
-        // Guide says: result = await transloadit.createAssembly(options)
-        // result is likely the JSON response.
+      if (assembly.error || (assembly.ok && assembly.ok !== 'ASSEMBLY_COMPLETED')) {
+        const msg = `Assembly failed: ${assembly.error || assembly.message} (Status: ${assembly.ok})`
+        outputctl.error(msg)
+        throw new Error(msg)
+      }
 
-        return Q.resolve(client.getAssembly(result.assembly_id)).then(function callback(result) {
-          if (superceded) return
+      const resulturl = assembly.results[Object.keys(assembly.results)[0]][0].url
 
-          // SDK v4 throws on error, but if we are polling, we might get a result with error status?
-          // If result.ok is 'ASSEMBLY_COMPLETED', it's done.
-          // If it throws, catch block handles it. But we are in promise chain.
-
-          if (
-            result.error ||
-            (result.ok &&
-              result.ok !== 'ASSEMBLY_COMPLETED' &&
-              result.ok !== 'ASSEMBLY_EXECUTING' &&
-              result.ok !== 'ASSEMBLY_UPLOADING' &&
-              result.ok !== 'ASSEMBLY_REPLAYING')
-          ) {
-            outputctl.error(
-              `Assembly failed: ${result.error} / ${result.message} (Status: ${result.ok})`,
-            )
-            return Q.reject(new Error(`Assembly failed: ${result.error || result.message}`))
-          }
-
-          if (result.ok !== 'ASSEMBLY_COMPLETED') {
-            return Q.delay(1000)
-              .then(() => Q.resolve(client.getAssembly(result.assembly_id)))
-              .then(callback)
-          }
-
-          const resulturl = result.results[Object.keys(result.results)[0]][0].url
-
-          if (job.out != null) {
-            outputctl.debug('DOWNLOADING')
-            return Q.Promise((resolve, reject) => {
-              const get = resulturl.startsWith('https') ? https.get : http.get
-              get(resulturl, (res) => {
-                if (res.statusCode !== 200) {
-                  const msg = `Server returned http status ${res.statusCode}`
-                  outputctl.error(msg)
-                  return reject(new Error(msg))
-                }
-
-                if (superceded) return resolve()
-
-                res.pipe(job.out)
-                job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
-                resolve(
-                  Q.Promise((resolve) => {
-                    res.on('end', () => {
-                      resolve(completeJob())
-                    })
-                  }),
-                )
-              }).on('error', (err) => {
-                outputctl.error(err.message)
-                reject(err)
-              })
-            })
-          }
-          return completeJob()
-
-          function completeJob() {
-            outputctl.debug(`COMPLETED ${job.in?.path} ${job.out?.path}`)
-
-            if (del && job.in != null) {
-              return Q.nfcall(fs.unlink, job.in.path)
+      if (job.out != null) {
+        outputctl.debug('DOWNLOADING')
+        await new Promise((resolve, reject) => {
+          const get = resulturl.startsWith('https') ? https.get : http.get
+          get(resulturl, (res) => {
+            if (res.statusCode !== 200) {
+              const msg = `Server returned http status ${res.statusCode}`
+              outputctl.error(msg)
+              return reject(new Error(msg))
             }
-          }
+
+            if (superceded) return resolve()
+
+            res.pipe(job.out)
+            job.out.on('finish', () => res.unpipe()) // TODO is this done automatically?
+            res.on('end', () => resolve())
+          }).on('error', (err) => {
+            outputctl.error(err.message)
+            reject(err)
+          })
         })
-      }),
-    )
+      }
+      await completeJob()
+    })()
+
+    jobsPromise.add(jobPromise)
+
+    function completeJob() {
+      outputctl.debug(`COMPLETED ${job.in?.path} ${job.out?.path}`)
+
+      if (del && job.in != null) {
+        return Q.nfcall(fs.unlink, job.in.path)
+      }
+    }
   })
 
   jobsPromise.on('error', (err) => {

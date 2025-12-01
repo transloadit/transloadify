@@ -1,20 +1,16 @@
-import Q from 'q'
-import { formatAPIError, inSequence } from './helpers.js'
+import { formatAPIError } from './helpers.js'
 
-export function get(output, client, { months }) {
+export async function get(output, client, { months }) {
   const requests = months.map((month) => {
-    return Q.resolve(client.getBill(month))
+    return client.getBill(month)
   })
 
-  inSequence(
-    requests,
-    (result) => {
+  try {
+    const results = await Promise.all(requests)
+    for (const result of results) {
       output.print(`$${result.total}`, result)
-    },
-    (err) => {
-      output.error(formatAPIError(err))
-    },
-  )
-
-  return Q.all(requests)
+    }
+  } catch (err) {
+    output.error(formatAPIError(err))
+  }
 }

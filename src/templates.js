@@ -1,100 +1,86 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import Q from 'q'
+import { promisify } from 'node:util'
 import rreaddir from 'recursive-readdir'
-import { createReadStream, formatAPIError, inSequence, stream2buf } from './helpers.js'
+import { createReadStream, formatAPIError, stream2buf } from './helpers.js'
 import ModifiedLookup from './template-last-modified.js'
 
-export function create(output, client, { name, file }) {
-  const deferred = Q.defer()
+const rreaddirAsync = promisify(rreaddir)
+const statAsync = promisify(fs.stat)
+const readdirAsync = promisify(fs.readdir)
+const readFileAsync = promisify(fs.readFile)
+const writeFileAsync = promisify(fs.writeFile)
+const renameAsync = promisify(fs.rename)
 
-  stream2buf(createReadStream(file), (err, buf) => {
-    if (err) {
-      output.error(err.message)
-      return deferred.reject(err)
-    }
-
-    client
-      .createTemplate({ name, template: buf.toString() })
-      .then((result) => {
-        output.print(result.id, result)
-        deferred.resolve(result)
+export async function create(output, client, { name, file }) {
+  try {
+    const buf = await new Promise((resolve, reject) => {
+      stream2buf(createReadStream(file), (err, buf) => {
+        if (err) reject(err)
+        else resolve(buf)
       })
-      .catch((err) => {
-        output.error(err.message)
-        deferred.reject(err)
-      })
-  })
+    })
 
-  return deferred.promise
+    const result = await client.createTemplate({ name, template: buf.toString() })
+    output.print(result.id, result)
+    return result
+  } catch (err) {
+    output.error(err.message)
+    throw err
+  }
 }
 
-export function get(output, client, { templates }) {
-  const deferred = Q.defer()
+export async function get(output, client, { templates }) {
+  const requests = templates.map((template) => client.getTemplate(template))
 
-  const requests = templates.map((template) => {
-    return Q.resolve(client.getTemplate(template))
-  })
-
-  inSequence(
-    requests,
-    (result) => {
+  try {
+    const results = await Promise.all(requests)
+    for (const result of results) {
       output.print(result, result)
-    },
-    (err) => {
-      output.error(formatAPIError(err))
-      deferred.reject(err)
-    },
-  ).then(deferred.resolve.bind(deferred))
-
-  return deferred.promise
+    }
+  } catch (err) {
+    output.error(formatAPIError(err))
+    throw err
+  }
 }
 
-export function modify(output, client, { template, name, file }) {
-  const deferred = Q.defer()
+export async function modify(output, client, { template, name, file }) {
+  try {
+    const buf = await new Promise((resolve, reject) => {
+      stream2buf(createReadStream(file), (err, buf) => {
+        if (err) reject(err)
+        else resolve(buf)
+      })
+    })
 
-  stream2buf(createReadStream(file), (err, buf) => {
-    if (err) {
-      output.error(err.message)
-      return Q.reject(err)
+    let json = buf.toString()
+    let newName = name
+
+    if (!name || buf.length === 0) {
+      const tpl = await client.getTemplate(template)
+      if (!name) newName = tpl.name
+      if (buf.length === 0) json = tpl.content
     }
 
-    const promise =
-      name && buf.length !== 0
-        ? Q.fcall(() => ({ name, json: buf.toString() }))
-        : Q.resolve(client.getTemplate(template)).then((template) => ({
-            name: name || template.name,
-            json: buf.length !== 0 ? buf.toString() : template.content,
-          }))
-
-    deferred.resolve(
-      promise
-        .then(({ name, json }) => {
-          client.editTemplate(template, { name, template: json }).catch((err) => {
-            output.error(formatAPIError(err))
-          })
-        })
-        .fail((err) => {
-          output.error(formatAPIError(err))
-          throw err
-        }),
-    )
-  })
-
-  return deferred.promise
+    await client.editTemplate(template, { name: newName, template: json })
+  } catch (err) {
+    output.error(formatAPIError(err))
+    throw err
+  }
 }
 
-function _delete(output, client, { templates }) {
-  return Q.all(
-    templates.map((template) => {
-      return Q.resolve(client.deleteTemplate(template)).fail((err) => {
+async function _delete(output, client, { templates }) {
+  await Promise.all(
+    templates.map(async (template) => {
+      try {
+        await client.deleteTemplate(template)
+      } catch (err) {
         output.error(formatAPIError(err))
         throw err
-      })
+      }
     }),
   )
 }
-
 export { _delete as delete }
 
 export function list(output, client, { before, after, order, sort, fields }) {
@@ -122,157 +108,119 @@ export function list(output, client, { before, after, order, sort, fields }) {
   })
 }
 
-export function sync(output, client, { files, recursive }) {
-  const flatten = Function.prototype.apply.bind(Array.prototype.concat, [])
-
+export async function sync(output, client, { files, recursive }) {
   // Promise [String] -- all files in the directory tree
-  const relevantFiles = Q.all(
-    files.map((file) =>
-      Q.Promise((resolve, reject) => {
-        fs.stat(file, (err, stats) => {
-          if (err) return reject(err)
+  const relevantFilesNested = await Promise.all(
+    files.map(async (file) => {
+      const stats = await statAsync(file)
+      if (!stats.isDirectory()) return [file]
 
-          if (!stats.isDirectory()) return resolve([file])
+      let children
+      if (recursive) {
+        children = await rreaddirAsync(file)
+      } else {
+        const list = await readdirAsync(file)
+        children = list.map((child) => path.join(file, child))
+      }
 
-          let children = Q.nfcall(recursive ? rreaddir : fs.readdir, file)
-          // .then(children => children.map(child => path.join(file, child)))
+      if (recursive) return children
 
-          // omit subdirectories from fs.readdir results
-          if (!recursive) {
-            children = children.then((children) =>
-              Q.all(
-                children.map((child) =>
-                  Q.Promise((resolve, reject) => {
-                    fs.stat(child, (err, stats) => {
-                      if (err) return reject(err)
-                      if (!stats.isDirectory()) return resolve(child)
-                      resolve()
-                    })
-                  }),
-                ),
-              ).then((children) => children.filter((child) => child != null)),
-            )
-          }
-
-          resolve(children)
-        })
-      }),
-    ),
-  ).then(flatten)
+      // Filter directories if not recursive
+      const filtered = await Promise.all(
+        children.map(async (child) => {
+          const childStats = await statAsync(child)
+          return childStats.isDirectory() ? null : child
+        }),
+      )
+      return filtered.filter((f) => f !== null)
+    }),
+  )
+  const relevantFiles = relevantFilesNested.flat()
 
   // Promise [{ file: String, data: JSON }] -- all templates
-  const templates = relevantFiles.then((files) =>
-    Q.all(files.map(templateFileOrNull)).then((maybeFiles) =>
-      maybeFiles.filter((maybeFile) => maybeFile !== null),
-    ),
-  )
+  const maybeFiles = await Promise.all(relevantFiles.map(templateFileOrNull))
+  const templates = maybeFiles.filter((maybeFile) => maybeFile !== null)
 
-  function templateFileOrNull(file) {
-    if (path.extname(file) !== '.json') return Q.fcall(() => null)
+  async function templateFileOrNull(file) {
+    if (path.extname(file) !== '.json') return null
 
-    return Q.nfcall(fs.readFile, file)
-      .then(JSON.parse)
-      .then((data) => ('transloadit_template_id' in data ? { file, data } : null))
-      .fail((err) => {
-        if (err instanceof SyntaxError) return null
-        throw err
-      })
+    try {
+      const data = await readFileAsync(file)
+      const json = JSON.parse(data)
+      return 'transloadit_template_id' in json ? { file, data: json } : null
+    } catch (e) {
+      if (e instanceof SyntaxError) return null
+      throw e
+    }
   }
 
   const modified = new ModifiedLookup(client)
-  const complete = templates.then((templates) =>
-    Q.all(
-      templates.map((template) => {
+
+  try {
+    await Promise.all(
+      templates.map(async (template) => {
         if (!('steps' in template.data)) {
           if (!template.data.transloadit_template_id) {
             throw new Error(`Template file has no id and no steps: ${template.file}`)
           }
-
           return download(template)
         }
 
         if (!template.data.transloadit_template_id) return upload(template)
 
-        const fileModified = Q.nfcall(fs.stat, template.file).then((stats) => stats.mtime)
+        const stats = await statAsync(template.file)
+        const fileModified = stats.mtime
 
-        const templateModified = Q.resolve(
-          client.getTemplate(template.data.transloadit_template_id),
-        )
-          .then(() => Q.nfcall(modified.byId.bind(modified), template.data.transloadit_template_id))
-          .fail((err) => {
-            // Check for 404. SDK v4 throws HTTPError.
-            // err.response.statusCode or err.code or err.transloaditErrorCode?
-            // SDK v4 HTTPError has `response.statusCode`.
-            // Or ApiError.
-            if (err.code === 'SERVER_404' || (err.response && err.response.statusCode === 404)) {
-              throw new Error(`Template file references nonexistent template: ${template.file}`)
-            }
-            throw err
-          })
+        let templateModified
+        try {
+          await client.getTemplate(template.data.transloadit_template_id)
+          templateModified = await new Promise((resolve, reject) =>
+            modified.byId(template.data.transloadit_template_id, (err, res) =>
+              err ? reject(err) : resolve(res),
+            ),
+          )
+        } catch (err) {
+          if (err.code === 'SERVER_404' || (err.response && err.response.statusCode === 404)) {
+            throw new Error(`Template file references nonexistent template: ${template.file}`)
+          }
+          throw err
+        }
 
-        return Q.spread([fileModified, templateModified], (fileModified, templateModified) => {
-          if (fileModified > templateModified) return upload(template)
-          return download(template)
-        })
+        if (fileModified > templateModified) return upload(template)
+        return download(template)
       }),
-    ),
-  )
-
-  function upload(template) {
-    return new Promise((resolve, reject) => {
-      const params = {
-        name: path.basename(template.file, '.json'),
-        template: JSON.stringify(template.data.steps),
-      }
-
-      if (!template.data.transloadit_template_id) {
-        return client
-          .createTemplate(params)
-          .then((result) => {
-            template.data.transloadit_template_id = result.id
-            fs.writeFile(template.file, JSON.stringify(template.data), (err) => {
-              if (err) return reject(err)
-              resolve()
-            })
-          })
-          .catch(reject)
-      }
-
-      client
-        .editTemplate(template.data.transloadit_template_id, params)
-        .then(() => {
-          resolve()
-        })
-        .catch(reject)
-    })
-  }
-
-  function download(template) {
-    return new Promise((resolve, reject) => {
-      client
-        .getTemplate(template.data.transloadit_template_id)
-        .then((result) => {
-          template.data.steps = result.content
-          const file = path.join(path.dirname(template.file), `${result.name}.json`)
-
-          fs.writeFile(template.file, JSON.stringify(template.data), (err) => {
-            if (err) return reject(err)
-            if (file === template.file) return resolve()
-
-            fs.rename(template.file, file, (err) => {
-              if (err) return reject(err)
-              resolve()
-            })
-          })
-        })
-        .catch(reject)
-    })
-  }
-
-  complete.fail((err) => {
+    )
+  } catch (err) {
     output.error(err)
     throw err
-  })
+  }
 
-  return complete
+  async function upload(template) {
+    const params = {
+      name: path.basename(template.file, '.json'),
+      template: JSON.stringify(template.data.steps),
+    }
+
+    if (!template.data.transloadit_template_id) {
+      const result = await client.createTemplate(params)
+      template.data.transloadit_template_id = result.id
+      await writeFileAsync(template.file, JSON.stringify(template.data))
+      return
+    }
+
+    await client.editTemplate(template.data.transloadit_template_id, params)
+  }
+
+  async function download(template) {
+    const result = await client.getTemplate(template.data.transloadit_template_id)
+
+    template.data.steps = result.content
+    const file = path.join(path.dirname(template.file), `${result.name}.json`)
+
+    await writeFileAsync(template.file, JSON.stringify(template.data))
+
+    if (file !== template.file) {
+      await renameAsync(template.file, file)
+    }
+  }
 }
