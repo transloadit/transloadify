@@ -5,6 +5,6 @@ export default defineConfig({
     globals: true,
     testTimeout: 100000,
     include: ['test/**/*.ts'],
-    exclude: ['test/OutputCtl.ts'],
+    exclude: ['test/OutputCtl.ts', 'test/e2e/test-utils.ts'],
   },
 })
