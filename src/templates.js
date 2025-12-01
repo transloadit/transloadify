@@ -1,9 +1,9 @@
 import Q from 'q'
-import { stream2buf, createReadStream, inSequence, formatAPIError } from './helpers'
+import { stream2buf, createReadStream, inSequence, formatAPIError } from './helpers.js'
 import fs from 'fs'
 import path from 'path'
 import rreaddir from 'recursive-readdir'
-import ModifiedLookup from './template-last-modified'
+import ModifiedLookup from './template-last-modified.js'
 
 export function create(output, client, { name, file }) {
   let deferred = Q.defer()
@@ -14,14 +14,12 @@ export function create(output, client, { name, file }) {
       return deferred.reject(err)
     }
 
-    client.createTemplate({ name, template: buf.toString() }, (err, result) => {
-      if (err) {
-        output.error(err.message)
-        return deferred.reject(err)
-      }
-
+    client.createTemplate({ name, template: buf.toString() }).then((result) => {
       output.print(result.id, result)
       deferred.resolve(result)
+    }).catch((err) => {
+      output.error(err.message)
+      deferred.reject(err)
     })
   })
 
@@ -32,7 +30,7 @@ export function get(output, client, { templates }) {
   let deferred = Q.defer()
 
   let requests = templates.map((template) => {
-    return Q.nfcall(client.getTemplate.bind(client), template)
+    return Q.resolve(client.getTemplate(template))
   })
 
   inSequence(
@@ -61,7 +59,7 @@ export function modify(output, client, { template, name, file }) {
     let promise =
       name && buf.length !== 0
         ? Q.fcall(() => ({ name, json: buf.toString() }))
-        : Q.nfcall(client.getTemplate.bind(client), template).then((template) => ({
+        : Q.resolve(client.getTemplate(template)).then((template) => ({
             name: name || template.name,
             json: buf.length !== 0 ? buf.toString() : template.content,
           }))
@@ -69,8 +67,8 @@ export function modify(output, client, { template, name, file }) {
     deferred.resolve(
       promise
         .then(({ name, json }) => {
-          client.editTemplate(template, { name, template: json }, (err, result) => {
-            if (err) return output.error(formatAPIError(err))
+          client.editTemplate(template, { name, template: json }).catch((err) => {
+            output.error(formatAPIError(err))
           })
         })
         .fail((err) => {
@@ -83,16 +81,18 @@ export function modify(output, client, { template, name, file }) {
   return deferred.promise
 }
 
-exports.delete = function _delete(output, client, { templates }) {
+function _delete(output, client, { templates }) {
   return Q.all(
     templates.map((template) => {
-      return Q.nfcall(client.deleteTemplate.bind(client), template).fail((err) => {
+      return Q.resolve(client.deleteTemplate(template)).fail((err) => {
         output.error(formatAPIError(err))
         throw err
       })
     })
   )
 }
+
+export { _delete as delete }
 
 export function list(output, client, { before, after, order, sort, fields }) {
   let stream = client.streamTemplates({
@@ -192,13 +192,14 @@ export function sync(output, client, { files, recursive }) {
 
         let fileModified = Q.nfcall(fs.stat, template.file).then((stats) => stats.mtime)
 
-        let templateModified = Q.nfcall(
-          client.getTemplate.bind(client),
-          template.data.transloadit_template_id
-        )
+        let templateModified = Q.resolve(client.getTemplate(template.data.transloadit_template_id))
           .then(() => Q.nfcall(modified.byId.bind(modified), template.data.transloadit_template_id))
           .fail((err) => {
-            if (err.code === 'SERVER_404') {
+            // Check for 404. SDK v4 throws HTTPError.
+            // err.response.statusCode or err.code or err.transloaditErrorCode?
+            // SDK v4 HTTPError has `response.statusCode`.
+            // Or ApiError.
+            if (err.code === 'SERVER_404' || (err.response && err.response.statusCode === 404)) {
               throw new Error(`Template file references nonexistent template: ${template.file}`)
             }
             throw err
@@ -220,28 +221,24 @@ export function sync(output, client, { files, recursive }) {
       }
 
       if (!template.data.transloadit_template_id) {
-        return client.createTemplate(params, (err, result) => {
-          if (err) return reject(err)
+        return client.createTemplate(params).then((result) => {
           template.data.transloadit_template_id = result.id
           fs.writeFile(template.file, JSON.stringify(template.data), (err) => {
             if (err) return reject(err)
             resolve()
           })
-        })
+        }).catch(reject)
       }
 
-      client.editTemplate(template.data.transloadit_template_id, params, (err) => {
-        if (err) return reject(err)
+      client.editTemplate(template.data.transloadit_template_id, params).then(() => {
         resolve()
-      })
+      }).catch(reject)
     })
   }
 
   function download(template) {
     return new Promise((resolve, reject) => {
-      client.getTemplate(template.data.transloadit_template_id, (err, result) => {
-        if (err) return reject(err)
-
+      client.getTemplate(template.data.transloadit_template_id).then((result) => {
         template.data.steps = result.content
         let file = path.join(path.dirname(template.file), result.name + '.json')
 
@@ -254,7 +251,7 @@ export function sync(output, client, { files, recursive }) {
             resolve()
           })
         })
-      })
+      }).catch(reject)
     })
   }
 

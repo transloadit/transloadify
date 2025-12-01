@@ -32,15 +32,14 @@ export default class ModifiedLookup {
         page,
         pagesize,
       }
-      client.listTemplates(params, (err, result) => {
-        if (err) return cb(err)
+      client.listTemplates(params).then((result) => {
         let items = new Array(pagesize)
         items.fill({ id: 'fffffffffffffffffffffffffffffff' })
         for (let i = 0; i < result.items.length; i++) {
           items[i] = result.items[i]
         }
         cb(null, items)
-      })
+      }).catch(cb)
     })
   }
 

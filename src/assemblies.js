@@ -1,6 +1,6 @@
 import Q from 'q'
-import { stream2buf, createReadStream, inSequence, formatAPIError } from './helpers'
-import assembliesCreate from './assemblies-create'
+import { stream2buf, createReadStream, inSequence, formatAPIError } from './helpers.js'
+import assembliesCreate from './assemblies-create.js'
 
 export const create = assembliesCreate
 
@@ -32,14 +32,7 @@ export function get(output, client, { assemblies }) {
   let deferred = Q.defer()
 
   let requests = assemblies.map((assembly) => {
-    let deferred = Q.defer()
-
-    client.getAssembly(assembly, (err, result) => {
-      if (err) deferred.reject(err)
-      else deferred.resolve(result)
-    })
-
-    return deferred.promise
+    return Q.resolve(client.getAssembly(assembly))
   })
 
   inSequence(
@@ -55,13 +48,15 @@ export function get(output, client, { assemblies }) {
   return deferred.promise
 }
 
-exports.delete = function _delete(output, client, { assemblies }) {
+function _delete(output, client, { assemblies }) {
   for (let assembly of assemblies) {
-    client.deleteAssembly(assembly, (err) => {
-      if (err) output.error(formatAPIError(err))
+    client.cancelAssembly(assembly).catch((err) => {
+      output.error(formatAPIError(err))
     })
   }
 }
+
+export { _delete as delete }
 
 export function replay(output, client, { fields, reparse, steps, notify_url, assemblies }) {
   if (steps) {
@@ -77,17 +72,16 @@ export function replay(output, client, { fields, reparse, steps, notify_url, ass
   function apiCall(steps) {
     for (let assembly of assemblies) {
       client.replayAssembly(
+        assembly,
         {
-          assembly_id: assembly,
           reparse_template: reparse,
           fields,
           steps,
           notify_url,
-        },
-        (err, result) => {
-          if (err) return output.error(formatAPIError(err))
         }
-      )
+      ).catch((err) => {
+        return output.error(formatAPIError(err))
+      })
     }
   }
 }

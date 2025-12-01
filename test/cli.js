@@ -1,6 +1,6 @@
 import { assert } from 'chai'
-import Parser from '../src/Parser'
-import cli from '../src/cli'
+import Parser from '../src/Parser.js'
+import cli from '../src/cli.js'
 
 describe('Parser', function () {
   describe('constructor', function () {

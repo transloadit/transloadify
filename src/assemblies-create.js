@@ -1,11 +1,12 @@
 import fs from 'fs'
 import watch from 'node-watch'
 import http from 'http'
+import https from 'https'
 import path from 'path'
 import EventEmitter from 'events'
 import tty from 'tty'
 import Q from 'q'
-import JobsPromise from './JobsPromise'
+import JobsPromise from './JobsPromise.js'
 
 // workaround for determining mime-type of stdin
 process.stdin.path = '/dev/stdin'
@@ -405,7 +406,6 @@ export default function run(
 ) {
   // Quick fix for https://github.com/transloadit/transloadify/issues/13
   // stdin or stdout is only respected when the input or output flag is '-'
-  if (!inputs.length && !process.stdin.isTTY) inputs = ['-']
   if (!output == null && !process.stdout.isTTY) output = '-'
 
   let deferred = Q.defer()
@@ -458,20 +458,38 @@ export default function run(
         superceded = true
       })
 
-    if (job.in != null) client.addStream('in', job.in)
+    // if (job.in != null) client.addStream('in', job.in) // SDK v4: addStream removed
+
+    let createOptions = { params }
+    if (job.in != null) {
+      createOptions.uploads = { in: job.in }
+    }
 
     jobsPromise.add(
-      Q.nfcall(client.createAssembly.bind(client), { params }).then((result) => {
+      Q.resolve(client.createAssembly(createOptions)).then((result) => {
         if (superceded) return
 
-        return Q.nfcall(client.getAssembly.bind(client), result.assembly_id).then(function callback(
+        // result is now the assembly object directly (or we need to check SDK response structure)
+        // Guide says: result = await transloadit.createAssembly(options)
+        // result is likely the JSON response.
+        
+        return Q.resolve(client.getAssembly(result.assembly_id)).then(function callback(
           result
         ) {
           if (superceded) return
 
+          // SDK v4 throws on error, but if we are polling, we might get a result with error status?
+          // If result.ok is 'ASSEMBLY_COMPLETED', it's done.
+          // If it throws, catch block handles it. But we are in promise chain.
+          
+          if (result.error || (result.ok && result.ok !== 'ASSEMBLY_COMPLETED' && result.ok !== 'ASSEMBLY_EXECUTING' && result.ok !== 'ASSEMBLY_UPLOADING' && result.ok !== 'ASSEMBLY_REPLAYING')) {
+             outputctl.error(`Assembly failed: ${result.error} / ${result.message} (Status: ${result.ok})`)
+             return Q.reject(new Error(`Assembly failed: ${result.error || result.message}`))
+          }
+
           if (result.ok !== 'ASSEMBLY_COMPLETED') {
-            return Q.delay(250)
-              .then(() => Q.nfcall(client.getAssembly.bind(client), result.assembly_id))
+            return Q.delay(1000)
+              .then(() => Q.resolve(client.getAssembly(result.assembly_id)))
               .then(callback)
           }
 
@@ -480,8 +498,8 @@ export default function run(
           if (job.out != null) {
             outputctl.debug('DOWNLOADING')
             return Q.Promise((resolve, reject) => {
-              http
-                .get(resulturl, (res) => {
+              let get = resulturl.startsWith('https') ? https.get : http.get
+              get(resulturl, (res) => {
                   if (res.statusCode !== 200) {
                     let msg = `Server returned http status ${res.statusCode}`
                     outputctl.error(msg)

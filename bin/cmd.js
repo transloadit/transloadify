@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-require('transloadify')
+import '../src/index.js'

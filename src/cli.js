@@ -1,4 +1,4 @@
-import Parser from './Parser'
+import Parser from './Parser.js'
 
 const parser = new Parser()
 

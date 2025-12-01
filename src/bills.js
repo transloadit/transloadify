@@ -1,16 +1,9 @@
-import { formatAPIError, inSequence } from './helpers'
+import { formatAPIError, inSequence } from './helpers.js'
 import Q from 'q'
 
 export function get(output, client, { months }) {
   let requests = months.map((month) => {
-    let deferred = Q.defer()
-
-    client.getBill(month, (err, result) => {
-      if (err) return deferred.reject(err)
-      deferred.resolve(result)
-    })
-
-    return deferred.promise
+    return Q.resolve(client.getBill(month))
   })
 
   inSequence(

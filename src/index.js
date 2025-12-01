@@ -1,10 +1,14 @@
-import cli from './cli'
-import TransloaditClient from 'transloadit'
-import OutputCtl from './OutputCtl'
-import help from './help'
+import cli from './cli.js'
+import { Transloadit as TransloaditClient } from 'transloadit'
+import OutputCtl from './OutputCtl.js'
+import help from './help.js'
+import * as assemblies from './assemblies.js'
+import * as templates from './templates.js'
+import * as notifications from './notifications.js'
+import * as bills from './bills.js'
 
 try {
-  require('source-map-support').install()
+  import('source-map-support').then((sms) => sms.install())
 } catch (e) {}
 
 let invocation = cli()
@@ -17,15 +21,25 @@ if (invocation.error) {
 }
 
 const commands = {
-  assemblies: require('./assemblies'),
-  templates: require('./templates'),
-  'assembly-notifications': require('./notifications'),
-  bills: require('./bills'),
+  assemblies,
+  templates,
+  'assembly-notifications': notifications,
+  bills,
   help,
 }
 
 let command = commands[invocation.mode]
 if (invocation.action) command = command[invocation.action]
+
+// Default to stdin if no inputs are provided and we are not in a TTY
+if (
+  invocation.mode === 'assemblies' &&
+  invocation.action === 'create' &&
+  invocation.inputs.length === 0 &&
+  !process.stdin.isTTY
+) {
+  invocation.inputs = ['-']
+}
 
 let client
 if (!['help', 'version', 'register'].indexOf(invocation.mode) !== -1) {

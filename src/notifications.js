@@ -1,7 +1,7 @@
 export function replay(output, client, { notify_url, assemblies }) {
   for (let id of assemblies) {
-    client.replayAssemblyNotification({ notify_url, assembly_id: id }, (err, result) => {
-      if (err) return output.error(err)
+    client.replayAssemblyNotification(id, { notify_url }).catch((err) => {
+      output.error(err)
     })
   }
 }
