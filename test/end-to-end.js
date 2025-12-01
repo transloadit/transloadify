@@ -12,6 +12,7 @@ import rreaddir from 'recursive-readdir'
 import assembliesCreate from '../src/assemblies-create'
 const templates = require('../src/templates')
 const assemblies = require('../src/assemblies')
+require('dotenv').config()
 
 const tmpDir = '/tmp'
 
@@ -32,7 +33,7 @@ process.setMaxListeners(Infinity)
 function testCase(cb) {
   let cwd = process.cwd()
   return () => {
-    let dirname = path.join(tmpDir, `transloadify_test-${testno++}`)
+    let dirname = path.join(tmpDir, `transloadify_test-${Date.now()}-${Math.floor(Math.random() * 10000)}`)
     let client = new TransloaditClient({ authKey, authSecret })
     return Q.nfcall(fs.mkdir, dirname)
       .then(() => {
