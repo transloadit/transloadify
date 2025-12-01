@@ -19,8 +19,8 @@
     "release": "npm version ${SEMANTIC:-patch} -m \"Release %s\" && git push && git push --tags && npm publish",
     "start": "npm run web:start",
     "test": "npm-run-all test:unit test:e2e",
-    "test:unit": "vitest run --coverage --coverage.reportsDirectory=coverage/unit --exclude test/end-to-end.js",
-    "test:e2e": "vitest run --coverage --coverage.reportsDirectory=coverage/e2e test/end-to-end.js",
+    "test:unit": "vitest run --coverage --coverage.reportsDirectory=coverage/unit test/unit",
+    "test:e2e": "vitest run --coverage --coverage.reportsDirectory=coverage/e2e test/e2e",
     "check": "npm-run-all lint:ts fix:js test:unit"
   },
   "author": "Adrian Sinclair <adrian@transloadit.com>",

@@ -7,13 +7,13 @@ import request from 'request'
 import rimraf from 'rimraf'
 import { Transloadit as TransloaditClient } from 'transloadit'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import * as assemblies from '../src/assemblies.js'
-import assembliesCreate from '../src/assemblies-create.js'
-import * as bills from '../src/bills.js'
-import { zip } from '../src/helpers.js'
-import * as notifications from '../src/notifications.js'
-import * as templates from '../src/templates.js'
-import OutputCtl from './OutputCtl.js'
+import * as assemblies from '../../src/assemblies.js'
+import assembliesCreate from '../../src/assemblies-create.js'
+import * as bills from '../../src/bills.js'
+import { zip } from '../../src/helpers.js'
+import * as notifications from '../../src/notifications.js'
+import * as templates from '../../src/templates.js'
+import OutputCtl from '../OutputCtl.js'
 import 'dotenv/config'
 import process from 'node:process'
 
@@ -55,9 +55,11 @@ function testCase(cb) {
 
 import { exec } from 'node:child_process'
 import util from 'node:util'
+import { fileURLToPath } from 'node:url'
 
 const execAsync = util.promisify(exec)
-const cliPath = path.resolve(__dirname, '../bin/cmd.js')
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const cliPath = path.resolve(__dirname, '../../bin/cmd.js')
 
 function runCli(args, env = {}) {
   return execAsync(`node ${cliPath} ${args}`, {

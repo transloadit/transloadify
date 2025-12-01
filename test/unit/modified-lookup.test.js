@@ -1,7 +1,7 @@
-import Q from 'q'
+import ModifiedLookup from '../../src/template-last-modified.js'
 import { Transloadit as TransloaditClient } from 'transloadit'
 import { assert, describe, it } from 'vitest'
-import ModifiedLookup from '../src/template-last-modified.js'
+import Q from 'q'
 import 'dotenv/config'
 
 const client = new TransloaditClient({
