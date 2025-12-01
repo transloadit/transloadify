@@ -7,6 +7,7 @@ import help from './help.js'
 import * as notifications from './notifications.js'
 import OutputCtl from './OutputCtl.js'
 import * as templates from './templates.js'
+import 'dotenv/config'
 
 const invocation = cli()
 
@@ -25,7 +26,19 @@ if (invocation.error) {
   }
 
   let command = commands[invocation.mode]
-  if (invocation.action) command = command[invocation.action]
+  if (invocation.action && command) command = command[invocation.action]
+
+  if (typeof command !== 'function') {
+    if (invocation.mode === 'register') {
+      // Default to help if no command/args provided (register mode is default empty state)
+      command = help
+    } else {
+      output.error(
+        `Command not implemented or invalid: ${invocation.mode}${invocation.action ? ` ${invocation.action}` : ''}`,
+      )
+      process.exitCode = 1
+    }
+  }
 
   // Default to stdin if no inputs are provided and we are not in a TTY
   if (
@@ -38,7 +51,7 @@ if (invocation.error) {
   }
 
   let client
-  if (['help', 'version', 'register'].indexOf(invocation.mode) === -1) {
+  if (['help', 'version', 'register'].indexOf(invocation.mode) === -1 && !process.exitCode) {
     if (!process.env.TRANSLOADIT_KEY || !process.env.TRANSLOADIT_SECRET) {
       output.error(
         'Please provide API authentication in the environment variables TRANSLOADIT_KEY and TRANSLOADIT_SECRET',
@@ -52,7 +65,7 @@ if (invocation.error) {
     }
   }
 
-  if (!process.exitCode) {
+  if (!process.exitCode && typeof command === 'function') {
     command(output, client, invocation)
   }
 }
