@@ -34,6 +34,7 @@
     "_transloadify"
   ],
   "dependencies": {
+    "clipanion": "^4.0.0-rc.4",
     "node-watch": "^0.7.4",
     "recursive-readdir": "2.2.3",
     "shell-completion": "0.0.5",
