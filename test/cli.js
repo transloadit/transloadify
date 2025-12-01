@@ -1,4 +1,4 @@
-import { assert } from 'chai'
+import { assert, describe, it } from 'vitest'
 import Parser from '../src/Parser.js'
 import cli from '../src/cli.js'
 

@@ -1,10 +1,10 @@
+import { expect, describe, it, beforeAll, afterAll } from 'vitest'
 import OutputCtl from './OutputCtl.js'
 import { Transloadit as TransloaditClient } from 'transloadit'
 import fs from 'fs'
 import path from 'path'
 import Q from 'q'
 import rimraf from 'rimraf'
-import { expect } from 'chai'
 import { zip } from '../src/helpers.js'
 import imgSize from 'image-size'
 import request from 'request'
@@ -58,8 +58,6 @@ function testCase(cb) {
 }
 
 describe('End-to-end', function () {
-  this.timeout(100000)
-
   describe('templates', function () {
     describe('create', function () {
       it(
@@ -180,7 +178,7 @@ describe('End-to-end', function () {
     describe('modify', function () {
       let templateId
 
-      before(function () {
+      beforeAll(function () {
         let client = new TransloaditClient({ authKey, authSecret })
         return client.createTemplate({
           name: 'original-name',
@@ -273,7 +271,7 @@ describe('End-to-end', function () {
         })
       )
 
-      after(function () {
+      afterAll(function () {
         let client = new TransloaditClient({ authKey, authSecret })
         return client.deleteTemplate(templateId)
       })

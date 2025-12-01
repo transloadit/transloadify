@@ -7,10 +7,6 @@ import * as templates from './templates.js'
 import * as notifications from './notifications.js'
 import * as bills from './bills.js'
 
-try {
-  import('source-map-support').then((sms) => sms.install())
-} catch (e) {}
-
 let invocation = cli()
 
 let output = new OutputCtl(invocation)

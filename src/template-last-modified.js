@@ -6,7 +6,9 @@ class MemoizedPagination {
   }
 
   get(i, cb) {
-    if (i in this.cache) return cb(null, this.cache[i])
+    if (i in this.cache) {
+      return process.nextTick(() => cb(null, this.cache[i]))
+    }
 
     let page = Math.floor(i / this.pagesize) + 1
 
@@ -34,7 +36,7 @@ export default class ModifiedLookup {
       }
       client.listTemplates(params).then((result) => {
         let items = new Array(pagesize)
-        items.fill({ id: 'fffffffffffffffffffffffffffffff' })
+        items.fill({ id: 'gggggggggggggggggggggggggggggggg' }) // Larger than any hex ID
         for (let i = 0; i < result.items.length; i++) {
           items[i] = result.items[i]
         }
@@ -63,6 +65,10 @@ export default class ModifiedLookup {
     }
 
     refine = (lower, upper) => {
+      if (lower >= upper - 1) {
+        return cb(new Error(`Template ID ${id} not found in ModifiedLookup`))
+      }
+
       let middle = Math.floor((lower + upper) / 2)
       this.idByOrd(middle, (err, idAtMiddle) => {
         if (err) return cb(err)

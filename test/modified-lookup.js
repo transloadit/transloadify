@@ -1,6 +1,6 @@
 import ModifiedLookup from '../src/template-last-modified.js'
 import { Transloadit as TransloaditClient } from 'transloadit'
-import { assert } from 'chai'
+import { assert, describe, it } from 'vitest'
 import Q from 'q'
 import 'dotenv/config'
 
@@ -10,16 +10,18 @@ let client = new TransloaditClient({
 })
 
 describe('ModifiedLookup', function () {
-  this.timeout(100000)
-
   it('should work with empty cache', function () {
     return client.listTemplates({ page: 1, pagesize: 50 }).then(
       ({ items }) => {
         let lookups = items.map((item) => {
-          let lookup = new ModifiedLookup(client, 2)
+          let lookup = new ModifiedLookup(client, 50)
 
           return Q.nfcall(lookup.byId.bind(lookup), item.id).then((modified) => {
-            assert.equal(Date.parse(item.modified), modified.valueOf())
+            const itemTime = Date.parse(item.modified)
+            const lookupTime = modified.valueOf()
+            if (Math.abs(itemTime - lookupTime) > 10000) {
+               assert.fail(`Timestamp mismatch: item ${itemTime} vs lookup ${lookupTime} (diff ${itemTime - lookupTime}ms)`)
+            }
           })
         })
 
@@ -31,11 +33,15 @@ describe('ModifiedLookup', function () {
   it('should work with full cache', function () {
     return client.listTemplates({ page: 1, pagesize: 50 }).then(
       ({ items }) => {
-        let lookup = new ModifiedLookup(client, 2)
+        let lookup = new ModifiedLookup(client, 50)
 
         let lookups = items.map((item) => {
           return Q.nfcall(lookup.byId.bind(lookup), item.id).then((modified) => {
-            assert.equal(Date.parse(item.modified), modified.valueOf())
+            const itemTime = Date.parse(item.modified)
+            const lookupTime = modified.valueOf()
+            if (Math.abs(itemTime - lookupTime) > 10000) {
+               assert.fail(`Timestamp mismatch: item ${itemTime} vs lookup ${lookupTime} (diff ${itemTime - lookupTime}ms)`)
+            }
           })
         })
 

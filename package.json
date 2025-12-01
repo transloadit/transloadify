@@ -14,14 +14,14 @@
     "lint:formatting": "prettier --check .",
     "lint:js": "eslint src test",
     "lint": "npm-run-all --parallel lint:*",
-    "mocha": "NODE_ENV=test mocha test/",
+    "mocha": "vitest run",
     "postinstall": "install-completion bash _transloadify",
     "release:major": "env SEMANTIC=major npm run release",
     "release:minor": "env SEMANTIC=minor npm run release",
     "release:patch": "env SEMANTIC=patch npm run release",
     "release": "npm version ${SEMANTIC:-patch} -m \"Release %s\" && git push && git push --tags && npm publish",
     "start": "npm run web:start",
-    "test": "mocha test/"
+    "test": "vitest run"
   },
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
@@ -53,19 +53,11 @@
     "eslint-plugin-standard": "^5.0.0",
     "fakefile": "^0.0.8",
     "image-size": "0.5.0",
-    "mocha": "latest",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.8.6",
     "request": "2.79.0",
     "rimraf": "2.5.4",
-    "source-map-support": "^0.4.6",
     "true": "^0.0.4",
-    "wtfnode": "^0.10.1"
-  },
-  "babel": {
-    "sourceMaps": "inline",
-    "presets": [
-      "es2015"
-    ]
+    "vitest": "^4.0.14"
   }
 }
