@@ -8,7 +8,8 @@ import * as assemblies from '../../src/assemblies.ts'
 import assembliesCreate from '../../src/assemblies-create.ts'
 import { zip } from '../../src/helpers.ts'
 import OutputCtl from '../OutputCtl.ts'
-import { type OutputEntry, testCase } from './test-utils.ts'
+import type { OutputEntry } from './test-utils.ts'
+import { testCase } from './test-utils.ts'
 
 const rreaddirAsync = promisify(rreaddir)
 

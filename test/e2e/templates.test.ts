@@ -1,12 +1,13 @@
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import type { TemplateContent } from 'transloadit'
+import { Transloadit as TransloaditClient } from 'transloadit'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { zip } from '../../src/helpers.ts'
 import * as templates from '../../src/templates.ts'
 import OutputCtl from '../OutputCtl.ts'
-import { authKey, authSecret, createClient, delay, type OutputEntry, testCase } from './test-utils.ts'
-import { Transloadit as TransloaditClient } from 'transloadit'
+import type { OutputEntry } from './test-utils.ts'
+import { authKey, authSecret, delay, testCase } from './test-utils.ts'
 
 describe('templates', () => {
   describe('create', () => {
@@ -235,8 +236,7 @@ describe('templates', () => {
         expect(result).to.have.lengthOf(0)
         const contents = await Promise.all(
           files.map(
-            async (file) =>
-              JSON.parse(await fsp.readFile(file, 'utf8')) as Record<string, unknown>,
+            async (file) => JSON.parse(await fsp.readFile(file, 'utf8')) as Record<string, unknown>,
           ),
         )
         for (const [content, idObj] of zip(contents, templateIds)) {

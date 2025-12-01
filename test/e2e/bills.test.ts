@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import * as bills from '../../src/bills.ts'
 import OutputCtl from '../OutputCtl.ts'
-import { type OutputEntry, testCase } from './test-utils.ts'
+import type { OutputEntry } from './test-utils.ts'
+import { testCase } from './test-utils.ts'
 
 describe('bills', () => {
   describe('get', () => {
