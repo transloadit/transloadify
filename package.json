@@ -9,6 +9,7 @@
   },
   "scripts": {
     "fix:js": "biome check --write .",
+    "lint": "npm-run-all 'lint:*'",
     "lint:js": "biome check .",
     "lint:ts": "tsc --noEmit",
     "mocha": "vitest run",
