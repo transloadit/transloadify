@@ -583,8 +583,9 @@ export default async function run(
   }: AssembliesCreateOptions,
 ): Promise<unknown[]> {
   // Quick fix for https://github.com/transloadit/transloadify/issues/13
+  // Only default to stdout when output is undefined (not provided), not when explicitly null
   let resolvedOutput = output
-  if (resolvedOutput == null && !process.stdout.isTTY) resolvedOutput = '-'
+  if (resolvedOutput === undefined && !process.stdout.isTTY) resolvedOutput = '-'
 
   // Read steps file async before entering the Promise constructor
   let stepsData: CreateAssemblyParams['steps'] | undefined
