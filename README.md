@@ -25,8 +25,10 @@ cloud-based transcoding and media processing utility.
 ## Install
 
 ```bash
-$ npm install -g transloadify
+npm install -g transloadify
 ```
+
+> **Note:** This is a CLI-only package. For programmatic use in Node.js applications, use the [Transloadit Node.js SDK](https://github.com/transloadit/node-sdk) instead.
 
 ## Usage
 
