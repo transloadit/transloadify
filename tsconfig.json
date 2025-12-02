@@ -1,28 +1,16 @@
 {
+  "exclude": ["dist", "lib", "coverage"],
+  "references": [{ "path": "./tsconfig.build.json" }],
   "compilerOptions": {
-    "target": "ES2024",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "outDir": "./dist",
-    "rootDir": ".",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    "checkJs": true,
     "erasableSyntaxOnly": true,
-    "rewriteRelativeImportExtensions": true,
+    "isolatedModules": true,
+    "module": "NodeNext",
     "allowImportingTsExtensions": true,
+    "noImplicitOverride": true,
     "noEmit": true,
+    "resolveJsonModule": true,
+    "strict": true,
     "types": ["node", "vitest/globals"]
-  },
-  "include": ["src/**/*", "bin/**/*", "test/**/*"],
-  "exclude": ["node_modules", "dist"]
+  }
 }

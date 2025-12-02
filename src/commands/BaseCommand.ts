@@ -48,11 +48,11 @@ export abstract class BaseCommand extends Command {
     return true
   }
 
-  abstract execute(): Promise<number | undefined>
+  abstract override execute(): Promise<number | undefined>
 }
 
 export abstract class AuthenticatedCommand extends BaseCommand {
-  async execute(): Promise<number | undefined> {
+  override async execute(): Promise<number | undefined> {
     this.setupOutput()
     if (!this.setupClient()) {
       return 1
@@ -64,7 +64,7 @@ export abstract class AuthenticatedCommand extends BaseCommand {
 }
 
 export abstract class UnauthenticatedCommand extends BaseCommand {
-  async execute(): Promise<number | undefined> {
+  override async execute(): Promise<number | undefined> {
     this.setupOutput()
     return await this.run()
   }

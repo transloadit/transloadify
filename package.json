@@ -4,15 +4,15 @@
   "description": "CLI client for transloadit",
   "packageManager": "yarn@4.12.0",
   "engines": {
-    "node": ">= 22"
+    "node": ">= 20"
   },
   "scripts": {
     "fix:js": "biome check --write .",
     "lint": "npm-run-all 'lint:*'",
     "lint:js": "biome check .",
-    "lint:ts": "tsc --noEmit",
+    "lint:ts": "tsc --build",
     "mocha": "vitest run",
-    "postinstall": "install-completion bash _transloadify",
+    "prepack": "rm -f tsconfig.tsbuildinfo tsconfig.build.tsbuildinfo && tsc --build tsconfig.build.json",
     "release:major": "env SEMANTIC=major npm run release",
     "release:minor": "env SEMANTIC=minor npm run release",
     "release:patch": "env SEMANTIC=patch npm run release",
@@ -26,20 +26,25 @@
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
   "type": "module",
-  "bin": "./bin/cmd.ts",
-  "main": "./src/index.ts",
+  "main": "./dist/src/index.js",
+  "exports": {
+    ".": "./dist/src/index.js",
+    "./package.json": "./package.json"
+  },
+  "bin": "./dist/bin/cmd.js",
   "files": [
+    "dist",
     "src",
     "bin",
     "_transloadify"
   ],
   "dependencies": {
     "clipanion": "^4.0.0-rc.4",
+    "dotenv": "^17.2.3",
     "node-watch": "^0.7.4",
     "recursive-readdir": "2.2.3",
     "shell-completion": "0.0.5",
     "transloadit": "^4.0.7",
-    "tsx": "^4.21.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {
@@ -47,10 +52,10 @@
     "@types/node": "^24.10.1",
     "@types/recursive-readdir": "^2.2.4",
     "@vitest/coverage-v8": "^4.0.14",
-    "dotenv": "^17.2.3",
     "image-size": "2.0.2",
     "npm-run-all": "^4.1.5",
     "rimraf": "6.1.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.14"
   }
