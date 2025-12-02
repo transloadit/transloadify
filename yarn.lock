@@ -4359,7 +4359,7 @@ __metadata:
     vitest: "npm:^4.0.14"
     zod: "npm:^4.1.13"
   bin:
-    transloadify: ./bin/cmd.ts
+    transloadify: ./dist/cli.js
   languageName: unknown
   linkType: soft
 
