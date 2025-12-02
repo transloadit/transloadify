@@ -26,16 +26,15 @@
   "author": "Adrian Sinclair <adrian@transloadit.com>",
   "license": "MIT",
   "type": "module",
-  "main": "./dist/src/index.js",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./dist/src/index.js",
+    ".": "./dist/index.js",
     "./package.json": "./package.json"
   },
-  "bin": "./dist/bin/cmd.js",
+  "bin": "./dist/cli.js",
   "files": [
     "dist",
     "src",
-    "bin",
     "_transloadify"
   ],
   "dependencies": {

@@ -1,5 +1,5 @@
 {
-  "include": ["src", "bin"],
+  "include": ["src"],
   "exclude": ["test", "coverage", "dist"],
   "compilerOptions": {
     "composite": true,
@@ -14,7 +14,7 @@
     "rewriteRelativeImportExtensions": true,
     "outDir": "dist",
     "resolveJsonModule": true,
-    "rootDir": ".",
+    "rootDir": "src",
     "sourceMap": true,
     "strict": true
   }
