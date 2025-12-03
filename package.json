@@ -1,6 +1,6 @@
 {
   "name": "transloadify",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI client for transloadit",
   "packageManager": "yarn@3.6.0+sha224.19e47520fa56c6146388fdeb438d9dcf6630c3f277a2e1180995c3bb",
   "engines": {
