@@ -1,5 +1,16 @@
 # Transloadify
 
+> **⚠️ DEPRECATED**: This package has been merged into the official [`transloadit`](https://www.npmjs.com/package/transloadit) npm package. Please use `transloadit` instead, which now includes the CLI.
+>
+> ```bash
+> npm install -g transloadit
+> npx transloadit --help
+> ```
+>
+> See the [transloadit package documentation](https://github.com/transloadit/node-sdk#command-line-interface-cli) for CLI usage.
+
+---
+
 <!--more-->
 
 Transloadify is a command line interface for [Transloadit](https://transloadit.com)'s file uploading and encoding service.

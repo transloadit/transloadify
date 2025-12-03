@@ -16,7 +16,7 @@
     "lint:js": "eslint src test",
     "lint": "npm-run-all --parallel lint:*",
     "mocha": "NODE_ENV=test mocha --compilers js:babel-register --reporter spec test/",
-    "postinstall": "install-completion bash _transloadify",
+    "postinstall": "node scripts/postinstall.js || true",
     "prepublish": "npm run build",
     "prestart": "npm run build",
     "release:major": "env SEMANTIC=major npm run release",
@@ -33,6 +33,7 @@
   "files": [
     "lib",
     "bin",
+    "scripts",
     "_transloadify"
   ],
   "dependencies": {
