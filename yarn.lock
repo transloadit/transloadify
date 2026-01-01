@@ -4634,9 +4634,9 @@ __metadata:
   linkType: hard
 
 "qs@npm:~6.3.0":
-  version: 6.3.0
-  resolution: "qs@npm:6.3.0"
-  checksum: bcda5806aca4fc78de99ced8d0e709cea15242702d7c0842b3a3fccaef25662fe0b1f007526493e259ddf2c9fc1adde0ca9ca1b7eb216b8c884225c4174e7f6c
+  version: 6.3.3
+  resolution: "qs@npm:6.3.3"
+  checksum: e7d2f02d3d4a441b870e5da065e391c1ab9df98835e35a84a3c36206589bd8a39c041b165e3b542af68678248b2bf6f5dca283cad4312bcfa4435e1de3c55be6
   languageName: node
   linkType: hard
 
